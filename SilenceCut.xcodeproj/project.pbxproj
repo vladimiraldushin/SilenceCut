@@ -1,0 +1,484 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0DCED72503185CC6D40B715F /* CompositionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B393CEBEB6454425D206940 /* CompositionBuilder.swift */; };
+		55BE036D670233285CDC9B46 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BABFCA147DD5F237B860EE /* Project.swift */; };
+		71C1E71BF7439C2D2F39320D /* EditTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */; };
+		874A388710C74F7F573F41E4 /* TimelineClipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867B6544F63DCE6289770469 /* TimelineClipTests.swift */; };
+		9A8E6CF7CDC5EA62FDE6170E /* Placeholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02D55DEB53589949EE37FB23 /* Placeholder.swift */; };
+		9F8DFF24E11C5723FDD37DCA /* Placeholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612B71D525770357999E16D1 /* Placeholder.swift */; };
+		AE7DFC30F78FBAF03429A4F6 /* EditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */; };
+		CD5EC822C617DEFBF1E34D90 /* SilenceCutApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */; };
+		DF92861A042ECD893111C682 /* PreviewPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */; };
+		ED25F68D61D075F25A6E0301 /* MainEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC4FE533556380FCB651AF5A /* MainEditorView.swift */; };
+		F016EAA2B06AA4803594C0FD /* TimelineClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = D22634EE80EF00F6A0200C90 /* TimelineClip.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		33FEE72736A0747AF35C4C18 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DAD8BBD38BC9E2F2A5CC04DC;
+			remoteInfo = SilenceCut;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		02D55DEB53589949EE37FB23 /* Placeholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Placeholder.swift; sourceTree = "<group>"; };
+		0B393CEBEB6454425D206940 /* CompositionBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionBuilder.swift; sourceTree = "<group>"; };
+		134FE371429BBCD27437CB9A /* SilenceCut.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SilenceCut.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		16BABFCA147DD5F237B860EE /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
+		38CA7B494AAEC4EDEAF341A7 /* SilenceCutTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SilenceCutTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceCutApp.swift; sourceTree = "<group>"; };
+		612B71D525770357999E16D1 /* Placeholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Placeholder.swift; sourceTree = "<group>"; };
+		867B6544F63DCE6289770469 /* TimelineClipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineClipTests.swift; sourceTree = "<group>"; };
+		A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPlayerView.swift; sourceTree = "<group>"; };
+		C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorViewModel.swift; sourceTree = "<group>"; };
+		CC4FE533556380FCB651AF5A /* MainEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainEditorView.swift; sourceTree = "<group>"; };
+		D22634EE80EF00F6A0200C90 /* TimelineClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineClip.swift; sourceTree = "<group>"; };
+		FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTimeline.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0D6E644A6E9CA3C33602D8E0 /* REAudioAnalysis */ = {
+			isa = PBXGroup;
+			children = (
+				02D55DEB53589949EE37FB23 /* Placeholder.swift */,
+			);
+			path = REAudioAnalysis;
+			sourceTree = "<group>";
+		};
+		12C4C2088143F0B14CAF9140 = {
+			isa = PBXGroup;
+			children = (
+				55F5A240E59C2C8306ADE25A /* Sources */,
+				5167B27BB7EEAF647DC2E000 /* Tests */,
+				4E2BF2D5086838381E9DC5BB /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		28E764E9168FE9BE5794DD31 /* RECoreTests */ = {
+			isa = PBXGroup;
+			children = (
+				867B6544F63DCE6289770469 /* TimelineClipTests.swift */,
+			);
+			path = RECoreTests;
+			sourceTree = "<group>";
+		};
+		2AECFADAEBED0E68B9E69EEC /* SilenceCutApp */ = {
+			isa = PBXGroup;
+			children = (
+				3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */,
+			);
+			path = SilenceCutApp;
+			sourceTree = "<group>";
+		};
+		37EA378C04492851090424D0 /* REExport */ = {
+			isa = PBXGroup;
+			children = (
+				612B71D525770357999E16D1 /* Placeholder.swift */,
+			);
+			path = REExport;
+			sourceTree = "<group>";
+		};
+		4E2BF2D5086838381E9DC5BB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				134FE371429BBCD27437CB9A /* SilenceCut.app */,
+				38CA7B494AAEC4EDEAF341A7 /* SilenceCutTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5167B27BB7EEAF647DC2E000 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				28E764E9168FE9BE5794DD31 /* RECoreTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		55F5A240E59C2C8306ADE25A /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				0D6E644A6E9CA3C33602D8E0 /* REAudioAnalysis */,
+				75E77C6E78459C3C9BCC697A /* RECore */,
+				37EA378C04492851090424D0 /* REExport */,
+				BE16DB4C255DC945ED90E9F7 /* RETimeline */,
+				BCB340EC20BE359DCC285B50 /* REUI */,
+				2AECFADAEBED0E68B9E69EEC /* SilenceCutApp */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		75E77C6E78459C3C9BCC697A /* RECore */ = {
+			isa = PBXGroup;
+			children = (
+				FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */,
+				16BABFCA147DD5F237B860EE /* Project.swift */,
+				D22634EE80EF00F6A0200C90 /* TimelineClip.swift */,
+			);
+			path = RECore;
+			sourceTree = "<group>";
+		};
+		BCB340EC20BE359DCC285B50 /* REUI */ = {
+			isa = PBXGroup;
+			children = (
+				C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */,
+				CC4FE533556380FCB651AF5A /* MainEditorView.swift */,
+				A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */,
+			);
+			path = REUI;
+			sourceTree = "<group>";
+		};
+		BE16DB4C255DC945ED90E9F7 /* RETimeline */ = {
+			isa = PBXGroup;
+			children = (
+				0B393CEBEB6454425D206940 /* CompositionBuilder.swift */,
+			);
+			path = RETimeline;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D0EE1F916DCFCF0BB46DF771 /* SilenceCutTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BFF0D5F74B6EC1F6A43C16BB /* Build configuration list for PBXNativeTarget "SilenceCutTests" */;
+			buildPhases = (
+				643BF5E8B24666C60A71F1EE /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8474E677F1382872593E9308 /* PBXTargetDependency */,
+			);
+			name = SilenceCutTests;
+			packageProductDependencies = (
+			);
+			productName = SilenceCutTests;
+			productReference = 38CA7B494AAEC4EDEAF341A7 /* SilenceCutTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		DAD8BBD38BC9E2F2A5CC04DC /* SilenceCut */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9D7B4E982D3A20FE6BE5696F /* Build configuration list for PBXNativeTarget "SilenceCut" */;
+			buildPhases = (
+				E69CDBCCC478F344E86DAA1F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SilenceCut;
+			packageProductDependencies = (
+			);
+			productName = SilenceCut;
+			productReference = 134FE371429BBCD27437CB9A /* SilenceCut.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F54EBB103CBDAE8984DB4051 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					DAD8BBD38BC9E2F2A5CC04DC = {
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 3A9AB0C86E1CC17F63BC22EE /* Build configuration list for PBXProject "SilenceCut" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 12C4C2088143F0B14CAF9140;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DAD8BBD38BC9E2F2A5CC04DC /* SilenceCut */,
+				D0EE1F916DCFCF0BB46DF771 /* SilenceCutTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		643BF5E8B24666C60A71F1EE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				874A388710C74F7F573F41E4 /* TimelineClipTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E69CDBCCC478F344E86DAA1F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0DCED72503185CC6D40B715F /* CompositionBuilder.swift in Sources */,
+				71C1E71BF7439C2D2F39320D /* EditTimeline.swift in Sources */,
+				AE7DFC30F78FBAF03429A4F6 /* EditorViewModel.swift in Sources */,
+				ED25F68D61D075F25A6E0301 /* MainEditorView.swift in Sources */,
+				9F8DFF24E11C5723FDD37DCA /* Placeholder.swift in Sources */,
+				9A8E6CF7CDC5EA62FDE6170E /* Placeholder.swift in Sources */,
+				DF92861A042ECD893111C682 /* PreviewPlayerView.swift in Sources */,
+				55BE036D670233285CDC9B46 /* Project.swift in Sources */,
+				CD5EC822C617DEFBF1E34D90 /* SilenceCutApp.swift in Sources */,
+				F016EAA2B06AA4803594C0FD /* TimelineClip.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		8474E677F1382872593E9308 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DAD8BBD38BC9E2F2A5CC04DC /* SilenceCut */;
+			targetProxy = 33FEE72736A0747AF35C4C18 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1BA27415DEDDCD68B5598A9A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SilenceCut;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.SilenceCut;
+				PRODUCT_NAME = SilenceCut;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		526F633E466FE08D8382C0E6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+		6A6C5DBC3C5110FBE152C1CC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.SilenceCutTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SilenceCut.app/Contents/MacOS/SilenceCut";
+			};
+			name = Debug;
+		};
+		B226298CCC6DB3CB8BF327E8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SilenceCut;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.SilenceCut;
+				PRODUCT_NAME = SilenceCut;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		C45635491C09463254D85282 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+		D7DA5C273E74D61BEAD15E6A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.SilenceCutTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SilenceCut.app/Contents/MacOS/SilenceCut";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3A9AB0C86E1CC17F63BC22EE /* Build configuration list for PBXProject "SilenceCut" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				526F633E466FE08D8382C0E6 /* Debug */,
+				C45635491C09463254D85282 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9D7B4E982D3A20FE6BE5696F /* Build configuration list for PBXNativeTarget "SilenceCut" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B226298CCC6DB3CB8BF327E8 /* Debug */,
+				1BA27415DEDDCD68B5598A9A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BFF0D5F74B6EC1F6A43C16BB /* Build configuration list for PBXNativeTarget "SilenceCutTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6A6C5DBC3C5110FBE152C1CC /* Debug */,
+				D7DA5C273E74D61BEAD15E6A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F54EBB103CBDAE8984DB4051 /* Project object */;
+}
