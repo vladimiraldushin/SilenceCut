@@ -15,46 +15,95 @@ export function VideoPreview() {
     }
   }, []);
 
-  // SILENCE SKIP via timeupdate (fires ~4x/sec natively, reliable)
-  const handleTimeUpdate = useCallback(() => {
+  const skipDataRef = useRef<{ ends: number[]; starts: number[] }>({ ends: [], starts: [] });
+  const rafRef = useRef<number>(0);
+
+  // Build skip map when fragments change
+  const buildSkipMap = useCallback(() => {
+    const included = useEditorStore.getState().fragments.filter(f => f.isIncluded);
+    const ends: number[] = [];
+    const starts: number[] = [];
+    for (let i = 0; i < included.length - 1; i++) {
+      ends.push(included[i].sourceStartTime + included[i].sourceDuration);
+      starts.push(included[i + 1].sourceStartTime);
+    }
+    skipDataRef.current = { ends, starts };
+  }, []);
+
+  // Playback monitor — runs via RAF for smooth skip detection
+  const playbackMonitor = useCallback(() => {
     const video = videoRef.current;
     if (!video || video.paused) return;
 
-    const sourceTime = video.currentTime;
-    const fragments = useEditorStore.getState().fragments;
-    const included = fragments.filter(f => f.isIncluded);
+    const t = video.currentTime;
+    const included = useEditorStore.getState().fragments.filter(f => f.isIncluded);
 
     if (included.length === 0) {
-      setPlayheadPosition(sourceTime);
+      setPlayheadPosition(t);
+      rafRef.current = requestAnimationFrame(playbackMonitor);
       return;
     }
 
-    // Find current included fragment
-    const current = included.find(
-      f => sourceTime >= f.sourceStartTime && sourceTime < f.sourceStartTime + f.sourceDuration
-    );
-
-    if (current) {
-      // In speech — update playhead
-      let editTime = 0;
-      for (const f of included) {
-        if (f.id === current.id) {
-          editTime += sourceTime - f.sourceStartTime;
-          break;
+    // Check if approaching end of current fragment — pre-seek 100ms early
+    const { ends, starts } = skipDataRef.current;
+    for (let i = 0; i < ends.length; i++) {
+      const distToEnd = ends[i] - t;
+      if (distToEnd > 0 && distToEnd < 0.15) {
+        // About to hit silence — skip NOW using fastSeek
+        if (video.fastSeek) {
+          video.fastSeek(starts[i]);
+        } else {
+          video.currentTime = starts[i];
         }
-        editTime += f.sourceDuration;
+        break;
       }
-      setPlayheadPosition(editTime);
-    } else {
-      // In silence — skip to next speech
-      const next = included.find(f => f.sourceStartTime > sourceTime);
+    }
+
+    // Check if already in silence (missed pre-seek)
+    const inIncluded = included.some(
+      f => t >= f.sourceStartTime && t < f.sourceStartTime + f.sourceDuration
+    );
+    if (!inIncluded) {
+      const next = included.find(f => f.sourceStartTime > t);
       if (next) {
-        video.currentTime = next.sourceStartTime;
+        if (video.fastSeek) video.fastSeek(next.sourceStartTime);
+        else video.currentTime = next.sourceStartTime;
       } else {
         video.pause();
         setIsPlaying(false);
         setPlayheadPosition(included.reduce((s, f) => s + f.sourceDuration, 0));
+        return;
       }
+    }
+
+    // Update playhead (throttled — only every 3rd frame)
+    if (Math.random() < 0.33) {
+      let editTime = 0;
+      for (const f of included) {
+        const end = f.sourceStartTime + f.sourceDuration;
+        if (t >= f.sourceStartTime && t < end) {
+          editTime += t - f.sourceStartTime;
+          break;
+        } else if (t >= end) {
+          editTime += f.sourceDuration;
+        }
+      }
+      setPlayheadPosition(editTime);
+    }
+
+    rafRef.current = requestAnimationFrame(playbackMonitor);
+  }, [setPlayheadPosition]);
+
+  // timeupdate as backup (less frequent, for when RAF stops)
+  const handleTimeUpdate = useCallback(() => {
+    // Only used for basic position update, skip logic is in RAF
+    const video = videoRef.current;
+    if (!video || video.paused) return;
+    // Trigger redraw of playhead in timeline
+    const t = video.currentTime;
+    const included = useEditorStore.getState().fragments.filter(f => f.isIncluded);
+    if (included.length === 0) {
+      setPlayheadPosition(t);
     }
   }, [setPlayheadPosition]);
 
@@ -63,10 +112,10 @@ export function VideoPreview() {
     if (!video) return;
 
     if (video.paused) {
-      const fragments = useEditorStore.getState().fragments;
-      const included = fragments.filter(f => f.isIncluded);
+      const included = useEditorStore.getState().fragments.filter(f => f.isIncluded);
 
       if (included.length > 0) {
+        // Seek to correct source position
         const editTime = useEditorStore.getState().playheadPosition;
         let remaining = editTime;
         for (const f of included) {
@@ -76,20 +125,31 @@ export function VideoPreview() {
           }
           remaining -= f.sourceDuration;
         }
+        // Build skip map for fast lookups
+        buildSkipMap();
       }
 
       video.play();
       setIsPlaying(true);
+      // Start RAF monitor for smooth silence skipping
+      rafRef.current = requestAnimationFrame(playbackMonitor);
     } else {
       video.pause();
       setIsPlaying(false);
+      cancelAnimationFrame(rafRef.current);
     }
-  }, []);
+  }, [playbackMonitor, buildSkipMap]);
 
   const handleEnded = useCallback(() => {
     setIsPlaying(false);
+    cancelAnimationFrame(rafRef.current);
     setPlayheadPosition(0);
   }, [setPlayheadPosition]);
+
+  // Cleanup RAF on unmount
+  useEffect(() => {
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
 
   // Keyboard: Space = play/pause, Cmd+Z = undo
   useEffect(() => {
