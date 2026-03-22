@@ -1,13 +1,12 @@
 'use client';
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { useEditorStore } from '@/lib/store';
 
 export function VideoPreview() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { videoUrl, fragments, playheadPosition, setPlayheadPosition, sourceDuration } = useEditorStore();
-  const isPlayingRef = useRef(false);
-  const animFrameRef = useRef<number>(0);
+  const { videoUrl, setPlayheadPosition } = useEditorStore();
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Set source duration when video metadata loads
   const handleLoadedMetadata = useCallback(() => {
@@ -16,48 +15,47 @@ export function VideoPreview() {
     }
   }, []);
 
-  // Update playhead from video time during playback
-  const updatePlayhead = useCallback(() => {
-    if (!videoRef.current || !isPlayingRef.current) return;
-
+  // SILENCE SKIP via timeupdate (fires ~4x/sec natively, reliable)
+  const handleTimeUpdate = useCallback(() => {
     const video = videoRef.current;
+    if (!video || video.paused) return;
+
     const sourceTime = video.currentTime;
-    const included = useEditorStore.getState().fragments.filter(f => f.isIncluded);
+    const fragments = useEditorStore.getState().fragments;
+    const included = fragments.filter(f => f.isIncluded);
 
     if (included.length === 0) {
       setPlayheadPosition(sourceTime);
-    } else {
-      // Check if we're in an excluded region
-      const inIncluded = included.some(
-        f => sourceTime >= f.sourceStartTime && sourceTime < f.sourceStartTime + f.sourceDuration
-      );
-
-      if (!inIncluded) {
-        // Skip to next included fragment
-        const next = included.find(f => f.sourceStartTime > sourceTime);
-        if (next) {
-          video.currentTime = next.sourceStartTime;
-        } else {
-          video.pause();
-          isPlayingRef.current = false;
-          return;
-        }
-      }
-
-      // Convert source time to edit time
-      let editTime = 0;
-      for (const f of included) {
-        if (sourceTime >= f.sourceStartTime && sourceTime < f.sourceStartTime + f.sourceDuration) {
-          editTime += sourceTime - f.sourceStartTime;
-          break;
-        } else if (sourceTime >= f.sourceStartTime + f.sourceDuration) {
-          editTime += f.sourceDuration;
-        }
-      }
-      setPlayheadPosition(editTime);
+      return;
     }
 
-    animFrameRef.current = requestAnimationFrame(updatePlayhead);
+    // Find current included fragment
+    const current = included.find(
+      f => sourceTime >= f.sourceStartTime && sourceTime < f.sourceStartTime + f.sourceDuration
+    );
+
+    if (current) {
+      // In speech — update playhead
+      let editTime = 0;
+      for (const f of included) {
+        if (f.id === current.id) {
+          editTime += sourceTime - f.sourceStartTime;
+          break;
+        }
+        editTime += f.sourceDuration;
+      }
+      setPlayheadPosition(editTime);
+    } else {
+      // In silence — skip to next speech
+      const next = included.find(f => f.sourceStartTime > sourceTime);
+      if (next) {
+        video.currentTime = next.sourceStartTime;
+      } else {
+        video.pause();
+        setIsPlaying(false);
+        setPlayheadPosition(included.reduce((s, f) => s + f.sourceDuration, 0));
+      }
+    }
   }, [setPlayheadPosition]);
 
   const togglePlay = useCallback(() => {
@@ -65,8 +63,9 @@ export function VideoPreview() {
     if (!video) return;
 
     if (video.paused) {
-      // Seek to correct source position before playing
-      const included = useEditorStore.getState().fragments.filter(f => f.isIncluded);
+      const fragments = useEditorStore.getState().fragments;
+      const included = fragments.filter(f => f.isIncluded);
+
       if (included.length > 0) {
         const editTime = useEditorStore.getState().playheadPosition;
         let remaining = editTime;
@@ -78,24 +77,31 @@ export function VideoPreview() {
           remaining -= f.sourceDuration;
         }
       }
+
       video.play();
-      isPlayingRef.current = true;
-      animFrameRef.current = requestAnimationFrame(updatePlayhead);
+      setIsPlaying(true);
     } else {
       video.pause();
-      isPlayingRef.current = false;
-      cancelAnimationFrame(animFrameRef.current);
+      setIsPlaying(false);
     }
-  }, [updatePlayhead]);
+  }, []);
 
-  // Keyboard shortcut: Space to play/pause
+  const handleEnded = useCallback(() => {
+    setIsPlaying(false);
+    setPlayheadPosition(0);
+  }, [setPlayheadPosition]);
+
+  // Keyboard: Space = play/pause, Cmd+Z = undo
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.target?.toString().includes('Input')) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.code === 'Space') {
         e.preventDefault();
         togglePlay();
       }
-      if (e.metaKey && e.key === 'z') {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
         e.preventDefault();
         if (e.shiftKey) useEditorStore.getState().redo();
         else useEditorStore.getState().undo();
@@ -105,24 +111,22 @@ export function VideoPreview() {
     return () => window.removeEventListener('keydown', handler);
   }, [togglePlay]);
 
-  // Cleanup
-  useEffect(() => {
-    return () => cancelAnimationFrame(animFrameRef.current);
-  }, []);
-
   if (!videoUrl) return null;
 
   return (
-    <div className="flex flex-col items-center gap-2 w-full h-full">
+    <div className="flex flex-col items-center gap-3 w-full h-full p-2">
       <video
         ref={videoRef}
         src={videoUrl}
         onLoadedMetadata={handleLoadedMetadata}
-        className="max-h-full max-w-full rounded-lg"
-        style={{ aspectRatio: '9/16', maxHeight: '100%' }}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={handleEnded}
+        className="max-h-full max-w-full rounded-lg bg-black"
+        style={{ maxHeight: 'calc(100% - 50px)' }}
+        playsInline
       />
-      <button onClick={togglePlay} className="btn px-6">
-        ▶ Play / Pause
+      <button onClick={togglePlay} className="btn px-8 py-2 text-base">
+        {isPlaying ? '⏸ Pause' : '▶ Play'}
       </button>
     </div>
   );

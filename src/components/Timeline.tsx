@@ -115,20 +115,9 @@ export function Timeline() {
     ctx.stroke();
   }, [fragments, included, playheadPosition, pixelsPerSecond, selectedFragmentId, waveformData, sourceDuration, displayDuration, layouts]);
 
-  // Redraw on state changes
+  // Redraw ONLY when state changes — no RAF loop
   useEffect(() => {
     draw();
-  }, [draw]);
-
-  // Also redraw on animation frame for smooth playhead
-  useEffect(() => {
-    let raf: number;
-    const tick = () => {
-      draw();
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
   }, [draw]);
 
   // Click to seek
