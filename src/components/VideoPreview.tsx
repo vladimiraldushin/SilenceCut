@@ -3,120 +3,90 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useEditorStore } from '@/lib/store';
 
+const FAST_RATE = 16; // speed during silence (16x = 1 sec silence plays in 62ms)
+
 /**
- * Two playback modes:
- * 1. Edit mode: <video> + silence-skip (some stutter, instant response)
- * 2. Preview mode: plays FFmpeg-generated file (smooth, requires build)
- *
- * User edits freely, clicks "Build Preview" when ready to watch smooth.
+ * Continuous playback — video element NEVER seeks.
+ * Speech: play at 1x, audio ON.
+ * Silence: play at 16x, audio OFF (flies through in milliseconds).
+ * Zero seeks = zero stutter.
  */
 export function VideoPreview() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { videoUrl, file, setPlayheadPosition, fragments } = useEditorStore();
+  const { videoUrl, setPlayheadPosition, fragments } = useEditorStore();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [building, setBuilding] = useState(false);
+  const rafRef = useRef<number>(0);
 
   const included = fragments.filter(f => f.isIncluded);
-  const hasEdits = fragments.some(f => f.type === 'silence' && !f.isIncluded);
-
-  // Invalidate preview when fragments change
-  useEffect(() => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fragments]);
+  const excluded = fragments.filter(f => !f.isIncluded);
 
   // Set source duration
   const handleLoadedMetadata = useCallback(() => {
-    if (videoRef.current && !previewUrl) {
+    if (videoRef.current) {
       useEditorStore.setState({ sourceDuration: videoRef.current.duration });
     }
-  }, [previewUrl]);
+  }, []);
 
-  // Silence skip (edit mode only — when no preview)
-  const handleTimeUpdate = useCallback(() => {
+  // Playback monitor: adjust speed + mute based on current position
+  const monitor = useCallback(() => {
     const video = videoRef.current;
     if (!video || video.paused) return;
 
-    if (previewUrl) {
-      // Preview mode — just update playhead linearly
-      setPlayheadPosition(video.currentTime);
-      return;
-    }
-
     const t = video.currentTime;
-    if (included.length === 0) {
-      setPlayheadPosition(t);
-      return;
-    }
 
-    const current = included.find(
+    // Check if we're in a silence region
+    const inSilence = excluded.some(
       f => t >= f.sourceStartTime && t < f.sourceStartTime + f.sourceDuration
     );
 
-    if (current) {
-      let editTime = 0;
-      for (const f of included) {
-        if (f.id === current.id) {
-          editTime += t - f.sourceStartTime;
-          break;
-        }
-        editTime += f.sourceDuration;
+    if (inSilence) {
+      // SILENCE: speed up, mute
+      if (video.playbackRate !== FAST_RATE) {
+        video.playbackRate = FAST_RATE;
+        video.muted = true;
       }
-      setPlayheadPosition(editTime);
     } else {
-      const next = included.find(f => f.sourceStartTime > t);
-      if (next) {
-        video.currentTime = next.sourceStartTime;
+      // SPEECH: normal speed, unmute
+      if (video.playbackRate !== 1) {
+        video.playbackRate = 1;
+        video.muted = false;
+      }
+
+      // Update playhead (edit time = only speech time elapsed)
+      if (included.length > 0) {
+        let editTime = 0;
+        for (const f of included) {
+          const end = f.sourceStartTime + f.sourceDuration;
+          if (t >= f.sourceStartTime && t < end) {
+            editTime += t - f.sourceStartTime;
+            break;
+          } else if (t >= end) {
+            editTime += f.sourceDuration;
+          }
+        }
+        setPlayheadPosition(editTime);
       } else {
+        setPlayheadPosition(t);
+      }
+    }
+
+    // Check if past all content
+    const lastIncluded = included[included.length - 1];
+    if (lastIncluded && t >= lastIncluded.sourceStartTime + lastIncluded.sourceDuration + 0.1) {
+      // Check if there's more content after
+      const hasMoreSpeech = included.some(f => f.sourceStartTime > t);
+      if (!hasMoreSpeech) {
         video.pause();
+        video.playbackRate = 1;
+        video.muted = false;
         setIsPlaying(false);
         setPlayheadPosition(included.reduce((s, f) => s + f.sourceDuration, 0));
+        return;
       }
     }
-  }, [included, previewUrl, setPlayheadPosition]);
 
-  // Build Preview via FFmpeg
-  const buildPreview = useCallback(async () => {
-    if (!file || included.length === 0) return;
-    setBuilding(true);
-
-    try {
-      const formData = new FormData();
-      formData.append('video', file);
-      formData.append('fragments', JSON.stringify(fragments));
-
-      const res = await fetch('/api/export', { method: 'POST', body: formData });
-      if (!res.ok) throw new Error('Failed');
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
-
-      // Switch video to preview
-      if (videoRef.current) {
-        videoRef.current.src = url;
-        videoRef.current.load();
-      }
-    } catch (e) {
-      console.error('[Preview] Build failed:', e);
-    }
-
-    setBuilding(false);
-  }, [file, fragments, included]);
-
-  // Switch back to original
-  const clearPreview = useCallback(() => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null);
-    if (videoRef.current && videoUrl) {
-      videoRef.current.src = videoUrl;
-      videoRef.current.load();
-    }
-  }, [previewUrl, videoUrl]);
+    rafRef.current = requestAnimationFrame(monitor);
+  }, [included, excluded, setPlayheadPosition]);
 
   // Toggle play/pause
   const togglePlay = useCallback(() => {
@@ -124,7 +94,8 @@ export function VideoPreview() {
     if (!video) return;
 
     if (video.paused) {
-      if (!previewUrl && included.length > 0) {
+      if (included.length > 0) {
+        // Seek to correct source position (only on initial play)
         const editTime = useEditorStore.getState().playheadPosition;
         let remaining = editTime;
         for (const f of included) {
@@ -135,18 +106,35 @@ export function VideoPreview() {
           remaining -= f.sourceDuration;
         }
       }
+      video.playbackRate = 1;
+      video.muted = false;
       video.play();
       setIsPlaying(true);
+      rafRef.current = requestAnimationFrame(monitor);
     } else {
       video.pause();
+      video.playbackRate = 1;
+      video.muted = false;
       setIsPlaying(false);
+      cancelAnimationFrame(rafRef.current);
     }
-  }, [included, previewUrl]);
+  }, [included, monitor]);
 
   const handleEnded = useCallback(() => {
+    const video = videoRef.current;
+    if (video) {
+      video.playbackRate = 1;
+      video.muted = false;
+    }
     setIsPlaying(false);
+    cancelAnimationFrame(rafRef.current);
     setPlayheadPosition(0);
   }, [setPlayheadPosition]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -164,46 +152,22 @@ export function VideoPreview() {
     return () => window.removeEventListener('keydown', handler);
   }, [togglePlay]);
 
-  // Cleanup
-  useEffect(() => {
-    return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); };
-  }, [previewUrl]);
-
   if (!videoUrl) return null;
 
   return (
     <div className="flex flex-col items-center gap-3 w-full h-full p-2">
       <video
         ref={videoRef}
-        src={previewUrl || videoUrl}
+        src={videoUrl}
         onLoadedMetadata={handleLoadedMetadata}
-        onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         className="max-h-full max-w-full rounded-lg bg-black"
-        style={{ maxHeight: 'calc(100% - 60px)' }}
+        style={{ maxHeight: 'calc(100% - 50px)' }}
         playsInline
       />
-
-      <div className="flex items-center gap-2 flex-wrap justify-center">
-        <button onClick={togglePlay} className="btn px-6 py-2">
-          {isPlaying ? '⏸ Pause' : '▶ Play'}
-        </button>
-
-        {hasEdits && !previewUrl && (
-          <button onClick={buildPreview} disabled={building} className="btn btn-primary px-4 py-2">
-            {building ? '⏳ Building...' : '🎬 Build Preview'}
-          </button>
-        )}
-
-        {previewUrl && (
-          <>
-            <span className="text-xs text-green-400">✓ Smooth preview</span>
-            <button onClick={clearPreview} className="btn px-3 py-1 text-xs">
-              Back to edit
-            </button>
-          </>
-        )}
-      </div>
+      <button onClick={togglePlay} className="btn px-8 py-2 text-base">
+        {isPlaying ? '⏸ Pause' : '▶ Play'}
+      </button>
     </div>
   );
 }
