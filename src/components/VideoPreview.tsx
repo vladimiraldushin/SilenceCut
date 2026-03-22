@@ -2,102 +2,146 @@
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useEditorStore } from '@/lib/store';
-import { WebCodecsPlayer } from '@/lib/webcodecs-player';
 
 /**
- * WebCodecs-based preview: demux → decode → canvas.
- * No <video> element seeking. Frames decoded directly, silence skipped at frame level.
- * Falls back to <video> element if WebCodecs not supported.
+ * Video preview with silence-skipping playback.
+ * Uses native <video> element + onTimeUpdate for silence skip.
+ * After "Remove All Silence", auto-generates preview via FFmpeg for smooth playback.
  */
 export function VideoPreview() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const playerRef = useRef<WebCodecsPlayer | null>(null);
   const { videoUrl, file, setPlayheadPosition, fragments } = useEditorStore();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [useWebCodecs, setUseWebCodecs] = useState(true);
-  const [status, setStatus] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  // Check WebCodecs support
-  useEffect(() => {
-    if (typeof VideoDecoder === 'undefined') {
-      setUseWebCodecs(false);
-      console.log('[Preview] WebCodecs not supported, using <video> fallback');
+  // Determine if we should show preview version
+  const hasRemovedSilence = fragments.some(f => f.type === 'silence' && !f.isIncluded);
+  const included = fragments.filter(f => f.isIncluded);
+
+  // Set source duration
+  const handleLoadedMetadata = useCallback(() => {
+    if (videoRef.current && !previewUrl) {
+      useEditorStore.setState({ sourceDuration: videoRef.current.duration });
     }
-  }, []);
+  }, [previewUrl]);
 
-  // Initialize WebCodecs player when file changes
-  useEffect(() => {
-    if (!file || !canvasRef.current || !useWebCodecs) return;
+  // Silence skip during playback (only when playing original, not preview)
+  const handleTimeUpdate = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || video.paused || previewUrl) return;
 
-    const canvas = canvasRef.current;
-    setStatus('Loading...');
+    const t = video.currentTime;
+    if (included.length === 0) {
+      setPlayheadPosition(t);
+      return;
+    }
 
-    const player = new WebCodecsPlayer({
-      canvas,
-      file,
-      onDuration: (d) => {
-        useEditorStore.setState({ sourceDuration: d });
-        setStatus('');
-      },
-      onTimeUpdate: (t) => {
-        setPlayheadPosition(t);
-      },
-      onEnded: () => {
-        setIsPlaying(false);
-        setPlayheadPosition(0);
-      },
-    });
+    const current = included.find(
+      f => t >= f.sourceStartTime && t < f.sourceStartTime + f.sourceDuration
+    );
 
-    playerRef.current = player;
-    player.init().catch((e) => {
-      console.error('[Preview] WebCodecs init failed:', e);
-      setUseWebCodecs(false);
-      setStatus('WebCodecs failed, using fallback');
-    });
-
-    return () => {
-      player.destroy();
-      playerRef.current = null;
-    };
-  }, [file, useWebCodecs, setPlayheadPosition]);
-
-  // Update player fragments when they change
-  useEffect(() => {
-    playerRef.current?.setFragments(fragments);
-  }, [fragments]);
-
-  // Toggle play/pause
-  const togglePlay = useCallback(() => {
-    const player = playerRef.current;
-
-    if (useWebCodecs && player) {
-      if (player.isPlaying()) {
-        player.pause();
-        setIsPlaying(false);
-      } else {
-        const editTime = useEditorStore.getState().playheadPosition;
-        player.play(editTime);
-        setIsPlaying(true);
+    if (current) {
+      let editTime = 0;
+      for (const f of included) {
+        if (f.id === current.id) {
+          editTime += t - f.sourceStartTime;
+          break;
+        }
+        editTime += f.sourceDuration;
       }
+      setPlayheadPosition(editTime);
     } else {
-      // Fallback: <video> element
-      const video = videoRef.current;
-      if (!video) return;
-      if (video.paused) {
-        video.play();
-        setIsPlaying(true);
+      const next = included.find(f => f.sourceStartTime > t);
+      if (next) {
+        video.currentTime = next.sourceStartTime;
       } else {
         video.pause();
         setIsPlaying(false);
+        setPlayheadPosition(included.reduce((s, f) => s + f.sourceDuration, 0));
       }
     }
-  }, [useWebCodecs]);
+  }, [included, previewUrl, setPlayheadPosition]);
 
-  // Click on canvas to seek (when paused)
-  const handleCanvasClick = useCallback(() => {
-    // Don't seek on click — use timeline for seeking
-  }, []);
+  // Preview playback: update playhead linearly
+  const handlePreviewTimeUpdate = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || video.paused || !previewUrl) return;
+    setPlayheadPosition(video.currentTime);
+  }, [previewUrl, setPlayheadPosition]);
+
+  // Auto-generate preview when silence is removed
+  useEffect(() => {
+    if (!hasRemovedSilence || !file || included.length === 0) {
+      // Clear preview if silence restored
+      if (previewUrl && !hasRemovedSilence) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
+      return;
+    }
+
+    // Generate preview via FFmpeg
+    let cancelled = false;
+    setIsGenerating(true);
+
+    (async () => {
+      try {
+        const formData = new FormData();
+        formData.append('video', file);
+        formData.append('fragments', JSON.stringify(fragments));
+
+        const res = await fetch('/api/export', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error('Export failed');
+
+        const blob = await res.blob();
+        if (cancelled) return;
+
+        const url = URL.createObjectURL(blob);
+        setPreviewUrl(url);
+        console.log('[Preview] Generated smooth preview');
+      } catch (e) {
+        console.error('[Preview] Auto-preview failed:', e);
+        // Fallback: continue with skip-based playback
+      }
+      if (!cancelled) setIsGenerating(false);
+    })();
+
+    return () => { cancelled = true; };
+  // Only regenerate when fragments actually change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasRemovedSilence, file, JSON.stringify(included.map(f => f.id))]);
+
+  // Toggle play/pause
+  const togglePlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      if (!previewUrl && included.length > 0) {
+        // Playing original with silence skip — seek to correct position
+        const editTime = useEditorStore.getState().playheadPosition;
+        let remaining = editTime;
+        for (const f of included) {
+          if (remaining <= f.sourceDuration + 0.01) {
+            video.currentTime = f.sourceStartTime + remaining;
+            break;
+          }
+          remaining -= f.sourceDuration;
+        }
+      }
+      video.play();
+      setIsPlaying(true);
+    } else {
+      video.pause();
+      setIsPlaying(false);
+    }
+  }, [included, previewUrl]);
+
+  const handleEnded = useCallback(() => {
+    setIsPlaying(false);
+    setPlayheadPosition(0);
+  }, [setPlayheadPosition]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -115,40 +159,41 @@ export function VideoPreview() {
     return () => window.removeEventListener('keydown', handler);
   }, [togglePlay]);
 
-  // Fallback: <video> metadata
-  const handleLoadedMetadata = useCallback(() => {
-    if (videoRef.current && !useWebCodecs) {
-      useEditorStore.setState({ sourceDuration: videoRef.current.duration });
-    }
-  }, [useWebCodecs]);
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   if (!videoUrl) return null;
 
+  const displayUrl = previewUrl || videoUrl;
+
   return (
     <div className="flex flex-col items-center gap-3 w-full h-full p-2">
-      {useWebCodecs ? (
-        <canvas
-          ref={canvasRef}
-          onClick={handleCanvasClick}
-          className="max-h-full max-w-full rounded-lg bg-black"
-          style={{ maxHeight: 'calc(100% - 50px)', objectFit: 'contain' }}
-        />
-      ) : (
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          onLoadedMetadata={handleLoadedMetadata}
-          className="max-h-full max-w-full rounded-lg bg-black"
-          style={{ maxHeight: 'calc(100% - 50px)' }}
-          playsInline
-        />
-      )}
+      <video
+        ref={videoRef}
+        src={displayUrl}
+        onLoadedMetadata={handleLoadedMetadata}
+        onTimeUpdate={previewUrl ? handlePreviewTimeUpdate : handleTimeUpdate}
+        onEnded={handleEnded}
+        className="max-h-full max-w-full rounded-lg bg-black"
+        style={{ maxHeight: 'calc(100% - 50px)' }}
+        playsInline
+      />
 
-      {status && <span className="text-xs text-zinc-400">{status}</span>}
-
-      <button onClick={togglePlay} className="btn px-8 py-2 text-base">
-        {isPlaying ? '⏸ Pause' : '▶ Play'}
-      </button>
+      <div className="flex items-center gap-3">
+        <button onClick={togglePlay} className="btn px-8 py-2 text-base">
+          {isPlaying ? '⏸ Pause' : '▶ Play'}
+        </button>
+        {isGenerating && (
+          <span className="text-xs text-blue-400 animate-pulse">Generating preview...</span>
+        )}
+        {previewUrl && !isGenerating && (
+          <span className="text-xs text-green-400">Smooth preview</span>
+        )}
+      </div>
     </div>
   );
 }
