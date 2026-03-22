@@ -72,6 +72,10 @@ public class EditorViewModel {
         do {
             let result = try await CompositionBuilder.build(from: timeline)
             let playerItem = AVPlayerItem(asset: result.composition)
+            // Apply video composition for correct orientation (iPhone portrait)
+            if let videoComp = result.videoComposition {
+                playerItem.videoComposition = videoComp
+            }
             player = AVPlayer(playerItem: playerItem)
 
             // Clamp currentTime to new duration

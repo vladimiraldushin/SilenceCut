@@ -26,7 +26,6 @@ public struct MainEditorView: View {
                     // Video Preview
                     VStack {
                         PreviewPlayerView(player: viewModel.player)
-                            .aspectRatio(9.0/16.0, contentMode: .fit)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                             .padding(8)
 
