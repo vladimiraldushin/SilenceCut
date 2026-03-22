@@ -2,198 +2,101 @@
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useEditorStore } from '@/lib/store';
+import { WebCodecsPlayer } from '@/lib/webcodecs-player';
 
 /**
- * Canvas Bridge approach: two hidden <video> elements render to one visible <canvas>.
- * While video A plays, video B pre-seeks to next fragment.
- * Canvas draws from active video — swap is invisible to user.
- * Uses requestVideoFrameCallback for frame-accurate rendering.
+ * WebCodecs-based preview: demux → decode → canvas.
+ * No <video> element seeking. Frames decoded directly, silence skipped at frame level.
+ * Falls back to <video> element if WebCodecs not supported.
  */
 export function VideoPreview() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const videoARef = useRef<HTMLVideoElement>(null);
-  const videoBRef = useRef<HTMLVideoElement>(null);
-  const { videoUrl, setPlayheadPosition } = useEditorStore();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playerRef = useRef<WebCodecsPlayer | null>(null);
+  const { videoUrl, file, setPlayheadPosition, fragments } = useEditorStore();
   const [isPlaying, setIsPlaying] = useState(false);
+  const [useWebCodecs, setUseWebCodecs] = useState(true);
+  const [status, setStatus] = useState('');
 
-  // Playback state refs (avoid stale closures)
-  const activeRef = useRef<'A' | 'B'>('A');
-  const fragIndexRef = useRef(0);
-  const includedRef = useRef<ReturnType<typeof useEditorStore.getState>['fragments']>([]);
-  const rafRef = useRef<number>(0);
-
-  const getVideo = (which: 'A' | 'B') => which === 'A' ? videoARef.current : videoBRef.current;
-
-  // Set source duration
+  // Check WebCodecs support
   useEffect(() => {
-    const v = videoARef.current;
-    if (!v) return;
-    const handler = () => useEditorStore.setState({ sourceDuration: v.duration });
-    v.addEventListener('loadedmetadata', handler);
-    return () => v.removeEventListener('loadedmetadata', handler);
-  }, [videoUrl]);
+    if (typeof VideoDecoder === 'undefined') {
+      setUseWebCodecs(false);
+      console.log('[Preview] WebCodecs not supported, using <video> fallback');
+    }
+  }, []);
 
-  // Draw active video frame to canvas
-  const drawFrame = useCallback(() => {
+  // Initialize WebCodecs player when file changes
+  useEffect(() => {
+    if (!file || !canvasRef.current || !useWebCodecs) return;
+
     const canvas = canvasRef.current;
-    const video = getVideo(activeRef.current);
-    if (!canvas || !video || video.videoWidth === 0) return;
+    setStatus('Loading...');
 
-    // Resize canvas to match video
-    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-    }
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) ctx.drawImage(video, 0, 0);
-  }, []);
-
-  // Pre-seek the inactive video to the next fragment
-  const prebufferNext = useCallback(() => {
-    const nextIdx = fragIndexRef.current + 1;
-    const included = includedRef.current;
-    if (nextIdx >= included.length) return;
-
-    const inactiveKey = activeRef.current === 'A' ? 'B' : 'A';
-    const inactive = getVideo(inactiveKey);
-    if (!inactive) return;
-
-    const next = included[nextIdx];
-    inactive.currentTime = next.sourceStartTime;
-  }, []);
-
-  // Main render loop
-  const renderLoop = useCallback(() => {
-    const video = getVideo(activeRef.current);
-    if (!video || video.paused) return;
-
-    const t = video.currentTime;
-    const included = includedRef.current;
-    const fragIdx = fragIndexRef.current;
-    const frag = included[fragIdx];
-
-    if (!frag) {
-      video.pause();
-      setIsPlaying(false);
-      setPlayheadPosition(included.reduce((s, f) => s + f.sourceDuration, 0));
-      return;
-    }
-
-    const fragEnd = frag.sourceStartTime + frag.sourceDuration;
-
-    // Check if we've reached end of current fragment
-    if (t >= fragEnd - 0.03) {
-      const nextIdx = fragIdx + 1;
-      if (nextIdx < included.length) {
-        // SWAP: pause current, play next
-        video.pause();
-
-        const nextKey = activeRef.current === 'A' ? 'B' : 'A';
-        const nextVideo = getVideo(nextKey);
-
-        if (nextVideo) {
-          // Ensure next video is at correct position
-          const next = included[nextIdx];
-          if (Math.abs(nextVideo.currentTime - next.sourceStartTime) > 0.5) {
-            nextVideo.currentTime = next.sourceStartTime;
-          }
-
-          nextVideo.play();
-          activeRef.current = nextKey;
-          fragIndexRef.current = nextIdx;
-
-          // Pre-seek the now-inactive video to next-next fragment
-          setTimeout(prebufferNext, 50);
-        }
-      } else {
-        // End of all fragments
-        video.pause();
+    const player = new WebCodecsPlayer({
+      canvas,
+      file,
+      onDuration: (d) => {
+        useEditorStore.setState({ sourceDuration: d });
+        setStatus('');
+      },
+      onTimeUpdate: (t) => {
+        setPlayheadPosition(t);
+      },
+      onEnded: () => {
         setIsPlaying(false);
-        setPlayheadPosition(included.reduce((s, f) => s + f.sourceDuration, 0));
-        return;
-      }
-    }
+        setPlayheadPosition(0);
+      },
+    });
 
-    // Draw current frame to canvas
-    drawFrame();
+    playerRef.current = player;
+    player.init().catch((e) => {
+      console.error('[Preview] WebCodecs init failed:', e);
+      setUseWebCodecs(false);
+      setStatus('WebCodecs failed, using fallback');
+    });
 
-    // Update playhead (edit time)
-    let editTime = 0;
-    for (let i = 0; i < fragIndexRef.current && i < included.length; i++) {
-      editTime += included[i].sourceDuration;
-    }
-    const curFrag = included[fragIndexRef.current];
-    if (curFrag) {
-      const curVideo = getVideo(activeRef.current);
-      if (curVideo) {
-        editTime += Math.max(0, curVideo.currentTime - curFrag.sourceStartTime);
-      }
-    }
-    setPlayheadPosition(editTime);
+    return () => {
+      player.destroy();
+      playerRef.current = null;
+    };
+  }, [file, useWebCodecs, setPlayheadPosition]);
 
-    rafRef.current = requestAnimationFrame(renderLoop);
-  }, [drawFrame, prebufferNext, setPlayheadPosition]);
+  // Update player fragments when they change
+  useEffect(() => {
+    playerRef.current?.setFragments(fragments);
+  }, [fragments]);
 
   // Toggle play/pause
   const togglePlay = useCallback(() => {
-    const included = useEditorStore.getState().fragments.filter(f => f.isIncluded);
-    includedRef.current = included;
+    const player = playerRef.current;
 
-    if (isPlaying) {
-      // Pause
-      const video = getVideo(activeRef.current);
-      video?.pause();
-      setIsPlaying(false);
-      cancelAnimationFrame(rafRef.current);
-      return;
-    }
-
-    // Play
-    const video = getVideo(activeRef.current);
-    if (!video) return;
-
-    if (included.length > 0) {
-      // Find which fragment to start from
-      const editTime = useEditorStore.getState().playheadPosition;
-      let remaining = editTime;
-      let fragIdx = 0;
-      for (let i = 0; i < included.length; i++) {
-        if (remaining <= included[i].sourceDuration + 0.01) {
-          fragIdx = i;
-          video.currentTime = included[i].sourceStartTime + remaining;
-          break;
-        }
-        remaining -= included[i].sourceDuration;
+    if (useWebCodecs && player) {
+      if (player.isPlaying()) {
+        player.pause();
+        setIsPlaying(false);
+      } else {
+        const editTime = useEditorStore.getState().playheadPosition;
+        player.play(editTime);
+        setIsPlaying(true);
       }
-      fragIndexRef.current = fragIdx;
-      activeRef.current = 'A';
-
-      // Pre-buffer next fragment on video B
-      prebufferNext();
+    } else {
+      // Fallback: <video> element
+      const video = videoRef.current;
+      if (!video) return;
+      if (video.paused) {
+        video.play();
+        setIsPlaying(true);
+      } else {
+        video.pause();
+        setIsPlaying(false);
+      }
     }
+  }, [useWebCodecs]);
 
-    video.play();
-    setIsPlaying(true);
-    rafRef.current = requestAnimationFrame(renderLoop);
-  }, [isPlaying, renderLoop, prebufferNext]);
-
-  // Draw initial frame when video loads or when paused and seeking
-  useEffect(() => {
-    const v = videoARef.current;
-    if (!v) return;
-    const handler = () => drawFrame();
-    v.addEventListener('seeked', handler);
-    v.addEventListener('loadeddata', handler);
-    return () => {
-      v.removeEventListener('seeked', handler);
-      v.removeEventListener('loadeddata', handler);
-    };
-  }, [drawFrame, videoUrl]);
-
-  // Cleanup
-  useEffect(() => {
-    return () => cancelAnimationFrame(rafRef.current);
+  // Click on canvas to seek (when paused)
+  const handleCanvasClick = useCallback(() => {
+    // Don't seek on click — use timeline for seeking
   }, []);
 
   // Keyboard shortcuts
@@ -212,24 +115,36 @@ export function VideoPreview() {
     return () => window.removeEventListener('keydown', handler);
   }, [togglePlay]);
 
+  // Fallback: <video> metadata
+  const handleLoadedMetadata = useCallback(() => {
+    if (videoRef.current && !useWebCodecs) {
+      useEditorStore.setState({ sourceDuration: videoRef.current.duration });
+    }
+  }, [useWebCodecs]);
+
   if (!videoUrl) return null;
 
   return (
     <div className="flex flex-col items-center gap-3 w-full h-full p-2">
-      {/* Visible canvas — user sees only this */}
-      <canvas
-        ref={canvasRef}
-        className="max-h-full max-w-full rounded-lg bg-black"
-        style={{ maxHeight: 'calc(100% - 50px)', objectFit: 'contain' }}
-      />
+      {useWebCodecs ? (
+        <canvas
+          ref={canvasRef}
+          onClick={handleCanvasClick}
+          className="max-h-full max-w-full rounded-lg bg-black"
+          style={{ maxHeight: 'calc(100% - 50px)', objectFit: 'contain' }}
+        />
+      ) : (
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          onLoadedMetadata={handleLoadedMetadata}
+          className="max-h-full max-w-full rounded-lg bg-black"
+          style={{ maxHeight: 'calc(100% - 50px)' }}
+          playsInline
+        />
+      )}
 
-      {/* Hidden video A */}
-      <video ref={videoARef} src={videoUrl} preload="auto" playsInline muted={false}
-        style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
-
-      {/* Hidden video B */}
-      <video ref={videoBRef} src={videoUrl} preload="auto" playsInline muted
-        style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
+      {status && <span className="text-xs text-zinc-400">{status}</span>}
 
       <button onClick={togglePlay} className="btn px-8 py-2 text-base">
         {isPlaying ? '⏸ Pause' : '▶ Play'}
