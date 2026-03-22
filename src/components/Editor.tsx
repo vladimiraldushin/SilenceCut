@@ -14,6 +14,7 @@ export function Editor() {
   const store = useEditorStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDetecting, setIsDetecting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
 
@@ -55,6 +56,43 @@ export function Editor() {
     setIsDetecting(false);
   }, [store]);
 
+  const handleExport = useCallback(async () => {
+    if (!store.file || store.fragments.length === 0) return;
+    setIsExporting(true);
+    setStatus('Uploading video for export...');
+
+    try {
+      const formData = new FormData();
+      formData.append('video', store.file);
+      formData.append('fragments', JSON.stringify(store.fragments));
+
+      const response = await fetch('/api/export', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Export failed');
+      }
+
+      setStatus('Downloading...');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = store.file.name.replace(/\.[^.]+$/, '') + '_edited.mp4';
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setStatus('Export complete!');
+    } catch (err) {
+      setStatus(`Export error: ${err instanceof Error ? err.message : 'Unknown'}`);
+    }
+
+    setIsExporting(false);
+  }, [store]);
+
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
   return (
@@ -90,8 +128,12 @@ export function Editor() {
           </div>
         )}
 
-        <button className="btn" disabled={store.fragments.length === 0}>
-          Export
+        <button
+          onClick={handleExport}
+          disabled={store.fragments.length === 0 || isExporting}
+          className="btn btn-primary"
+        >
+          {isExporting ? 'Exporting...' : 'Export'}
         </button>
       </div>
 
