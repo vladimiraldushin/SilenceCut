@@ -2,6 +2,7 @@ import SwiftUI
 import AVFoundation
 import RECore
 import RETimeline
+import REAudioAnalysis
 
 /// Main editor view model — owns the timeline, player, and coordinates changes.
 @Observable
@@ -12,17 +13,22 @@ public class EditorViewModel {
     public var playheadPosition: CMTime = .zero
     public var isPlaying = false
     public var statusMessage = ""
+    public var pixelsPerSecond: Double = 100
+    public var selectedClipId: UUID?
+    public var waveformData: WaveformData?
 
     private var timeObserver: Any?
+
+    // Smooth scrubbing state
+    private var isSeekInProgress = false
+    private var chaseTime: CMTime = .zero
 
     public init() {}
 
     // MARK: - File Import
 
     public func importVideo(url: URL) {
-        // Start security-scoped access
         _ = url.startAccessingSecurityScopedResource()
-
         project.sourceURL = url
         project.name = url.deletingPathExtension().lastPathComponent
 
@@ -32,30 +38,31 @@ public class EditorViewModel {
                 let duration = try await asset.load(.duration)
                 let availableRange = CMTimeRange(start: .zero, duration: duration)
 
-                // Create single clip spanning the entire video
                 let clip = TimelineClip(
                     sourceURL: url,
                     availableRange: availableRange,
                     sourceRange: availableRange
                 )
                 timeline = EditTimeline(clips: [clip])
-
                 statusMessage = "Loaded: \(url.lastPathComponent)"
                 await rebuildPreview()
+
+                // Generate waveform
+                waveformData = try await WaveformGenerator.generate(from: url)
             } catch {
                 statusMessage = "Error: \(error.localizedDescription)"
             }
         }
     }
 
-    // MARK: - Preview Rebuild
+    // MARK: - Preview Rebuild (debounced)
 
-    /// Rebuild AVPlayer from scratch — the key pattern from the research
+    private var rebuildTask: Task<Void, Never>?
+
     @MainActor
     public func rebuildPreview() async {
         let currentTime = player?.currentTime() ?? .zero
 
-        // Full dealloc to reset internal state
         removeTimeObserver()
         player?.pause()
         player = nil
@@ -67,12 +74,25 @@ public class EditorViewModel {
             let playerItem = AVPlayerItem(asset: result.composition)
             player = AVPlayer(playerItem: playerItem)
 
-            // Restore playback position
-            await player?.seek(to: currentTime, toleranceBefore: .zero, toleranceAfter: .zero)
+            // Clamp currentTime to new duration
+            let maxTime = timeline.duration
+            let seekTime = CMTimeCompare(currentTime, maxTime) > 0 ? maxTime : currentTime
+            await player?.seek(to: seekTime, toleranceBefore: .zero, toleranceAfter: .zero)
+            playheadPosition = seekTime
 
             setupTimeObserver()
         } catch {
             statusMessage = "Preview error: \(error.localizedDescription)"
+        }
+    }
+
+    /// Debounced rebuild (for trim gestures — 100ms delay)
+    public func debouncedRebuild() {
+        rebuildTask?.cancel()
+        rebuildTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
+            guard !Task.isCancelled else { return }
+            await rebuildPreview()
         }
     }
 
@@ -88,9 +108,28 @@ public class EditorViewModel {
         isPlaying.toggle()
     }
 
-    public func seek(to time: CMTime) {
+    // MARK: - Smooth Scrubbing (chase-seek pattern)
+
+    public func seekSmoothly(to time: CMTime) {
         playheadPosition = time
-        player?.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
+        chaseTime = time
+        if !isSeekInProgress {
+            trySeekToChaseTime()
+        }
+    }
+
+    private func trySeekToChaseTime() {
+        guard let player else { return }
+        isSeekInProgress = true
+        let target = chaseTime
+        player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+            guard let self else { return }
+            if self.chaseTime != target {
+                self.trySeekToChaseTime()
+            } else {
+                self.isSeekInProgress = false
+            }
+        }
     }
 
     // MARK: - Timeline Operations
@@ -103,12 +142,33 @@ public class EditorViewModel {
 
     public func deleteClip(id: UUID) {
         timeline.deleteClip(id: id)
+        if selectedClipId == id { selectedClipId = nil }
         Task { @MainActor in await rebuildPreview() }
+    }
+
+    public func deleteSelectedClip() {
+        guard let id = selectedClipId else { return }
+        deleteClip(id: id)
     }
 
     public func toggleClip(id: UUID) {
         timeline.toggleClip(id: id)
         Task { @MainActor in await rebuildPreview() }
+    }
+
+    public func trimClip(id: UUID, newSourceRange: CMTimeRange) {
+        timeline.trimClip(id: id, newSourceRange: newSourceRange)
+        debouncedRebuild()
+    }
+
+    // MARK: - Zoom
+
+    public func zoomIn() {
+        pixelsPerSecond = min(500, pixelsPerSecond * 1.25)
+    }
+
+    public func zoomOut() {
+        pixelsPerSecond = max(20, pixelsPerSecond * 0.8)
     }
 
     // MARK: - Time Observer

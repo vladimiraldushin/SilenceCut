@@ -1,7 +1,6 @@
 import SwiftUI
 import AVFoundation
-import RECore
-import RETimeline
+import AVKit
 
 /// AVPlayerLayer wrapped in NSViewRepresentable.
 /// Player is RECREATED entirely on each timeline change (not replaceCurrentItem).

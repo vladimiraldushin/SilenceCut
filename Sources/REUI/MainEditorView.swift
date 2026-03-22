@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import CoreMedia
 import RECore
 
 /// Main editor window — split view with preview, inspector, and timeline placeholder
@@ -31,7 +32,7 @@ public struct MainEditorView: View {
 
                         // Transport controls
                         HStack(spacing: 16) {
-                            Button { viewModel.seek(to: .zero) } label: {
+                            Button { viewModel.seekSmoothly(to: .zero) } label: {
                                 Image(systemName: "backward.end.fill")
                             }
                             Button { viewModel.togglePlayback() } label: {
@@ -56,9 +57,9 @@ public struct MainEditorView: View {
 
                 Divider()
 
-                // Timeline placeholder
-                timelinePlaceholder
-                    .frame(height: 120)
+                // Timeline
+                timelineView
+                    .frame(height: 130)
             } else {
                 dropZone
             }
@@ -67,6 +68,15 @@ public struct MainEditorView: View {
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             handleDrop(providers)
         }
+        .onKeyPress(.space) {
+            viewModel.togglePlayback()
+            return .handled
+        }
+        .onKeyPress(.delete) {
+            viewModel.deleteSelectedClip()
+            return .handled
+        }
+        .focusable()
     }
 
     // MARK: - Toolbar
@@ -166,13 +176,38 @@ public struct MainEditorView: View {
         .background(RoundedRectangle(cornerRadius: 6).fill(.background))
     }
 
-    // MARK: - Timeline Placeholder
+    // MARK: - Timeline
 
-    private var timelinePlaceholder: some View {
-        ZStack {
-            Color(nsColor: .controlBackgroundColor)
-            Text("Timeline — Sprint 2")
-                .foregroundStyle(.tertiary)
+    private var timelineView: some View {
+        VStack(spacing: 0) {
+            // Transport bar
+            HStack(spacing: 8) {
+                Text(formatTime(viewModel.playheadPosition))
+                    .font(.system(.caption, design: .monospaced))
+                Text("/ \(formatTime(viewModel.timeline.duration))")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button { viewModel.zoomOut() } label: { Image(systemName: "minus.magnifyingglass") }
+                    .buttonStyle(.plain).font(.caption)
+                Text("\(Int(viewModel.pixelsPerSecond))px/s")
+                    .font(.caption2).foregroundStyle(.tertiary)
+                Button { viewModel.zoomIn() } label: { Image(systemName: "plus.magnifyingglass") }
+                    .buttonStyle(.plain).font(.caption)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(.bar)
+
+            // Timeline canvas
+            TimelineViewWrapper(
+                clips: viewModel.timeline.clips,
+                playheadPosition: viewModel.playheadPosition,
+                pixelsPerSecond: viewModel.pixelsPerSecond,
+                onSeek: { time in viewModel.seekSmoothly(to: time) },
+                onTrimClip: { id, range in viewModel.trimClip(id: id, newSourceRange: range) },
+                onSelectClip: { id in viewModel.selectedClipId = id }
+            )
         }
     }
 

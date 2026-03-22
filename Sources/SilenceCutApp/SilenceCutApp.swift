@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import REUI
 
 @main

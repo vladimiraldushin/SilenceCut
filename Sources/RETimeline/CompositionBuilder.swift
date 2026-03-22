@@ -32,16 +32,14 @@ public enum CompositionBuilder {
             let asset = AVURLAsset(url: clip.sourceURL)
 
             // Insert video
-            if let srcVideo = try await asset.loadTracks(withMediaType: .video).first {
+            let videoTracks = try await asset.loadTracks(withMediaType: AVMediaType.video)
+            if let srcVideo = videoTracks.first {
                 try videoTrack.insertTimeRange(clip.sourceRange, of: srcVideo, at: insertionTime)
-
-                // Preserve video orientation
-                let transform = try await srcVideo.load(.preferredTransform)
-                videoTrack.preferredTransform = transform
             }
 
             // Insert audio
-            if let srcAudio = try await asset.loadTracks(withMediaType: .audio).first,
+            let audioTracks = try await asset.loadTracks(withMediaType: AVMediaType.audio)
+            if let srcAudio = audioTracks.first,
                let dstAudio = audioTrack {
                 try dstAudio.insertTimeRange(clip.sourceRange, of: srcAudio, at: insertionTime)
             }

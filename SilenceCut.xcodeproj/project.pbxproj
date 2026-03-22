@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0DCED72503185CC6D40B715F /* CompositionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B393CEBEB6454425D206940 /* CompositionBuilder.swift */; };
+		1C4F94E96D1A5B4821F8D363 /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E137873BB74A6C52AB2EC48F /* TimelineView.swift */; };
 		55BE036D670233285CDC9B46 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BABFCA147DD5F237B860EE /* Project.swift */; };
 		71C1E71BF7439C2D2F39320D /* EditTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */; };
 		874A388710C74F7F573F41E4 /* TimelineClipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867B6544F63DCE6289770469 /* TimelineClipTests.swift */; };
@@ -43,6 +44,7 @@
 		C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorViewModel.swift; sourceTree = "<group>"; };
 		CC4FE533556380FCB651AF5A /* MainEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainEditorView.swift; sourceTree = "<group>"; };
 		D22634EE80EF00F6A0200C90 /* TimelineClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineClip.swift; sourceTree = "<group>"; };
+		E137873BB74A6C52AB2EC48F /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineView.swift; sourceTree = "<group>"; };
 		FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTimeline.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -134,6 +136,7 @@
 				C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */,
 				CC4FE533556380FCB651AF5A /* MainEditorView.swift */,
 				A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */,
+				E137873BB74A6C52AB2EC48F /* TimelineView.swift */,
 			);
 			path = REUI;
 			sourceTree = "<group>";
@@ -241,6 +244,7 @@
 				F054A258CE61F2B0450E81BB /* REExport.swift in Sources */,
 				CD5EC822C617DEFBF1E34D90 /* SilenceCutApp.swift in Sources */,
 				F016EAA2B06AA4803594C0FD /* TimelineClip.swift in Sources */,
+				1C4F94E96D1A5B4821F8D363 /* TimelineView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
