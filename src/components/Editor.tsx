@@ -18,22 +18,42 @@ export function Editor() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      store.setFile(file);
-      setStatus(`Loaded: ${file.name}`);
+  const loadAndTranscode = useCallback(async (file: File) => {
+    store.setFile(file);
+    setStatus(`Transcoding ${file.name} to H.264...`);
+
+    try {
+      // Upload and transcode to H.264 with frequent keyframes
+      const formData = new FormData();
+      formData.append('video', file);
+      const res = await fetch('/api/transcode', { method: 'POST', body: formData });
+
+      if (res.ok) {
+        const blob = await res.blob();
+        const transcodedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.mp4'), { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+        // Update store with transcoded version (H.264, frequent keyframes)
+        useEditorStore.setState({ file: transcodedFile, videoUrl: url });
+        setStatus(`Ready: ${file.name} (H.264, fast seek)`);
+      } else {
+        // Fallback: use original file
+        setStatus(`Loaded: ${file.name} (original format)`);
+      }
+    } catch {
+      setStatus(`Loaded: ${file.name} (original format)`);
     }
   }, [store]);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) loadAndTranscode(file);
+  }, [loadAndTranscode]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('video/')) {
-      store.setFile(file);
-      setStatus(`Loaded: ${file.name}`);
-    }
-  }, [store]);
+    if (file && file.type.startsWith('video/')) loadAndTranscode(file);
+  }, [loadAndTranscode]);
 
   const handleDetect = useCallback(async () => {
     if (!store.file) return;
