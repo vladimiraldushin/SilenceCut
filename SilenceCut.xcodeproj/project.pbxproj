@@ -11,13 +11,13 @@
 		55BE036D670233285CDC9B46 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BABFCA147DD5F237B860EE /* Project.swift */; };
 		71C1E71BF7439C2D2F39320D /* EditTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */; };
 		874A388710C74F7F573F41E4 /* TimelineClipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867B6544F63DCE6289770469 /* TimelineClipTests.swift */; };
-		9A8E6CF7CDC5EA62FDE6170E /* Placeholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02D55DEB53589949EE37FB23 /* Placeholder.swift */; };
-		9F8DFF24E11C5723FDD37DCA /* Placeholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612B71D525770357999E16D1 /* Placeholder.swift */; };
 		AE7DFC30F78FBAF03429A4F6 /* EditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */; };
 		CD5EC822C617DEFBF1E34D90 /* SilenceCutApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */; };
+		D4AF565A5E73C03D3AFD3C6A /* REAudioAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */; };
 		DF92861A042ECD893111C682 /* PreviewPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */; };
 		ED25F68D61D075F25A6E0301 /* MainEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC4FE533556380FCB651AF5A /* MainEditorView.swift */; };
 		F016EAA2B06AA4803594C0FD /* TimelineClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = D22634EE80EF00F6A0200C90 /* TimelineClip.swift */; };
+		F054A258CE61F2B0450E81BB /* REExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30B341310F52289E17CF1B20 /* REExport.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,13 +31,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		02D55DEB53589949EE37FB23 /* Placeholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Placeholder.swift; sourceTree = "<group>"; };
 		0B393CEBEB6454425D206940 /* CompositionBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionBuilder.swift; sourceTree = "<group>"; };
+		127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = REAudioAnalysis.swift; sourceTree = "<group>"; };
 		134FE371429BBCD27437CB9A /* SilenceCut.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SilenceCut.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		16BABFCA147DD5F237B860EE /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
+		30B341310F52289E17CF1B20 /* REExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = REExport.swift; sourceTree = "<group>"; };
 		38CA7B494AAEC4EDEAF341A7 /* SilenceCutTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SilenceCutTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceCutApp.swift; sourceTree = "<group>"; };
-		612B71D525770357999E16D1 /* Placeholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Placeholder.swift; sourceTree = "<group>"; };
 		867B6544F63DCE6289770469 /* TimelineClipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineClipTests.swift; sourceTree = "<group>"; };
 		A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPlayerView.swift; sourceTree = "<group>"; };
 		C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorViewModel.swift; sourceTree = "<group>"; };
@@ -50,7 +50,7 @@
 		0D6E644A6E9CA3C33602D8E0 /* REAudioAnalysis */ = {
 			isa = PBXGroup;
 			children = (
-				02D55DEB53589949EE37FB23 /* Placeholder.swift */,
+				127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */,
 			);
 			path = REAudioAnalysis;
 			sourceTree = "<group>";
@@ -83,7 +83,7 @@
 		37EA378C04492851090424D0 /* REExport */ = {
 			isa = PBXGroup;
 			children = (
-				612B71D525770357999E16D1 /* Placeholder.swift */,
+				30B341310F52289E17CF1B20 /* REExport.swift */,
 			);
 			path = REExport;
 			sourceTree = "<group>";
@@ -235,10 +235,10 @@
 				71C1E71BF7439C2D2F39320D /* EditTimeline.swift in Sources */,
 				AE7DFC30F78FBAF03429A4F6 /* EditorViewModel.swift in Sources */,
 				ED25F68D61D075F25A6E0301 /* MainEditorView.swift in Sources */,
-				9F8DFF24E11C5723FDD37DCA /* Placeholder.swift in Sources */,
-				9A8E6CF7CDC5EA62FDE6170E /* Placeholder.swift in Sources */,
 				DF92861A042ECD893111C682 /* PreviewPlayerView.swift in Sources */,
 				55BE036D670233285CDC9B46 /* Project.swift in Sources */,
+				D4AF565A5E73C03D3AFD3C6A /* REAudioAnalysis.swift in Sources */,
+				F054A258CE61F2B0450E81BB /* REExport.swift in Sources */,
 				CD5EC822C617DEFBF1E34D90 /* SilenceCutApp.swift in Sources */,
 				F016EAA2B06AA4803594C0FD /* TimelineClip.swift in Sources */,
 			);
