@@ -3,164 +3,163 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useEditorStore } from '@/lib/store';
 
+/**
+ * Dual-video preview: two <video> elements swap at fragment transitions.
+ * While video A plays current fragment, video B pre-seeks to next fragment.
+ * At transition: swap (B becomes visible, A pre-seeks to next-next).
+ * Result: zero stutter between fragments.
+ */
 export function VideoPreview() {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoARef = useRef<HTMLVideoElement>(null);
+  const videoBRef = useRef<HTMLVideoElement>(null);
   const { videoUrl, setPlayheadPosition } = useEditorStore();
   const [isPlaying, setIsPlaying] = useState(false);
-
-  // Set source duration when video metadata loads
-  const handleLoadedMetadata = useCallback(() => {
-    if (videoRef.current) {
-      useEditorStore.setState({ sourceDuration: videoRef.current.duration });
-    }
-  }, []);
-
-  const skipDataRef = useRef<{ ends: number[]; starts: number[] }>({ ends: [], starts: [] });
+  const [activeVideo, setActiveVideo] = useState<'A' | 'B'>('A');
   const rafRef = useRef<number>(0);
+  const currentFragIndexRef = useRef(0);
 
-  // Build skip map when fragments change
-  const buildSkipMap = useCallback(() => {
-    const included = useEditorStore.getState().fragments.filter(f => f.isIncluded);
-    const ends: number[] = [];
-    const starts: number[] = [];
-    for (let i = 0; i < included.length - 1; i++) {
-      ends.push(included[i].sourceStartTime + included[i].sourceDuration);
-      starts.push(included[i + 1].sourceStartTime);
-    }
-    skipDataRef.current = { ends, starts };
+  const getActive = () => activeVideo === 'A' ? videoARef.current : videoBRef.current;
+  const getInactive = () => activeVideo === 'A' ? videoBRef.current : videoARef.current;
+
+  // Set source duration
+  const handleLoadedMetadata = useCallback(() => {
+    const v = videoARef.current;
+    if (v) useEditorStore.setState({ sourceDuration: v.duration });
   }, []);
 
-  // Playback monitor — runs via RAF for smooth skip detection
-  const playbackMonitor = useCallback(() => {
-    const video = videoRef.current;
-    if (!video || video.paused) return;
-
-    const t = video.currentTime;
+  // Pre-buffer the next fragment on the inactive video
+  const prebufferNext = useCallback((fragIndex: number) => {
     const included = useEditorStore.getState().fragments.filter(f => f.isIncluded);
+    const nextIdx = fragIndex + 1;
+    if (nextIdx >= included.length) return;
+
+    const inactive = getInactive();
+    if (!inactive) return;
+
+    const next = included[nextIdx];
+    inactive.currentTime = next.sourceStartTime;
+    // Browser will start buffering from this position
+  }, [activeVideo]);
+
+  // Playback monitor — check if we need to swap videos
+  const monitor = useCallback(() => {
+    const active = getActive();
+    if (!active || active.paused) return;
+
+    const t = active.currentTime;
+    const included = useEditorStore.getState().fragments.filter(f => f.isIncluded);
+    const fragIdx = currentFragIndexRef.current;
 
     if (included.length === 0) {
       setPlayheadPosition(t);
-      rafRef.current = requestAnimationFrame(playbackMonitor);
+      rafRef.current = requestAnimationFrame(monitor);
       return;
     }
 
-    // Check if approaching end of current fragment — pre-seek 100ms early
-    const { ends, starts } = skipDataRef.current;
-    for (let i = 0; i < ends.length; i++) {
-      const distToEnd = ends[i] - t;
-      if (distToEnd > 0 && distToEnd < 0.15) {
-        // About to hit silence — skip NOW using fastSeek
-        if (video.fastSeek) {
-          video.fastSeek(starts[i]);
-        } else {
-          video.currentTime = starts[i];
-        }
-        break;
-      }
+    const currentFrag = included[fragIdx];
+    if (!currentFrag) {
+      // Past all fragments — stop
+      active.pause();
+      setIsPlaying(false);
+      setPlayheadPosition(included.reduce((s, f) => s + f.sourceDuration, 0));
+      return;
     }
 
-    // Check if already in silence (missed pre-seek)
-    const inIncluded = included.some(
-      f => t >= f.sourceStartTime && t < f.sourceStartTime + f.sourceDuration
-    );
-    if (!inIncluded) {
-      const next = included.find(f => f.sourceStartTime > t);
-      if (next) {
-        if (video.fastSeek) video.fastSeek(next.sourceStartTime);
-        else video.currentTime = next.sourceStartTime;
+    const fragEnd = currentFrag.sourceStartTime + currentFrag.sourceDuration;
+
+    // Check if approaching end of current fragment
+    if (t >= fragEnd - 0.05) {
+      // SWAP to next fragment
+      const nextIdx = fragIdx + 1;
+      if (nextIdx < included.length) {
+        const inactive = getInactive();
+        if (inactive) {
+          // Start playing the pre-buffered inactive video
+          active.pause();
+          inactive.play();
+          currentFragIndexRef.current = nextIdx;
+          setActiveVideo(prev => prev === 'A' ? 'B' : 'A');
+
+          // Pre-buffer the NEXT-next fragment on the now-inactive video
+          setTimeout(() => prebufferNext(nextIdx), 100);
+        }
       } else {
-        video.pause();
+        // Last fragment — stop
+        active.pause();
         setIsPlaying(false);
         setPlayheadPosition(included.reduce((s, f) => s + f.sourceDuration, 0));
         return;
       }
     }
 
-    // Update playhead (throttled — only every 3rd frame)
-    if (Math.random() < 0.33) {
-      let editTime = 0;
-      for (const f of included) {
-        const end = f.sourceStartTime + f.sourceDuration;
-        if (t >= f.sourceStartTime && t < end) {
-          editTime += t - f.sourceStartTime;
-          break;
-        } else if (t >= end) {
-          editTime += f.sourceDuration;
-        }
-      }
-      setPlayheadPosition(editTime);
+    // Update playhead position (edit time)
+    let editTime = 0;
+    for (let i = 0; i < fragIdx; i++) {
+      editTime += included[i].sourceDuration;
     }
-
-    rafRef.current = requestAnimationFrame(playbackMonitor);
-  }, [setPlayheadPosition]);
-
-  // timeupdate as backup (less frequent, for when RAF stops)
-  const handleTimeUpdate = useCallback(() => {
-    // Only used for basic position update, skip logic is in RAF
-    const video = videoRef.current;
-    if (!video || video.paused) return;
-    // Trigger redraw of playhead in timeline
-    const t = video.currentTime;
-    const included = useEditorStore.getState().fragments.filter(f => f.isIncluded);
-    if (included.length === 0) {
-      setPlayheadPosition(t);
+    if (currentFrag) {
+      editTime += Math.max(0, t - currentFrag.sourceStartTime);
     }
-  }, [setPlayheadPosition]);
+    setPlayheadPosition(editTime);
 
+    rafRef.current = requestAnimationFrame(monitor);
+  }, [activeVideo, setPlayheadPosition, prebufferNext]);
+
+  // Toggle play/pause
   const togglePlay = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    const active = getActive();
+    if (!active) return;
 
-    if (video.paused) {
+    if (active.paused) {
       const included = useEditorStore.getState().fragments.filter(f => f.isIncluded);
 
       if (included.length > 0) {
-        // Seek to correct source position
+        // Find which fragment corresponds to current playhead
         const editTime = useEditorStore.getState().playheadPosition;
         let remaining = editTime;
-        for (const f of included) {
-          if (remaining <= f.sourceDuration) {
-            video.currentTime = f.sourceStartTime + remaining;
+        let fragIdx = 0;
+        for (let i = 0; i < included.length; i++) {
+          if (remaining <= included[i].sourceDuration) {
+            fragIdx = i;
+            active.currentTime = included[i].sourceStartTime + remaining;
             break;
           }
-          remaining -= f.sourceDuration;
+          remaining -= included[i].sourceDuration;
         }
-        // Build skip map for fast lookups
-        buildSkipMap();
+        currentFragIndexRef.current = fragIdx;
+
+        // Pre-buffer next fragment
+        prebufferNext(fragIdx);
       }
 
-      video.play();
+      active.play();
       setIsPlaying(true);
-      // Start RAF monitor for smooth silence skipping
-      rafRef.current = requestAnimationFrame(playbackMonitor);
+      rafRef.current = requestAnimationFrame(monitor);
     } else {
-      video.pause();
+      active.pause();
       setIsPlaying(false);
       cancelAnimationFrame(rafRef.current);
     }
-  }, [playbackMonitor, buildSkipMap]);
+  }, [monitor, prebufferNext, activeVideo]);
 
+  // Handle video end
   const handleEnded = useCallback(() => {
     setIsPlaying(false);
     cancelAnimationFrame(rafRef.current);
     setPlayheadPosition(0);
   }, [setPlayheadPosition]);
 
-  // Cleanup RAF on unmount
+  // Cleanup
   useEffect(() => {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  // Keyboard: Space = play/pause, Cmd+Z = undo
+  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-
-      if (e.code === 'Space') {
-        e.preventDefault();
-        togglePlay();
-      }
+      if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
         e.preventDefault();
         if (e.shiftKey) useEditorStore.getState().redo();
@@ -175,16 +174,37 @@ export function VideoPreview() {
 
   return (
     <div className="flex flex-col items-center gap-3 w-full h-full p-2">
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        onLoadedMetadata={handleLoadedMetadata}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleEnded}
-        className="max-h-full max-w-full rounded-lg bg-black"
-        style={{ maxHeight: 'calc(100% - 50px)' }}
-        playsInline
-      />
+      <div className="relative max-h-full max-w-full" style={{ maxHeight: 'calc(100% - 50px)' }}>
+        {/* Video A */}
+        <video
+          ref={videoARef}
+          src={videoUrl}
+          onLoadedMetadata={handleLoadedMetadata}
+          onEnded={handleEnded}
+          className="rounded-lg bg-black"
+          style={{
+            maxHeight: '100%',
+            maxWidth: '100%',
+            display: activeVideo === 'A' ? 'block' : 'none',
+          }}
+          playsInline
+          preload="auto"
+        />
+        {/* Video B */}
+        <video
+          ref={videoBRef}
+          src={videoUrl}
+          onEnded={handleEnded}
+          className="rounded-lg bg-black"
+          style={{
+            maxHeight: '100%',
+            maxWidth: '100%',
+            display: activeVideo === 'B' ? 'block' : 'none',
+          }}
+          playsInline
+          preload="auto"
+        />
+      </div>
       <button onClick={togglePlay} className="btn px-8 py-2 text-base">
         {isPlaying ? '⏸ Pause' : '▶ Play'}
       </button>
