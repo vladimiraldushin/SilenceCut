@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import CoreMedia
 import RECore
+import REAudioAnalysis
 
 // MARK: - SwiftUI Wrapper
 
@@ -9,6 +10,7 @@ public struct TimelineViewWrapper: NSViewRepresentable {
     let clips: [TimelineClip]
     let playheadPosition: CMTime
     let pixelsPerSecond: Double
+    let waveformData: WaveformData?
     let onSeek: (CMTime) -> Void
     let onTrimClip: (UUID, CMTimeRange) -> Void
     let onSelectClip: (UUID?) -> Void
@@ -17,6 +19,7 @@ public struct TimelineViewWrapper: NSViewRepresentable {
         clips: [TimelineClip],
         playheadPosition: CMTime,
         pixelsPerSecond: Double,
+        waveformData: WaveformData? = nil,
         onSeek: @escaping (CMTime) -> Void,
         onTrimClip: @escaping (UUID, CMTimeRange) -> Void,
         onSelectClip: @escaping (UUID?) -> Void
@@ -24,6 +27,7 @@ public struct TimelineViewWrapper: NSViewRepresentable {
         self.clips = clips
         self.playheadPosition = playheadPosition
         self.pixelsPerSecond = pixelsPerSecond
+        self.waveformData = waveformData
         self.onSeek = onSeek
         self.onTrimClip = onTrimClip
         self.onSelectClip = onSelectClip
@@ -51,7 +55,7 @@ public struct TimelineViewWrapper: NSViewRepresentable {
         timeline.onSeek = onSeek
         timeline.onTrimClip = onTrimClip
         timeline.onSelectClip = onSelectClip
-        timeline.updateTimeline(clips: clips, playheadPosition: playheadPosition, pixelsPerSecond: pixelsPerSecond)
+        timeline.updateTimeline(clips: clips, playheadPosition: playheadPosition, pixelsPerSecond: pixelsPerSecond, waveformData: waveformData)
     }
 
     public func makeCoordinator() -> Coordinator { Coordinator() }
@@ -74,6 +78,7 @@ public class TimelineNSView: NSView {
     private var clips: [TimelineClip] = []
     private var pixelsPerSecond: Double = 100
     private var selectedClipId: UUID?
+    private var waveformData: WaveformData?
 
     // Layers
     private let trackLayer = CALayer()
@@ -119,9 +124,10 @@ public class TimelineNSView: NSView {
 
     // MARK: - Update
 
-    func updateTimeline(clips: [TimelineClip], playheadPosition: CMTime, pixelsPerSecond: Double) {
+    func updateTimeline(clips: [TimelineClip], playheadPosition: CMTime, pixelsPerSecond: Double, waveformData: WaveformData? = nil) {
         self.clips = clips
         self.pixelsPerSecond = pixelsPerSecond
+        if let wd = waveformData { self.waveformData = wd }
 
         // Calculate total width
         let enabledClips = clips.filter(\.isEnabled)
@@ -180,6 +186,37 @@ public class TimelineNSView: NSView {
             if let rightHandle = clipLayer.sublayers?[safe: 2] {
                 rightHandle.frame = CGRect(x: max(width - 3, 0), y: 0, width: 3, height: trackHeight)
                 rightHandle.backgroundColor = NSColor.white.withAlphaComponent(0.4).cgColor
+            }
+
+            // Waveform (sublayer index 3)
+            if let waveform = waveformData {
+                let waveLayer: CAShapeLayer
+                if let existing = clipLayer.sublayers?[safe: 3] as? CAShapeLayer {
+                    waveLayer = existing
+                } else {
+                    waveLayer = CAShapeLayer()
+                    waveLayer.strokeColor = NSColor.white.withAlphaComponent(0.4).cgColor
+                    waveLayer.lineWidth = 1
+                    waveLayer.fillColor = nil
+                    clipLayer.addSublayer(waveLayer)
+                }
+                waveLayer.frame = CGRect(x: 0, y: 0, width: width, height: trackHeight)
+
+                let path = CGMutablePath()
+                let midY = trackHeight / 2
+                let amp = trackHeight / 2 * 0.85
+                let startSample = Int(CMTimeGetSeconds(clip.sourceRange.start) * Double(waveform.samplesPerSecond))
+                let endSample = Int(CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange)) * Double(waveform.samplesPerSecond))
+                let sampleCount = max(1, endSample - startSample)
+
+                for si in startSample..<min(endSample, waveform.peaks.count) {
+                    let progress = CGFloat(si - startSample) / CGFloat(sampleCount)
+                    let px = progress * width
+                    let h = CGFloat(waveform.peaks[si]) * amp
+                    path.move(to: CGPoint(x: px, y: midY - h))
+                    path.addLine(to: CGPoint(x: px, y: midY + h))
+                }
+                waveLayer.path = path
             }
 
             x += width

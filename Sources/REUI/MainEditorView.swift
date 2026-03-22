@@ -203,6 +203,7 @@ public struct MainEditorView: View {
                 clips: viewModel.timeline.clips,
                 playheadPosition: viewModel.playheadPosition,
                 pixelsPerSecond: viewModel.pixelsPerSecond,
+                waveformData: viewModel.waveformData,
                 onSeek: { time in viewModel.seekSmoothly(to: time) },
                 onTrimClip: { id, range in viewModel.trimClip(id: id, newSourceRange: range) },
                 onSelectClip: { id in viewModel.selectedClipId = id }
