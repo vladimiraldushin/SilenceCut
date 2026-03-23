@@ -232,50 +232,63 @@ public enum ExportService {
         }
 
         // --- Start ---
-        reader.startReading()
-        writer.startWriting()
+        guard reader.startReading() else {
+            throw ExportError.exportFailed("Reader failed to start: \(reader.error?.localizedDescription ?? "unknown")")
+        }
+        guard writer.startWriting() else {
+            throw ExportError.exportFailed("Writer failed to start: \(writer.error?.localizedDescription ?? "unknown")")
+        }
         writer.startSession(atSourceTime: .zero)
 
         let totalDuration = CMTimeGetSeconds(composition.duration)
+        print("[Export] Starting frame-by-frame export, duration: \(String(format: "%.1f", totalDuration))s")
 
-        // Write video
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-            videoInput.requestMediaDataWhenReady(on: DispatchQueue(label: "export.video")) {
-                while videoInput.isReadyForMoreMediaData {
+        // Write video + audio in simple loop on background thread
+        try await Task.detached {
+            // Video frames
+            var frameCount = 0
+            while reader.status == .reading {
+                if videoInput.isReadyForMoreMediaData {
                     if let buffer = videoOutput.copyNextSampleBuffer() {
                         videoInput.append(buffer)
+                        frameCount += 1
 
-                        let t = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(buffer))
-                        let frac = min(t / totalDuration, 0.95)
-                        let elapsed = Date().timeIntervalSince(startTime)
-                        Task { @MainActor in
-                            progress(ExportProgress(fraction: frac, timeElapsed: elapsed, estimatedRemaining: nil))
+                        if frameCount % 30 == 0 {
+                            let t = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(buffer))
+                            let frac = min(t / totalDuration, 0.9)
+                            let elapsed = Date().timeIntervalSince(startTime)
+                            Task { @MainActor in
+                                progress(ExportProgress(fraction: frac, timeElapsed: elapsed, estimatedRemaining: nil))
+                            }
                         }
                     } else {
-                        videoInput.markAsFinished()
-                        cont.resume()
-                        return
+                        break
                     }
+                } else {
+                    Thread.sleep(forTimeInterval: 0.005)
                 }
             }
-        }
+            videoInput.markAsFinished()
+            print("[Export] Video done: \(frameCount) frames")
 
-        // Write audio
-        if let audioInput = audioInput, let audioOutput = audioOutput {
-            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-                audioInput.requestMediaDataWhenReady(on: DispatchQueue(label: "export.audio")) {
-                    while audioInput.isReadyForMoreMediaData {
+            // Audio samples
+            if let audioInput = audioInput, let audioOutput = audioOutput {
+                // Re-create reader for audio if needed
+                while true {
+                    if audioInput.isReadyForMoreMediaData {
                         if let buffer = audioOutput.copyNextSampleBuffer() {
                             audioInput.append(buffer)
                         } else {
-                            audioInput.markAsFinished()
-                            cont.resume()
-                            return
+                            break
                         }
+                    } else {
+                        Thread.sleep(forTimeInterval: 0.005)
                     }
                 }
+                audioInput.markAsFinished()
+                print("[Export] Audio done")
             }
-        }
+        }.value
 
         // Finalize
         await writer.finishWriting()
