@@ -92,6 +92,11 @@ public struct MainEditorView: View {
             .disabled(viewModel.timeline.clips.isEmpty)
             .keyboardShortcut("s", modifiers: [.command, .shift])
 
+            Button { viewModel.detectSilence() } label: {
+                Label("Detect Silence", systemImage: "waveform.badge.minus")
+            }
+            .disabled(viewModel.project.sourceURL == nil || viewModel.isDetectingSilence)
+
             Spacer()
 
             if !viewModel.statusMessage.isEmpty {
@@ -112,7 +117,13 @@ public struct MainEditorView: View {
     // MARK: - Inspector
 
     private var inspector: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 0) {
+            // Silence Detection Panel
+            SilenceDetectionPanel(viewModel: viewModel)
+
+            Divider()
+
             Text("Clips")
                 .font(.headline)
                 .padding()
@@ -137,6 +148,7 @@ public struct MainEditorView: View {
                 }
             }
         }
+        } // ScrollView
         .background(.background)
     }
 

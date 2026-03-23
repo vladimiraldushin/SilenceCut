@@ -76,7 +76,40 @@ public enum CompositionBuilder {
             videoComp = vc
         }
 
-        return Result(composition: composition, videoComposition: videoComp, audioMix: nil)
+        // Build audio crossfade (30ms ramps to eliminate clicks at cuts)
+        var audioMix: AVMutableAudioMix? = nil
+        if let dstAudio = audioTrack, timeline.enabledClipCount > 1 {
+            let params = AVMutableAudioMixInputParameters(track: dstAudio)
+            let fadeDuration = CMTime(seconds: 0.03, preferredTimescale: 600)
+
+            var segmentStart = CMTime.zero
+            for clip in timeline.clips where clip.isEnabled {
+                let segEnd = CMTimeAdd(segmentStart, clip.effectiveDuration)
+
+                // Fade in at start of each segment
+                params.setVolumeRamp(
+                    fromStartVolume: 0.0, toEndVolume: 1.0,
+                    timeRange: CMTimeRange(start: segmentStart, duration: fadeDuration)
+                )
+
+                // Fade out at end of each segment
+                let fadeOutStart = CMTimeSubtract(segEnd, fadeDuration)
+                if CMTimeCompare(fadeOutStart, segmentStart) > 0 {
+                    params.setVolumeRamp(
+                        fromStartVolume: 1.0, toEndVolume: 0.0,
+                        timeRange: CMTimeRange(start: fadeOutStart, duration: fadeDuration)
+                    )
+                }
+
+                segmentStart = segEnd
+            }
+
+            let mix = AVMutableAudioMix()
+            mix.inputParameters = [params]
+            audioMix = mix
+        }
+
+        return Result(composition: composition, videoComposition: videoComp, audioMix: audioMix)
     }
 
     /// Calculate the output size after applying the transform

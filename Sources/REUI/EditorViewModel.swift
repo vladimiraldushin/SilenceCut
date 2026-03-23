@@ -17,6 +17,12 @@ public class EditorViewModel {
     public var selectedClipId: UUID?
     public var waveformData: WaveformData?
 
+    // Silence detection
+    public var silenceSettings = SilenceSettings.normal
+    public var silenceResult: SilenceDetectionResult?
+    public var isDetectingSilence = false
+    public var detectionProgress: Double = 0
+
     private var timeObserver: Any?
 
     // Smooth scrubbing state
@@ -75,6 +81,10 @@ public class EditorViewModel {
             // Apply video composition for correct orientation (iPhone portrait)
             if let videoComp = result.videoComposition {
                 playerItem.videoComposition = videoComp
+            }
+            // Apply audio crossfade for smooth transitions
+            if let audioMix = result.audioMix {
+                playerItem.audioMix = audioMix
             }
             player = AVPlayer(playerItem: playerItem)
 
@@ -163,6 +173,73 @@ public class EditorViewModel {
     public func trimClip(id: UUID, newSourceRange: CMTimeRange) {
         timeline.trimClip(id: id, newSourceRange: newSourceRange)
         debouncedRebuild()
+    }
+
+    // MARK: - Silence Detection
+
+    public func detectSilence() {
+        guard let url = project.sourceURL else { return }
+        isDetectingSilence = true
+        detectionProgress = 0
+
+        Task { @MainActor in
+            do {
+                let result = try await SilenceDetector.detect(
+                    in: url,
+                    settings: silenceSettings
+                ) { progress in
+                    Task { @MainActor in
+                        self.detectionProgress = progress
+                    }
+                }
+
+                silenceResult = result
+                print("[SilenceCut] Detection: \(result.pauseCount) pauses, " +
+                      "\(String(format: "%.1f", result.totalSilenceDuration))s silence, " +
+                      "\(result.speechRanges.count) speech regions")
+
+                // Replace timeline with speech clips
+                guard let sourceURL = project.sourceURL else { return }
+                let asset = AVURLAsset(url: sourceURL)
+                let duration = try await asset.load(.duration)
+                let availableRange = CMTimeRange(start: .zero, duration: duration)
+
+                timeline = EditTimeline.fromSpeechRanges(
+                    result.speechRanges,
+                    sourceURL: sourceURL,
+                    availableRange: availableRange
+                )
+
+                await rebuildPreview()
+                statusMessage = "\(result.pauseCount) pauses removed, saved \(String(format: "%.1f", result.totalSilenceDuration))s"
+            } catch {
+                statusMessage = "Detection error: \(error.localizedDescription)"
+            }
+            isDetectingSilence = false
+        }
+    }
+
+    /// Restore original (single clip, full video)
+    public func restoreOriginal() {
+        guard let url = project.sourceURL else { return }
+        Task { @MainActor in
+            let asset = AVURLAsset(url: url)
+            do {
+                let duration = try await asset.load(.duration)
+                let availableRange = CMTimeRange(start: .zero, duration: duration)
+                let clip = TimelineClip(
+                    sourceURL: url,
+                    availableRange: availableRange,
+                    sourceRange: availableRange
+                )
+                timeline = EditTimeline(clips: [clip])
+                silenceResult = nil
+                await rebuildPreview()
+                statusMessage = "Restored original"
+            } catch {
+                statusMessage = "Error restoring: \(error.localizedDescription)"
+            }
+        }
     }
 
     // MARK: - Zoom
