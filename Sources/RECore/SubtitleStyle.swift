@@ -25,11 +25,13 @@ public enum SubtitlePosition: String, Codable, CaseIterable {
     case bottom
 
     /// Y center in 1080×1920 canvas, respecting safe zones
+    /// Instagram: bottom 320px, TikTok: bottom 480px
+    /// Safe subtitle range: y 1000-1300 (above ALL platform controls)
     public var yCenter: CGFloat {
         switch self {
         case .top: return 320       // below top safe zone (220px)
         case .center: return 960    // true center
-        case .bottom: return 1200   // y range 1000-1400 (sweet spot for social)
+        case .bottom: return 1100   // y ~1100: safely above Instagram (1600) and TikTok (1440) controls
         }
     }
 }

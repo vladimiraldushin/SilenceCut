@@ -26,6 +26,7 @@ public struct MainEditorView: View {
                     // Video Preview
                     VStack {
                         PreviewPlayerView(player: viewModel.player)
+                            .aspectRatio(viewModel.videoAspectRatio, contentMode: .fit)
                             .overlay {
                                 GeometryReader { geo in
                                     SubtitleOverlayView(
@@ -40,6 +41,7 @@ public struct MainEditorView: View {
                                 }
                             }
                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .frame(maxHeight: .infinity)
                             .padding(8)
 
                         // Transport controls

@@ -25,6 +25,9 @@ public class EditorViewModel {
     public var isDetectingSilence = false
     public var detectionProgress: Double = 0
 
+    // Video aspect ratio (9:16 for vertical, 16:9 for horizontal)
+    public var videoAspectRatio: CGFloat = 9.0 / 16.0
+
     // Subtitles
     public var subtitleEntries: [SubtitleEntry] = []
     public var subtitleStyle: SubtitleStyle = .classic
@@ -63,6 +66,17 @@ public class EditorViewModel {
             let asset = AVURLAsset(url: url)
             do {
                 let duration = try await asset.load(.duration)
+
+                // Detect video aspect ratio (9:16 vertical, 16:9 horizontal)
+                if let videoTrack = try await asset.loadTracks(withMediaType: .video).first {
+                    let size = try await videoTrack.load(.naturalSize)
+                    let transform = try await videoTrack.load(.preferredTransform)
+                    let transformed = size.applying(transform)
+                    let w = abs(transformed.width)
+                    let h = abs(transformed.height)
+                    if h > 0 { videoAspectRatio = w / h }
+                }
+
                 let availableRange = CMTimeRange(start: .zero, duration: duration)
 
                 let clip = TimelineClip(
