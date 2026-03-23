@@ -161,88 +161,88 @@ public enum ExportService {
             let end: Double
             let words: [(word: String, start: Double, end: Double)]
         }
-        // Map subtitle source times → timeline times using clip overlap detection
-        // Expand subtitle search range by tolerance to catch edge cases where
-        // WhisperKit and silence detector disagree on boundaries
-        let overlapTolerance = 0.5 // 500ms tolerance on each side
-        let subtitleRanges: [SubRange] = subtitleEntries.compactMap { entry in
-            let srcStart = CMTimeGetSeconds(entry.startTime)
-            let srcEnd = CMTimeGetSeconds(entry.endTime)
-            guard srcEnd > srcStart else { return nil }
+        struct MappedWord {
+            let word: String
+            let tlStart: Double
+            let tlEnd: Double
+        }
 
-            // Expanded search range (subtitle ± tolerance)
-            let searchStart = srcStart - overlapTolerance
-            let searchEnd = srcEnd + overlapTolerance
+        // Sort enabled clips by source start for binary-search style lookup
+        let enabledClips = timeline.clips.filter(\.isEnabled).sorted {
+            CMTimeGetSeconds($0.sourceRange.start) < CMTimeGetSeconds($1.sourceRange.start)
+        }
 
-            var tlStart: Double?
-            var tlEnd: Double?
+        // Word-level mapping: each word finds its own clip independently
+        // Words in removed silence gaps are dropped; remaining words grouped into subtitle events
+        let gapThreshold = 0.1 // seconds; split subtitle if timeline gap > this
 
-            for clip in timeline.clips where clip.isEnabled {
-                let clipSrcStart = CMTimeGetSeconds(clip.sourceRange.start)
-                let clipSrcEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
+        var subtitleRanges: [SubRange] = []
 
-                // Check overlap with expanded range
-                let overlapStart = max(searchStart, clipSrcStart)
-                let overlapEnd = min(searchEnd, clipSrcEnd)
-                guard overlapEnd > overlapStart else { continue }
+        for entry in subtitleEntries {
+            guard !entry.words.isEmpty else {
+                // Fallback: no word timings — treat whole subtitle as one "word"
+                let srcMid = (CMTimeGetSeconds(entry.startTime) + CMTimeGetSeconds(entry.endTime)) / 2
+                if let mapped = mapSourceTimeToTimeline(srcMid, clips: enabledClips) {
+                    let s = mapped.tlOffset
+                    let e = s + max(CMTimeGetSeconds(entry.endTime) - CMTimeGetSeconds(entry.startTime), 1.0)
+                    let text = subtitleStyle.isUppercase ? entry.text.uppercased() : entry.text
+                    subtitleRanges.append(SubRange(text: text, start: s, end: e, words: []))
+                }
+                continue
+            }
 
-                // Clamp actual subtitle times to clip boundaries
-                let mappedStart = max(srcStart, clipSrcStart)
-                let mappedEnd = min(srcEnd, clipSrcEnd)
+            // Map each word to timeline time
+            var mappedWords: [MappedWord] = []
+            for w in entry.words {
+                let wSrcStart = CMTimeGetSeconds(w.startTime)
+                let wSrcEnd = CMTimeGetSeconds(w.endTime)
+                let wSrcMid = (wSrcStart + wSrcEnd) / 2
 
-                // Even if subtitle doesn't directly overlap, show at clip edge
-                let effectiveStart: Double
-                let effectiveEnd: Double
-                if mappedEnd > mappedStart {
-                    effectiveStart = mappedStart
-                    effectiveEnd = mappedEnd
-                } else {
-                    // Subtitle is in the tolerance zone — show at nearest clip edge
-                    if srcStart >= clipSrcEnd {
-                        effectiveStart = clipSrcEnd - min(0.5, clipSrcEnd - clipSrcStart)
-                        effectiveEnd = clipSrcEnd
-                    } else {
-                        effectiveStart = clipSrcStart
-                        effectiveEnd = clipSrcStart + min(0.5, clipSrcEnd - clipSrcStart)
+                // Find clip containing this word's midpoint
+                for clip in enabledClips {
+                    let clipSrcStart = CMTimeGetSeconds(clip.sourceRange.start)
+                    let clipSrcEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
+
+                    if wSrcMid >= clipSrcStart && wSrcMid < clipSrcEnd {
+                        let tlOffset = CMTimeGetSeconds(clip.timelineOffset)
+                        let clampedStart = max(wSrcStart, clipSrcStart)
+                        let clampedEnd = min(wSrcEnd, clipSrcEnd)
+                        let tlS = tlOffset + (clampedStart - clipSrcStart) / clip.speed
+                        let tlE = tlOffset + (clampedEnd - clipSrcStart) / clip.speed
+                        let word = subtitleStyle.isUppercase ? w.word.uppercased() : w.word
+                        mappedWords.append(MappedWord(word: word, tlStart: tlS, tlEnd: tlE))
+                        break
                     }
                 }
-
-                let tlOffset = CMTimeGetSeconds(clip.timelineOffset)
-                let ts = tlOffset + (effectiveStart - clipSrcStart) / clip.speed
-                let te = tlOffset + (effectiveEnd - clipSrcStart) / clip.speed
-
-                if tlStart == nil || ts < tlStart! { tlStart = ts }
-                if tlEnd == nil || te > tlEnd! { tlEnd = te }
+                // Word not in any clip → in removed silence gap → skip
             }
 
-            guard let s = tlStart, let e = tlEnd, e > s + 0.01 else {
-                print("[Export] SKIP subtitle: \(entry.text.prefix(30))... (no nearby clip)")
-                return nil
+            guard !mappedWords.isEmpty else {
+                print("[Export] SKIP subtitle: \(entry.text.prefix(30))... (all words in silence)")
+                continue
             }
 
-            let text = subtitleStyle.isUppercase ? entry.text.uppercased() : entry.text
-
-            // Interpolate word timings from subtitle range (avoids losing words on clip boundaries)
-            let words: [(word: String, start: Double, end: Double)]
-            if !entry.words.isEmpty {
-                let srcDuration = srcEnd - srcStart
-                let tlDuration = e - s
-                words = entry.words.map { w in
-                    let wSrcStart = CMTimeGetSeconds(w.startTime)
-                    let wSrcEnd = CMTimeGetSeconds(w.endTime)
-                    // Proportional mapping: source position → timeline position
-                    let wTlStart = s + ((wSrcStart - srcStart) / srcDuration) * tlDuration
-                    let wTlEnd = s + ((wSrcEnd - srcStart) / srcDuration) * tlDuration
-                    let word = subtitleStyle.isUppercase ? w.word.uppercased() : w.word
-                    return (word: word, start: wTlStart, end: wTlEnd)
+            // Group consecutive words into subtitle events (split if timeline gap > threshold)
+            var groups: [[MappedWord]] = [[mappedWords[0]]]
+            for i in 1..<mappedWords.count {
+                let prev = mappedWords[i - 1]
+                let curr = mappedWords[i]
+                if curr.tlStart - prev.tlEnd > gapThreshold {
+                    groups.append([curr])
+                } else {
+                    groups[groups.count - 1].append(curr)
                 }
-            } else {
-                words = []
             }
 
-            return SubRange(text: text, start: s, end: e, words: words)
+            for group in groups {
+                let text = group.map(\.word).joined(separator: " ")
+                let s = group.first!.tlStart
+                let e = max(group.last!.tlEnd, s + 0.3) // min 300ms display
+                let words = group.map { (word: $0.word, start: $0.tlStart, end: $0.tlEnd) }
+                subtitleRanges.append(SubRange(text: text, start: s, end: e, words: words))
+            }
         }
-        print("[Export] \(subtitleRanges.count)/\(subtitleEntries.count) subtitle ranges mapped")
+        print("[Export] \(subtitleRanges.count) subtitle ranges from \(subtitleEntries.count) segments (word-level mapping)")
 
         // === PASS 1: Export composition to temp file ===
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("silencecut_\(UUID().uuidString).mp4")
@@ -412,7 +412,19 @@ public enum ExportService {
 
     // MARK: - Core Graphics Subtitle Rendering
 
-    /// Draw subtitle text directly onto a CVPixelBuffer using Core Graphics + Core Text
+    /// Helper: find timeline time for a source time midpoint
+    private static func mapSourceTimeToTimeline(_ srcTime: Double, clips: [TimelineClip]) -> (tlOffset: Double, clip: TimelineClip)? {
+        for clip in clips where clip.isEnabled {
+            let clipSrcStart = CMTimeGetSeconds(clip.sourceRange.start)
+            let clipSrcEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
+            if srcTime >= clipSrcStart && srcTime < clipSrcEnd {
+                let tlOffset = CMTimeGetSeconds(clip.timelineOffset) + (srcTime - clipSrcStart) / clip.speed
+                return (tlOffset, clip)
+            }
+        }
+        return nil
+    }
+
     /// Draw subtitle with karaoke word highlighting via Core Graphics
     private static func drawSubtitle(
         text: String,
