@@ -115,14 +115,12 @@ public enum TranscriptionService {
 
     /// Strip WhisperKit control tokens like <|startoftranscript|>, <|ru|>, <|0.00|>, etc.
     private static func stripTokens(_ text: String) -> String {
-        // Remove all <|...|> tokens
-        var result = text
-        while let start = result.range(of: "<|"), let end = result.range(of: "|>", range: start.upperBound..<result.endIndex) {
-            result.removeSubrange(start.lowerBound...end.upperBound)
-        }
-        // Also remove standalone <|...|> that might remain
-        result = result.replacingOccurrences(of: "<|", with: "")
-        result = result.replacingOccurrences(of: "|>", with: "")
-        return result.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+        // Use regex to safely remove all <|...|> tokens
+        let cleaned = text.replacingOccurrences(
+            of: "<\\|[^|]*\\|>",
+            with: "",
+            options: .regularExpression
+        )
+        return cleaned.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
     }
 }
