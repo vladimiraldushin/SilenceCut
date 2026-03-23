@@ -178,14 +178,22 @@ public class TimelineNSView: NSView {
                 textLayer.isHidden = width < 40
             }
 
-            // Trim handles (visual indicators on edges)
+            // Trim handles (visible yellow grab handles on edges)
+            let isSelected = selectedClipId == clip.id
+            let handleColor = isSelected
+                ? NSColor.systemYellow.cgColor
+                : NSColor.white.withAlphaComponent(0.5).cgColor
+            let handleW: CGFloat = isSelected ? 5 : 3
+
             if let leftHandle = clipLayer.sublayers?[safe: 1] {
-                leftHandle.frame = CGRect(x: 0, y: 0, width: 3, height: trackHeight)
-                leftHandle.backgroundColor = NSColor.white.withAlphaComponent(0.4).cgColor
+                leftHandle.frame = CGRect(x: 0, y: 0, width: handleW, height: trackHeight)
+                leftHandle.backgroundColor = handleColor
+                leftHandle.cornerRadius = 1.5
             }
             if let rightHandle = clipLayer.sublayers?[safe: 2] {
-                rightHandle.frame = CGRect(x: max(width - 3, 0), y: 0, width: 3, height: trackHeight)
-                rightHandle.backgroundColor = NSColor.white.withAlphaComponent(0.4).cgColor
+                rightHandle.frame = CGRect(x: max(width - handleW, 0), y: 0, width: handleW, height: trackHeight)
+                rightHandle.backgroundColor = handleColor
+                rightHandle.cornerRadius = 1.5
             }
 
             // Waveform (sublayer index 3)
@@ -389,6 +397,37 @@ public class TimelineNSView: NSView {
         default:
             super.keyDown(with: event)
         }
+    }
+
+    // MARK: - Cursor
+
+    public override func mouseMoved(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let trackPoint = CGPoint(x: point.x, y: point.y - 10)
+
+        var onHandle = false
+        for clip in clips where clip.isEnabled {
+            guard let layer = clipLayers[clip.id] else { continue }
+            let frame = layer.frame
+            if abs(trackPoint.x - frame.minX) < handleWidth || abs(trackPoint.x - frame.maxX) < handleWidth {
+                if frame.minY <= trackPoint.y && trackPoint.y <= frame.maxY {
+                    onHandle = true
+                    break
+                }
+            }
+        }
+        NSCursor.current.set()
+        if onHandle {
+            NSCursor.resizeLeftRight.set()
+        } else {
+            NSCursor.arrow.set()
+        }
+    }
+
+    public override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseMoved, .activeInKeyWindow], owner: self))
     }
 }
 

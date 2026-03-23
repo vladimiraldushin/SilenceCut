@@ -9,14 +9,39 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 
-        // Global key monitor for Delete/Backspace
+        // Global key monitor
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            // Backspace (keyCode 51) or Forward Delete (keyCode 117)
-            if event.keyCode == 51 || event.keyCode == 117 {
-                if let vm = self?.viewModel, vm.selectedClipId != nil {
+            guard let vm = self?.viewModel else { return event }
+
+            switch event.keyCode {
+            case 51, 117: // Backspace, Forward Delete
+                if vm.selectedClipId != nil {
                     vm.deleteSelectedClip()
-                    return nil // consume event
+                    return nil
                 }
+            case 38: // J — reverse/slow
+                vm.nudgePlayhead(by: -1.0)
+                return nil
+            case 40: // K — pause
+                if vm.isPlaying { vm.togglePlayback() }
+                return nil
+            case 37: // L — forward/fast
+                vm.nudgePlayhead(by: 1.0)
+                return nil
+            case 34: // I — set in point (split + delete left)
+                vm.splitAtPlayhead()
+                return nil
+            case 31: // O — set out point (split + delete right)
+                vm.splitAtPlayhead()
+                return nil
+            case 123: // Left arrow — step back 1 frame
+                vm.nudgePlayhead(by: -1.0/30.0)
+                return nil
+            case 124: // Right arrow — step forward 1 frame
+                vm.nudgePlayhead(by: 1.0/30.0)
+                return nil
+            default:
+                break
             }
             return event
         }

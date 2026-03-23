@@ -323,6 +323,16 @@ public class EditorViewModel {
         }
     }
 
+    // MARK: - Navigation
+
+    public func nudgePlayhead(by seconds: Double) {
+        let current = CMTimeGetSeconds(playheadPosition)
+        let maxDur = CMTimeGetSeconds(timeline.duration)
+        let newTime = max(0, min(current + seconds, maxDur))
+        let cmTime = CMTime(seconds: newTime, preferredTimescale: 600)
+        seekSmoothly(to: cmTime)
+    }
+
     // MARK: - Zoom
 
     public func zoomIn() {
