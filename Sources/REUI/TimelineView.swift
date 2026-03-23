@@ -317,19 +317,33 @@ public class TimelineNSView: NSView {
 
         switch gesture.state {
         case .began:
-            // Check if starting on a trim handle
-            for clip in clips where clip.isEnabled {
+            // Check selected clip FIRST, then others (so selected clip's handles take priority)
+            let sortedClips: [TimelineClip] = {
+                var sorted = clips.filter { $0.isEnabled }
+                if let selId = selectedClipId,
+                   let idx = sorted.firstIndex(where: { $0.id == selId }) {
+                    let selected = sorted.remove(at: idx)
+                    sorted.insert(selected, at: 0)
+                }
+                return sorted
+            }()
+
+            for clip in sortedClips {
                 guard let layer = clipLayers[clip.id] else { continue }
                 let frame = layer.frame
 
                 // Left handle hit area (8px)
                 if abs(trackPoint.x - frame.minX) < handleWidth {
                     trimming = (clipId: clip.id, edge: .left, initialRange: clip.sourceRange)
+                    selectedClipId = clip.id
+                    onSelectClip?(clip.id)
                     return
                 }
                 // Right handle hit area (8px)
                 if abs(trackPoint.x - frame.maxX) < handleWidth {
                     trimming = (clipId: clip.id, edge: .right, initialRange: clip.sourceRange)
+                    selectedClipId = clip.id
+                    onSelectClip?(clip.id)
                     return
                 }
             }
