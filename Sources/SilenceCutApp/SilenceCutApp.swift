@@ -20,6 +20,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             switch event.keyCode {
+            case 49: // Space — Play/Pause
+                vm.togglePlayback()
+                return nil
             case 51, 117: // Backspace, Forward Delete
                 if vm.selectedClipId != nil {
                     vm.deleteSelectedClip()
@@ -87,14 +90,8 @@ struct SilenceCutApp: App {
                     .keyboardShortcut("z", modifiers: [.command, .shift])
                     .disabled(!viewModel.canRedo)
             }
-            CommandGroup(after: .toolbar) {
-                Button("Play / Pause") { viewModel.togglePlayback() }
-                    .keyboardShortcut(.space, modifiers: [])
-                Button("Delete Selected Clip") { viewModel.deleteSelectedClip() }
-                    .keyboardShortcut(.delete, modifiers: [])
-                Button("Delete Selected (Backspace)") { viewModel.deleteSelectedClip() }
-                    .keyboardShortcut(KeyEquivalent("\u{7F}"), modifiers: [])
-            }
+            // Space/Delete handled in AppDelegate NSEvent monitor
+            // (which checks for text field focus before intercepting)
         }
     }
 
