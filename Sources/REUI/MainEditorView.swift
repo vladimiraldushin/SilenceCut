@@ -26,6 +26,19 @@ public struct MainEditorView: View {
                     // Video Preview
                     VStack {
                         PreviewPlayerView(player: viewModel.player)
+                            .overlay {
+                                GeometryReader { geo in
+                                    SubtitleOverlayView(
+                                        entry: viewModel.activeSubtitle(at: viewModel.playheadPosition),
+                                        activeWordIndex: {
+                                            guard let sub = viewModel.activeSubtitle(at: viewModel.playheadPosition) else { return nil }
+                                            return viewModel.activeWordIndex(in: sub, at: viewModel.playheadPosition)
+                                        }(),
+                                        style: viewModel.subtitleStyle,
+                                        videoFrame: geo.size
+                                    )
+                                }
+                            }
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                             .padding(8)
 
