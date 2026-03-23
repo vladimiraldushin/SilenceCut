@@ -465,7 +465,7 @@ public enum ExportService {
 
         let padding = max(SafeZone.left, SafeZone.right) * scaleX
         let textWidth = drawW - padding * 2
-        let boxHeight: CGFloat = 120 * scaleY
+        let maxBoxHeight: CGFloat = 400 * scaleY // enough for 6+ lines
         let fontSize = style.fontSize * min(scaleX, scaleY)
 
         let nsFont = NSFont(name: style.fontName, size: fontSize) ?? NSFont.boldSystemFont(ofSize: fontSize)
@@ -507,14 +507,16 @@ public enum ExportService {
         }
 
         let framesetter = CTFramesetterCreateWithAttributedString(attrStr)
+        // Calculate actual text size (unconstrained height to avoid truncation)
         let textSize = CTFramesetterSuggestFrameSizeWithConstraints(
             framesetter, CFRange(location: 0, length: 0),
-            nil, CGSize(width: textWidth, height: boxHeight), nil
+            nil, CGSize(width: textWidth, height: maxBoxHeight), nil
         )
 
         let yCenter = style.position.yCenter * scaleY
         let yFromBottom = drawH - yCenter
         let textX = padding + (textWidth - textSize.width) / 2
+        // Position so text is centered vertically at yCenter
         let textY = yFromBottom - textSize.height / 2
 
         // Background
