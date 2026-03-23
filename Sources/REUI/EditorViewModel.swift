@@ -86,26 +86,34 @@ public class EditorViewModel {
         player?.pause()
         player = nil
 
-        guard timeline.enabledClipCount > 0 else { return }
+        guard timeline.enabledClipCount > 0 else {
+            playheadPosition = .zero
+            isPlaying = false
+            return
+        }
 
         do {
             let result = try await CompositionBuilder.build(from: timeline)
             let playerItem = AVPlayerItem(asset: result.composition)
-            // Apply video composition for correct orientation (iPhone portrait)
             if let videoComp = result.videoComposition {
                 playerItem.videoComposition = videoComp
             }
-            // Apply audio crossfade for smooth transitions
             if let audioMix = result.audioMix {
                 playerItem.audioMix = audioMix
             }
             player = AVPlayer(playerItem: playerItem)
 
-            // Clamp currentTime to new duration
+            // Clamp playhead: if beyond new duration, go to start
             let maxTime = timeline.duration
-            let seekTime = CMTimeCompare(currentTime, maxTime) > 0 ? maxTime : currentTime
+            let seekTime: CMTime
+            if CMTimeCompare(currentTime, maxTime) >= 0 || CMTimeCompare(currentTime, .zero) < 0 {
+                seekTime = .zero
+            } else {
+                seekTime = currentTime
+            }
             await player?.seek(to: seekTime, toleranceBefore: .zero, toleranceAfter: .zero)
             playheadPosition = seekTime
+            isPlaying = false
 
             setupTimeObserver()
         } catch {
