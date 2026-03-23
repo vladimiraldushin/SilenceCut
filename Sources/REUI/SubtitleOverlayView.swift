@@ -2,9 +2,9 @@ import SwiftUI
 import RECore
 import CoreMedia
 
-/// Real-time subtitle overlay on video preview with karaoke word-by-word highlighting.
-/// Renders as SwiftUI overlay synced with playhead, matching исследование.md approach:
-/// "Preview (в реальном времени): SwiftUI Text overlay, синхронизированный с playhead"
+/// Real-time subtitle overlay using AttributedString for proper word wrapping.
+/// Active word highlighted via karaoke effect. SwiftUI handles line breaks
+/// at word boundaries — never mid-word.
 public struct SubtitleOverlayView: View {
     let entry: SubtitleEntry?
     let activeWordIndex: Int?
@@ -28,84 +28,58 @@ public struct SubtitleOverlayView: View {
 
     @ViewBuilder
     private func subtitleContent(entry: SubtitleEntry, size: CGSize) -> some View {
-        // Scale factor: map 1080×1920 canvas → actual preview size
         let scale = min(size.width / 1080, size.height / 1920)
         let fontSize = style.fontSize * scale
         let yPos = style.position.yCenter * scale
-
-        let words = splitIntoLines(entry.words, maxPerLine: style.maxWordsPerLine)
-
-        VStack(spacing: 2 * scale) {
-            ForEach(Array(words.enumerated()), id: \.offset) { lineIdx, lineWords in
-                lineView(words: lineWords, fontSize: fontSize, scale: scale)
-            }
-        }
-        .position(x: size.width / 2, y: yPos)
-    }
-
-    @ViewBuilder
-    private func lineView(words: [WordTiming], fontSize: CGFloat, scale: CGFloat) -> some View {
         let hasBackground = style.backgroundOpacity > 0.01
+        let maxWidth = size.width - (SafeZone.left + SafeZone.right) * scale
 
-        HStack(spacing: 0) {
-            ForEach(Array(words.enumerated()), id: \.element.id) { idx, word in
-                wordView(word: word, fontSize: fontSize, scale: scale)
-            }
+        Text(buildAttributedString(entry: entry, fontSize: fontSize))
+            .multilineTextAlignment(.center)
+            .lineSpacing(4 * scale)
+            .frame(maxWidth: maxWidth)
+            .padding(.horizontal, hasBackground ? 12 * scale : 0)
+            .padding(.vertical, hasBackground ? 6 * scale : 0)
+            .background(
+                hasBackground ?
+                    RoundedRectangle(cornerRadius: 8 * scale)
+                        .fill(Color(
+                            red: style.backgroundColor.red,
+                            green: style.backgroundColor.green,
+                            blue: style.backgroundColor.blue,
+                            opacity: style.backgroundOpacity
+                        ))
+                    : nil
+            )
+            .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
+            .position(x: size.width / 2, y: yPos)
+    }
+
+    /// Build a single AttributedString with karaoke highlighting on the active word
+    private func buildAttributedString(entry: SubtitleEntry, fontSize: CGFloat) -> AttributedString {
+        let textColor = swiftUIColor(style.textColor)
+        let highlightColor = swiftUIColor(style.highlightColor)
+        let font = Font.custom(style.fontName, size: fontSize)
+
+        var result = AttributedString()
+
+        for (idx, word) in entry.words.enumerated() {
+            let isActive = idx == activeWordIndex
+            let displayWord = style.isUppercase ? word.word.uppercased() : word.word
+            // Add space between words (not before first)
+            let text = idx > 0 ? " \(displayWord)" : displayWord
+
+            var attr = AttributedString(text)
+            attr.font = font
+            attr.foregroundColor = isActive ? highlightColor : textColor
+
+            result.append(attr)
         }
-        .padding(.horizontal, hasBackground ? 12 * scale : 0)
-        .padding(.vertical, hasBackground ? 6 * scale : 0)
-        .background(
-            hasBackground ?
-                RoundedRectangle(cornerRadius: 8 * scale)
-                    .fill(Color(
-                        red: style.backgroundColor.red,
-                        green: style.backgroundColor.green,
-                        blue: style.backgroundColor.blue,
-                        opacity: style.backgroundOpacity
-                    ))
-                : nil
-        )
+
+        return result
     }
 
-    @ViewBuilder
-    private func wordView(word: WordTiming, fontSize: CGFloat, scale: CGFloat) -> some View {
-        let isActive = isWordActive(word)
-        let displayText = style.isUppercase ? word.word.uppercased() : word.word
-
-        Text(displayText + " ")
-            .font(.custom(style.fontName, size: fontSize))
-            .foregroundColor(wordColor(isActive: isActive))
-            .scaleEffect(isActive && style.preset == .capcut ? 1.15 : 1.0)
-            .shadow(color: .black.opacity(0.8), radius: isActive ? 3 : 1, x: 0, y: 1)
-            .animation(.easeInOut(duration: 0.08), value: isActive)
-    }
-
-    // MARK: - Helpers
-
-    private func isWordActive(_ word: WordTiming) -> Bool {
-        guard let entry = entry, let idx = activeWordIndex else { return false }
-        guard let wordIdx = entry.words.firstIndex(where: { $0.id == word.id }) else { return false }
-        return wordIdx == idx
-    }
-
-    private func wordColor(isActive: Bool) -> Color {
-        let c = isActive ? style.highlightColor : style.textColor
-        return Color(red: c.red, green: c.green, blue: c.blue, opacity: c.alpha)
-    }
-
-    /// Split words into lines of maxPerLine each
-    private func splitIntoLines(_ words: [WordTiming], maxPerLine: Int) -> [[WordTiming]] {
-        guard maxPerLine > 0 else { return [words] }
-        var lines: [[WordTiming]] = []
-        var current: [WordTiming] = []
-        for word in words {
-            current.append(word)
-            if current.count >= maxPerLine {
-                lines.append(current)
-                current = []
-            }
-        }
-        if !current.isEmpty { lines.append(current) }
-        return lines
+    private func swiftUIColor(_ c: CodableColor) -> Color {
+        Color(red: c.red, green: c.green, blue: c.blue, opacity: c.alpha)
     }
 }
