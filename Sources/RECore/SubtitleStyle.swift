@@ -37,12 +37,39 @@ public enum SubtitlePosition: String, Codable, CaseIterable {
 }
 
 /// Safe zones for social media platforms (1080×1920 canvas)
+/// Based on actual platform measurements:
+///   Instagram Reels: top 220, bottom 420, left 35, right 170
+///   TikTok:          top 180, bottom 320, left 60, right 120
+///   YouTube Shorts:  top 140, bottom 270, left 70, right 190
+/// Universal = worst case from all three
 public struct SafeZone {
-    public static let top: CGFloat = 220        // status bar, notifications
-    public static let bottom: CGFloat = 480     // from bottom: controls, swipe
-    public static let sides: CGFloat = 120      // edge padding
+    // Universal (worst case across all platforms)
+    public static let top: CGFloat = 220        // Instagram worst
+    public static let bottom: CGFloat = 420     // Instagram worst (from bottom edge)
+    public static let left: CGFloat = 70        // YouTube worst
+    public static let right: CGFloat = 190      // YouTube worst
     public static let safeTop: CGFloat = 220
-    public static let safeBottom: CGFloat = 1440  // 1920 - 480
+    public static let safeBottom: CGFloat = 1500  // 1920 - 420
+
+    // Per-platform
+    public struct Instagram {
+        public static let top: CGFloat = 220
+        public static let bottom: CGFloat = 420
+        public static let left: CGFloat = 35
+        public static let right: CGFloat = 170
+    }
+    public struct TikTok {
+        public static let top: CGFloat = 180
+        public static let bottom: CGFloat = 320
+        public static let left: CGFloat = 60
+        public static let right: CGFloat = 120
+    }
+    public struct YouTubeShorts {
+        public static let top: CGFloat = 140
+        public static let bottom: CGFloat = 270
+        public static let left: CGFloat = 70
+        public static let right: CGFloat = 190
+    }
 }
 
 /// RGBA color that's Codable
