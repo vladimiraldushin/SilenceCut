@@ -155,13 +155,25 @@ public enum ExportService {
         startTime: Date,
         progress: @escaping (ExportProgress) -> Void
     ) async throws {
-        let subtitleRanges = subtitleEntries.compactMap { entry -> (text: String, start: Double, end: Double)? in
+        struct SubRange {
+            let text: String
+            let start: Double
+            let end: Double
+            let words: [(word: String, start: Double, end: Double)]
+        }
+        let subtitleRanges: [SubRange] = subtitleEntries.compactMap { entry in
             guard let startTL = timeline.timelineTime(forSourceTime: entry.startTime),
                   let endTL = timeline.timelineTime(forSourceTime: entry.endTime) else { return nil }
             let s = CMTimeGetSeconds(startTL), e = CMTimeGetSeconds(endTL)
             guard e > s else { return nil }
             let text = subtitleStyle.isUppercase ? entry.text.uppercased() : entry.text
-            return (text: text, start: s, end: e)
+            let words: [(word: String, start: Double, end: Double)] = entry.words.compactMap { w in
+                guard let ws = timeline.timelineTime(forSourceTime: w.startTime),
+                      let we = timeline.timelineTime(forSourceTime: w.endTime) else { return nil }
+                let word = subtitleStyle.isUppercase ? w.word.uppercased() : w.word
+                return (word: word, start: CMTimeGetSeconds(ws), end: CMTimeGetSeconds(we))
+            }
+            return SubRange(text: text, start: s, end: e, words: words)
         }
         print("[Export] \(subtitleRanges.count) subtitle ranges")
 
@@ -277,7 +289,8 @@ public enum ExportService {
 
                         if let sub = subtitleRanges.first(where: { t >= $0.start && t < $0.end }),
                            let pb = CMSampleBufferGetImageBuffer(buf) {
-                            drawSubtitle(text: sub.text, on: pb, renderSize: renderSize,
+                            drawSubtitle(text: sub.text, words: sub.words, frameTime: t,
+                                         on: pb, renderSize: renderSize,
                                          sourceTransform: xform, style: subtitleStyle, font: ctFont)
                         }
                         vInput.append(buf)
@@ -333,9 +346,11 @@ public enum ExportService {
     // MARK: - Core Graphics Subtitle Rendering
 
     /// Draw subtitle text directly onto a CVPixelBuffer using Core Graphics + Core Text
-    /// sourceTransform: the video track's preferredTransform (e.g. 90° for portrait iPhone)
+    /// Draw subtitle with karaoke word highlighting via Core Graphics
     private static func drawSubtitle(
         text: String,
+        words: [(word: String, start: Double, end: Double)],
+        frameTime: Double,
         on pixelBuffer: CVPixelBuffer,
         renderSize: CGSize,
         sourceTransform: CGAffineTransform,
@@ -361,36 +376,56 @@ public enum ExportService {
             bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
         ) else { return }
 
-        // Apply the source transform so subtitles appear correctly oriented
-        // For portrait iPhone: buffer is 1920×1080 (landscape), transform rotates to 1080×1920
         context.saveGState()
         context.concatenate(sourceTransform)
 
-        // Now we draw in renderSize coordinates (e.g. 1080×1920 for portrait)
         let drawW = renderSize.width
         let drawH = renderSize.height
-
-        // Scale from 1080×1920 design coordinates
         let scaleX = drawW / 1080
         let scaleY = drawH / 1920
 
-        // Text area
         let padding = max(SafeZone.left, SafeZone.right) * scaleX
         let textWidth = drawW - padding * 2
         let boxHeight: CGFloat = 120 * scaleY
-
-        // Build attributed string
         let fontSize = style.fontSize * min(scaleX, scaleY)
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont(name: style.fontName, size: fontSize) ?? NSFont.boldSystemFont(ofSize: fontSize),
-            .foregroundColor: NSColor(
-                red: style.textColor.red,
-                green: style.textColor.green,
-                blue: style.textColor.blue,
-                alpha: style.textColor.alpha
-            )
-        ]
-        let attrStr = NSAttributedString(string: text, attributes: attributes)
+
+        let nsFont = NSFont(name: style.fontName, size: fontSize) ?? NSFont.boldSystemFont(ofSize: fontSize)
+
+        // Build attributed string with karaoke highlighting
+        let normalColor = NSColor(
+            red: style.textColor.red,
+            green: style.textColor.green,
+            blue: style.textColor.blue,
+            alpha: style.textColor.alpha
+        )
+        let highlightColor = NSColor(
+            red: style.highlightColor.red,
+            green: style.highlightColor.green,
+            blue: style.highlightColor.blue,
+            alpha: style.highlightColor.alpha
+        )
+
+        // Find active word index
+        let activeWordIdx = words.firstIndex { frameTime >= $0.start && frameTime < $0.end }
+
+        let attrStr: NSAttributedString
+        if !words.isEmpty {
+            let mutable = NSMutableAttributedString()
+            for (i, w) in words.enumerated() {
+                let color = (i == activeWordIdx) ? highlightColor : normalColor
+                let wordStr = NSAttributedString(string: (i > 0 ? " " : "") + w.word, attributes: [
+                    .font: nsFont,
+                    .foregroundColor: color
+                ])
+                mutable.append(wordStr)
+            }
+            attrStr = mutable
+        } else {
+            attrStr = NSAttributedString(string: text, attributes: [
+                .font: nsFont,
+                .foregroundColor: normalColor
+            ])
+        }
 
         let framesetter = CTFramesetterCreateWithAttributedString(attrStr)
         let textSize = CTFramesetterSuggestFrameSizeWithConstraints(
@@ -398,36 +433,30 @@ public enum ExportService {
             nil, CGSize(width: textWidth, height: boxHeight), nil
         )
 
-        // Position: yCenter in top-down coordinates → convert to CG bottom-up
         let yCenter = style.position.yCenter * scaleY
         let yFromBottom = drawH - yCenter
-
         let textX = padding + (textWidth - textSize.width) / 2
         let textY = yFromBottom - textSize.height / 2
 
         // Background
         if style.backgroundOpacity > 0.01 {
             let bgRect = CGRect(
-                x: textX - 16 * scaleX,
-                y: textY - 8 * scaleY,
-                width: textSize.width + 32 * scaleX,
-                height: textSize.height + 16 * scaleY
+                x: textX - 16 * scaleX, y: textY - 8 * scaleY,
+                width: textSize.width + 32 * scaleX, height: textSize.height + 16 * scaleY
             )
             context.setFillColor(NSColor(
-                red: style.backgroundColor.red,
-                green: style.backgroundColor.green,
-                blue: style.backgroundColor.blue,
-                alpha: style.backgroundOpacity
+                red: style.backgroundColor.red, green: style.backgroundColor.green,
+                blue: style.backgroundColor.blue, alpha: style.backgroundOpacity
             ).cgColor)
-            let bgPath = CGPath(roundedRect: bgRect, cornerWidth: 8 * min(scaleX, scaleY), cornerHeight: 8 * min(scaleX, scaleY), transform: nil)
-            context.addPath(bgPath)
+            let r = 8 * min(scaleX, scaleY)
+            context.addPath(CGPath(roundedRect: bgRect, cornerWidth: r, cornerHeight: r, transform: nil))
             context.fillPath()
         }
 
-        // Text shadow
+        // Shadow
         context.setShadow(offset: CGSize(width: 0, height: -2), blur: 3, color: NSColor.black.withAlphaComponent(0.9).cgColor)
 
-        // Draw text via CTFrame (CG native coordinates, y=0 bottom)
+        // Draw text
         let textRect = CGRect(x: textX, y: textY, width: textSize.width, height: textSize.height)
         let path = CGPath(rect: textRect, transform: nil)
         let ctFrame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), path, nil)
