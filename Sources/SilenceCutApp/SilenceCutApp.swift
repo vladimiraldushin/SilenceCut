@@ -48,6 +48,14 @@ struct SilenceCutApp: App {
                 Button("Open Video...") { openFile() }
                     .keyboardShortcut("o", modifiers: .command)
             }
+            CommandGroup(replacing: .undoRedo) {
+                Button("Undo") { viewModel.undo() }
+                    .keyboardShortcut("z", modifiers: .command)
+                    .disabled(!viewModel.canUndo)
+                Button("Redo") { viewModel.redo() }
+                    .keyboardShortcut("z", modifiers: [.command, .shift])
+                    .disabled(!viewModel.canRedo)
+            }
             CommandGroup(after: .toolbar) {
                 Button("Play / Pause") { viewModel.togglePlayback() }
                     .keyboardShortcut(.space, modifiers: [])

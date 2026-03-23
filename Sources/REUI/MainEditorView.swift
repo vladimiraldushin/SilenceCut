@@ -97,6 +97,18 @@ public struct MainEditorView: View {
             }
             .disabled(viewModel.project.sourceURL == nil || viewModel.isDetectingSilence)
 
+            Divider().frame(height: 20)
+
+            Button { viewModel.undo() } label: {
+                Label("Undo", systemImage: "arrow.uturn.backward")
+            }
+            .disabled(!viewModel.canUndo)
+
+            Button { viewModel.redo() } label: {
+                Label("Redo", systemImage: "arrow.uturn.forward")
+            }
+            .disabled(!viewModel.canRedo)
+
             Spacer()
 
             if !viewModel.statusMessage.isEmpty {

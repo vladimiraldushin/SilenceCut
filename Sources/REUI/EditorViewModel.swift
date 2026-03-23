@@ -30,6 +30,12 @@ public class EditorViewModel {
     public var exportProgress: Double = 0
     public var exportPreset: ExportPreset = .high
 
+    // Undo/Redo (Memento — snapshot of EditTimeline)
+    private var undoStack: [EditTimeline] = []
+    private var redoStack: [EditTimeline] = []
+    public var canUndo: Bool { !undoStack.isEmpty }
+    public var canRedo: Bool { !redoStack.isEmpty }
+
     private var timeObserver: Any?
 
     // Smooth scrubbing state
@@ -157,11 +163,13 @@ public class EditorViewModel {
 
     public func splitAtPlayhead() {
         guard let idx = timeline.clipIndex(at: playheadPosition) else { return }
+        saveUndoState()
         timeline.splitClip(at: idx, splitTime: playheadPosition)
         Task { @MainActor in await rebuildPreview() }
     }
 
     public func deleteClip(id: UUID) {
+        saveUndoState()
         timeline.deleteClip(id: id)
         if selectedClipId == id { selectedClipId = nil }
         Task { @MainActor in await rebuildPreview() }
@@ -173,13 +181,38 @@ public class EditorViewModel {
     }
 
     public func toggleClip(id: UUID) {
+        saveUndoState()
         timeline.toggleClip(id: id)
         Task { @MainActor in await rebuildPreview() }
     }
 
     public func trimClip(id: UUID, newSourceRange: CMTimeRange) {
+        saveUndoState()
         timeline.trimClip(id: id, newSourceRange: newSourceRange)
         debouncedRebuild()
+    }
+
+    // MARK: - Undo/Redo
+
+    private func saveUndoState() {
+        undoStack.append(timeline)
+        redoStack.removeAll()
+        // Limit stack depth
+        if undoStack.count > 50 { undoStack.removeFirst() }
+    }
+
+    public func undo() {
+        guard let previous = undoStack.popLast() else { return }
+        redoStack.append(timeline)
+        timeline = previous
+        Task { @MainActor in await rebuildPreview() }
+    }
+
+    public func redo() {
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append(timeline)
+        timeline = next
+        Task { @MainActor in await rebuildPreview() }
     }
 
     // MARK: - Silence Detection
@@ -211,6 +244,7 @@ public class EditorViewModel {
                 let duration = try await asset.load(.duration)
                 let availableRange = CMTimeRange(start: .zero, duration: duration)
 
+                saveUndoState()
                 timeline = EditTimeline.fromSpeechRanges(
                     result.speechRanges,
                     sourceURL: sourceURL,
