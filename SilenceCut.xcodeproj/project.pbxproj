@@ -17,10 +17,14 @@
 		4220AF0AF30BEA03F68F3DBF /* EditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */; };
 		43DBDEEB6F3F2509C0E6BD36 /* REExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30B341310F52289E17CF1B20 /* REExport.swift */; };
 		4F9F596CC1BF2C7DA2C6D0F7 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BABFCA147DD5F237B860EE /* Project.swift */; };
+		5F978D6E4AE4B2C2A52719C7 /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BAA5E9E0908542D21B7016D /* TranscriptionService.swift */; };
 		665D72E21155118E3C09371B /* REAudioAnalysis.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; };
 		79963385730F18B52AED0930 /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
 		7C3E08B5902FFECBC1BD1D0E /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
+		8532292AE5FDC45CD3425BE9 /* SubtitlePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D5E4DCAFBA4616C0B876D5 /* SubtitlePanel.swift */; };
+		8F08823AA9C4F61DB361B780 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = E44C7F4282B7292609D8C05E /* WhisperKit */; };
 		AC0F5A4F77D95F6452431A13 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C38F6599CFE96AB9F4C0579C /* ExportService.swift */; };
+		BDFB5A7FA89F762EFC667205 /* SubtitleStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DCA24D467FDD6FE62C1C114 /* SubtitleStyle.swift */; };
 		CB19976B440D2237D385396B /* TimelineClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = D22634EE80EF00F6A0200C90 /* TimelineClip.swift */; };
 		CD5EC822C617DEFBF1E34D90 /* SilenceCutApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */; };
 		CE350A0F8F5C3F54427CB6A2 /* REUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 433492D71088FF4C3B8BA465 /* REUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -28,6 +32,7 @@
 		D60B61C8B6DC16CD1C3511AB /* EditTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */; };
 		D73E184BFD3AA566DC911375 /* CompositionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B393CEBEB6454425D206940 /* CompositionBuilder.swift */; };
 		D7E316E70D864713A40F1659 /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
+		DA24B61F22844A9A5C005F39 /* SubtitleEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C54CB65E77B0DB040CDD51 /* SubtitleEntry.swift */; };
 		DC4A05DEB5672EB489B633FD /* MainEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC4FE533556380FCB651AF5A /* MainEditorView.swift */; };
 		DC5874A8E0B50897C648A708 /* REAudioAnalysis.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		DF7C38CE4C643850FF0A8FCB /* REExport.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AFB408B69327330EBAFC712 /* REExport.framework */; };
@@ -148,14 +153,18 @@
 		127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = REAudioAnalysis.swift; sourceTree = "<group>"; };
 		134FE371429BBCD27437CB9A /* SilenceCut.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SilenceCut.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		16BABFCA147DD5F237B860EE /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
+		17D5E4DCAFBA4616C0B876D5 /* SubtitlePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitlePanel.swift; sourceTree = "<group>"; };
+		2DCA24D467FDD6FE62C1C114 /* SubtitleStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleStyle.swift; sourceTree = "<group>"; };
 		30B341310F52289E17CF1B20 /* REExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = REExport.swift; sourceTree = "<group>"; };
 		3558AEAE76CD06B8D030642A /* RECore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RECore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		36F19C0B65C1CF9DA62657AF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceCutApp.swift; sourceTree = "<group>"; };
 		433492D71088FF4C3B8BA465 /* REUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = REUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		7438A77723E8F226465D2E3C /* SilenceDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceDetector.swift; sourceTree = "<group>"; };
+		8BAA5E9E0908542D21B7016D /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
 		9AFB408B69327330EBAFC712 /* REExport.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = REExport.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPlayerView.swift; sourceTree = "<group>"; };
+		A2C54CB65E77B0DB040CDD51 /* SubtitleEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleEntry.swift; sourceTree = "<group>"; };
 		C38F6599CFE96AB9F4C0579C /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
 		C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = REAudioAnalysis.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorViewModel.swift; sourceTree = "<group>"; };
@@ -173,6 +182,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D7E316E70D864713A40F1659 /* RECore.framework in Frameworks */,
+				8F08823AA9C4F61DB361B780 /* WhisperKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -231,6 +241,7 @@
 			children = (
 				127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */,
 				7438A77723E8F226465D2E3C /* SilenceDetector.swift */,
+				8BAA5E9E0908542D21B7016D /* TranscriptionService.swift */,
 			);
 			path = REAudioAnalysis;
 			sourceTree = "<group>";
@@ -292,6 +303,8 @@
 			children = (
 				FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */,
 				16BABFCA147DD5F237B860EE /* Project.swift */,
+				A2C54CB65E77B0DB040CDD51 /* SubtitleEntry.swift */,
+				2DCA24D467FDD6FE62C1C114 /* SubtitleStyle.swift */,
 				D22634EE80EF00F6A0200C90 /* TimelineClip.swift */,
 			);
 			path = RECore;
@@ -304,6 +317,7 @@
 				CC4FE533556380FCB651AF5A /* MainEditorView.swift */,
 				A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */,
 				E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */,
+				17D5E4DCAFBA4616C0B876D5 /* SubtitlePanel.swift */,
 				E137873BB74A6C52AB2EC48F /* TimelineView.swift */,
 			);
 			path = REUI;
@@ -435,6 +449,7 @@
 			);
 			name = REAudioAnalysis;
 			packageProductDependencies = (
+				E44C7F4282B7292609D8C05E /* WhisperKit */,
 			);
 			productName = REAudioAnalysis;
 			productReference = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */;
@@ -459,6 +474,9 @@
 			);
 			mainGroup = 12C4C2088143F0B14CAF9140;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				638E8A9725FE6E0365EF2344 /* XCRemoteSwiftPackageReference "WhisperKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
@@ -489,6 +507,7 @@
 			files = (
 				F8DD8A4C0D865B40681E42E2 /* REAudioAnalysis.swift in Sources */,
 				CFAEF41566E8580A5E862C5C /* SilenceDetector.swift in Sources */,
+				5F978D6E4AE4B2C2A52719C7 /* TranscriptionService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -500,6 +519,7 @@
 				DC4A05DEB5672EB489B633FD /* MainEditorView.swift in Sources */,
 				2EB5A1E61AD378452AB4FB79 /* PreviewPlayerView.swift in Sources */,
 				2C19A9BEC214756BC0ED0FB7 /* SilenceDetectionPanel.swift in Sources */,
+				8532292AE5FDC45CD3425BE9 /* SubtitlePanel.swift in Sources */,
 				3D3D7B956C5DD2C2928BDC56 /* TimelineView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -510,6 +530,8 @@
 			files = (
 				D60B61C8B6DC16CD1C3511AB /* EditTimeline.swift in Sources */,
 				4F9F596CC1BF2C7DA2C6D0F7 /* Project.swift in Sources */,
+				DA24B61F22844A9A5C005F39 /* SubtitleEntry.swift in Sources */,
+				BDFB5A7FA89F762EFC667205 /* SubtitleStyle.swift in Sources */,
 				CB19976B440D2237D385396B /* TimelineClip.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1054,6 +1076,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		638E8A9725FE6E0365EF2344 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E44C7F4282B7292609D8C05E /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 638E8A9725FE6E0365EF2344 /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = F54EBB103CBDAE8984DB4051 /* Project object */;
 }

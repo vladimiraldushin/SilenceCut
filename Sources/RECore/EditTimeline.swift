@@ -118,6 +118,37 @@ public struct EditTimeline: Codable, Equatable {
         return nil
     }
 
+    // MARK: - Source ↔ Timeline Time Mapping
+
+    /// Map source video time to edited timeline time.
+    /// Returns nil if the source time falls in a removed/disabled region.
+    public func timelineTime(forSourceTime sourceTime: CMTime) -> CMTime? {
+        for clip in clips where clip.isEnabled {
+            let clipSourceEnd = CMTimeRangeGetEnd(clip.sourceRange)
+            if CMTimeCompare(sourceTime, clip.sourceRange.start) >= 0 &&
+               CMTimeCompare(sourceTime, clipSourceEnd) < 0 {
+                let offsetInClip = CMTimeSubtract(sourceTime, clip.sourceRange.start)
+                let scaledOffset = CMTimeMultiplyByFloat64(offsetInClip, multiplier: 1.0 / clip.speed)
+                return CMTimeAdd(clip.timelineOffset, scaledOffset)
+            }
+        }
+        return nil
+    }
+
+    /// Map edited timeline time back to source video time.
+    /// Returns nil if timeline time is out of range.
+    public func sourceTime(forTimelineTime timelineTime: CMTime) -> CMTime? {
+        for clip in clips where clip.isEnabled {
+            if CMTimeCompare(timelineTime, clip.timelineOffset) >= 0 &&
+               CMTimeCompare(timelineTime, clip.timelineEnd) < 0 {
+                let offsetInTimeline = CMTimeSubtract(timelineTime, clip.timelineOffset)
+                let sourceOffset = CMTimeMultiplyByFloat64(offsetInTimeline, multiplier: clip.speed)
+                return CMTimeAdd(clip.sourceRange.start, sourceOffset)
+            }
+        }
+        return nil
+    }
+
     /// Create timeline from speech ranges (for silence detection)
     public static func fromSpeechRanges(_ ranges: [CMTimeRange], sourceURL: URL, availableRange: CMTimeRange) -> EditTimeline {
         var clips: [TimelineClip] = []

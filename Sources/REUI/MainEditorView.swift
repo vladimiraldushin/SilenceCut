@@ -97,6 +97,11 @@ public struct MainEditorView: View {
             }
             .disabled(viewModel.project.sourceURL == nil || viewModel.isDetectingSilence)
 
+            Button { viewModel.transcribe() } label: {
+                Label("Transcribe", systemImage: "text.word.spacing")
+            }
+            .disabled(viewModel.project.sourceURL == nil || viewModel.isTranscribing)
+
             Divider().frame(height: 20)
 
             Button { viewModel.undo() } label: {
@@ -147,6 +152,11 @@ public struct MainEditorView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Silence Detection Panel
             SilenceDetectionPanel(viewModel: viewModel)
+
+            Divider()
+
+            // Subtitle Panel
+            SubtitlePanel(viewModel: viewModel)
 
             Divider()
 

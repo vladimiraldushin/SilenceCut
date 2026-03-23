@@ -25,6 +25,14 @@ public class EditorViewModel {
     public var isDetectingSilence = false
     public var detectionProgress: Double = 0
 
+    // Subtitles
+    public var subtitleEntries: [SubtitleEntry] = []
+    public var subtitleStyle: SubtitleStyle = .classic
+    public var isTranscribing = false
+    public var transcriptionProgress: Double = 0
+    public var transcriptionPhase: String = ""
+    public var showSubtitles = true
+
     // Export
     public var isExporting = false
     public var exportProgress: Double = 0
@@ -288,6 +296,51 @@ public class EditorViewModel {
             } catch {
                 statusMessage = "Error restoring: \(error.localizedDescription)"
             }
+        }
+    }
+
+    // MARK: - Transcription
+
+    public func transcribe() {
+        guard let url = project.sourceURL else { return }
+        isTranscribing = true
+        transcriptionProgress = 0
+
+        Task { @MainActor in
+            do {
+                subtitleEntries = try await TranscriptionService.transcribe(
+                    url: url,
+                    language: "ru"
+                ) { progress in
+                    Task { @MainActor in
+                        self.transcriptionProgress = progress.fraction
+                        self.transcriptionPhase = progress.phase.rawValue
+                    }
+                }
+                statusMessage = "\(subtitleEntries.count) subtitle segments"
+            } catch {
+                statusMessage = "Transcription error: \(error.localizedDescription)"
+            }
+            isTranscribing = false
+        }
+    }
+
+    /// Find active subtitle at current playhead position
+    public func activeSubtitle(at playheadTime: CMTime) -> SubtitleEntry? {
+        // Map timeline time → source time
+        guard let sourceTime = timeline.sourceTime(forTimelineTime: playheadTime) else { return nil }
+        return subtitleEntries.first { entry in
+            CMTimeCompare(sourceTime, entry.startTime) >= 0 &&
+            CMTimeCompare(sourceTime, entry.endTime) < 0
+        }
+    }
+
+    /// Find active word index in a subtitle entry for karaoke
+    public func activeWordIndex(in entry: SubtitleEntry, at playheadTime: CMTime) -> Int? {
+        guard let sourceTime = timeline.sourceTime(forTimelineTime: playheadTime) else { return nil }
+        return entry.words.firstIndex { word in
+            CMTimeCompare(sourceTime, word.startTime) >= 0 &&
+            CMTimeCompare(sourceTime, word.endTime) < 0
         }
     }
 

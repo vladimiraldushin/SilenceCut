@@ -6,6 +6,11 @@ options:
   createIntermediateGroups: true
   generateEmptyDirectories: false
 
+packages:
+  WhisperKit:
+    url: https://github.com/argmaxinc/WhisperKit.git
+    from: "0.9.0"
+
 settings:
   base:
     SWIFT_VERSION: "5.10"
@@ -42,6 +47,7 @@ targets:
     sources: [Sources/REAudioAnalysis]
     dependencies:
       - target: RECore
+      - package: WhisperKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REAudioAnalysis
