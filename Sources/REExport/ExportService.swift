@@ -161,14 +161,13 @@ public enum ExportService {
             let end: Double
             let words: [(word: String, start: Double, end: Double)]
         }
-        // Map subtitle source times → timeline times
-        // Subtitles may span across clip boundaries or fall in removed silence,
-        // so we find the FIRST and LAST valid mapping within each subtitle's range
+        // Map subtitle source times → timeline times using clip overlap detection
         let subtitleRanges: [SubRange] = subtitleEntries.compactMap { entry in
             let srcStart = CMTimeGetSeconds(entry.startTime)
             let srcEnd = CMTimeGetSeconds(entry.endTime)
+            guard srcEnd > srcStart else { return nil }
 
-            // Find any enabled clip that overlaps with this subtitle's source range
+            // Find overlap with ANY enabled clip (subtitle may span speech+silence)
             var tlStart: Double?
             var tlEnd: Double?
 
@@ -176,37 +175,50 @@ public enum ExportService {
                 let clipSrcStart = CMTimeGetSeconds(clip.sourceRange.start)
                 let clipSrcEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
 
-                // Check overlap
                 let overlapStart = max(srcStart, clipSrcStart)
                 let overlapEnd = min(srcEnd, clipSrcEnd)
-                guard overlapEnd > overlapStart else { continue }
+                guard overlapEnd > overlapStart + 0.01 else { continue }
 
-                // Map overlap boundaries to timeline time
-                let oStartCM = CMTime(seconds: overlapStart, preferredTimescale: 600)
-                let oEndCM = CMTime(seconds: overlapEnd, preferredTimescale: 600)
+                // Manually compute timeline time (avoid strict boundary check)
+                let offsetStart = (overlapStart - clipSrcStart) / clip.speed
+                let offsetEnd = (overlapEnd - clipSrcStart) / clip.speed
+                let tlOffset = CMTimeGetSeconds(clip.timelineOffset)
 
-                if let ts = timeline.timelineTime(forSourceTime: oStartCM) {
-                    let tsSec = CMTimeGetSeconds(ts)
-                    if tlStart == nil || tsSec < tlStart! { tlStart = tsSec }
-                }
-                if let te = timeline.timelineTime(forSourceTime: oEndCM) {
-                    let teSec = CMTimeGetSeconds(te)
-                    if tlEnd == nil || teSec > tlEnd! { tlEnd = teSec }
-                }
+                let ts = tlOffset + offsetStart
+                let te = tlOffset + offsetEnd
+
+                if tlStart == nil || ts < tlStart! { tlStart = ts }
+                if tlEnd == nil || te > tlEnd! { tlEnd = te }
             }
 
-            guard let s = tlStart, let e = tlEnd, e > s else { return nil }
+            guard let s = tlStart, let e = tlEnd, e > s + 0.01 else {
+                print("[Export] SKIP subtitle: \(entry.text.prefix(30))... (no clip overlap)")
+                return nil
+            }
 
             let text = subtitleStyle.isUppercase ? entry.text.uppercased() : entry.text
-            let words: [(word: String, start: Double, end: Double)] = entry.words.compactMap { w in
-                guard let ws = timeline.timelineTime(forSourceTime: w.startTime),
-                      let we = timeline.timelineTime(forSourceTime: w.endTime) else { return nil }
-                let word = subtitleStyle.isUppercase ? w.word.uppercased() : w.word
-                return (word: word, start: CMTimeGetSeconds(ws), end: CMTimeGetSeconds(we))
+
+            // Interpolate word timings from subtitle range (avoids losing words on clip boundaries)
+            let words: [(word: String, start: Double, end: Double)]
+            if !entry.words.isEmpty {
+                let srcDuration = srcEnd - srcStart
+                let tlDuration = e - s
+                words = entry.words.map { w in
+                    let wSrcStart = CMTimeGetSeconds(w.startTime)
+                    let wSrcEnd = CMTimeGetSeconds(w.endTime)
+                    // Proportional mapping: source position → timeline position
+                    let wTlStart = s + ((wSrcStart - srcStart) / srcDuration) * tlDuration
+                    let wTlEnd = s + ((wSrcEnd - srcStart) / srcDuration) * tlDuration
+                    let word = subtitleStyle.isUppercase ? w.word.uppercased() : w.word
+                    return (word: word, start: wTlStart, end: wTlEnd)
+                }
+            } else {
+                words = []
             }
+
             return SubRange(text: text, start: s, end: e, words: words)
         }
-        print("[Export] \(subtitleRanges.count) subtitle ranges")
+        print("[Export] \(subtitleRanges.count)/\(subtitleEntries.count) subtitle ranges mapped")
 
         // === PASS 1: Export composition to temp file ===
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("silencecut_\(UUID().uuidString).mp4")
