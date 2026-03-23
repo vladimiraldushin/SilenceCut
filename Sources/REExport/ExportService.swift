@@ -40,8 +40,7 @@ public struct ExportProgress {
     public let estimatedRemaining: TimeInterval?
 }
 
-/// Exports the edited timeline to an MP4 file using AVAssetExportSession
-/// (leverages the already-built AVMutableComposition from CompositionBuilder)
+/// Exports the edited timeline to an MP4 file
 public enum ExportService {
 
     public enum ExportError: Error, LocalizedError {
@@ -58,12 +57,9 @@ public enum ExportService {
         }
     }
 
-    /// Export the timeline to a file
-    /// - Parameters:
-    ///   - timeline: The edited timeline
-    ///   - outputURL: Destination file URL
-    ///   - preset: Quality preset
-    ///   - progress: Progress callback
+    /// Export the timeline to a file — two paths:
+    /// 1. Without subtitles: fast AVAssetExportSession
+    /// 2. With subtitles: AVAssetWriter + CALayer burn-in via AVVideoCompositionCoreAnimationTool
     public static func export(
         timeline: EditTimeline,
         to outputURL: URL,
@@ -84,27 +80,48 @@ public enum ExportService {
         // Remove existing file
         try? FileManager.default.removeItem(at: outputURL)
 
-        // AVAssetExportPresetHighestQuality doesn't support animationTool
-        // Use specific resolution preset when subtitles are present
-        let exportPresetName: String
-        if !subtitleEntries.isEmpty {
-            // Need specific preset for animationTool support
-            let h = result.videoComposition?.renderSize.height ?? 1920
-            if h >= 1920 {
-                exportPresetName = AVAssetExportPreset1920x1080  // Will be rotated for portrait
-            } else if h >= 1280 {
-                exportPresetName = AVAssetExportPreset1280x720
-            } else {
-                exportPresetName = AVAssetExportPreset960x540
-            }
-            print("[Export] Using preset \(exportPresetName) for subtitle burn-in")
+        if !subtitleEntries.isEmpty, let videoComp = result.videoComposition {
+            // Path 2: AVAssetWriter with subtitle burn-in
+            print("[Export] Subtitle burn-in: \(subtitleEntries.count) entries")
+            try await exportWithSubtitles(
+                composition: result.composition,
+                videoComposition: videoComp,
+                audioMix: result.audioMix,
+                subtitleEntries: subtitleEntries,
+                subtitleStyle: subtitleStyle,
+                timeline: timeline,
+                outputURL: outputURL,
+                preset: preset,
+                startTime: startTime,
+                progress: progress
+            )
         } else {
-            exportPresetName = AVAssetExportPresetHighestQuality
+            // Path 1: Fast AVAssetExportSession (no subtitles)
+            print("[Export] Fast export (no subtitles)")
+            try await exportFast(
+                composition: result.composition,
+                videoComposition: result.videoComposition,
+                audioMix: result.audioMix,
+                outputURL: outputURL,
+                startTime: startTime,
+                progress: progress
+            )
         }
+    }
 
+    // MARK: - Fast Export (no subtitles)
+
+    private static func exportFast(
+        composition: AVMutableComposition,
+        videoComposition: AVMutableVideoComposition?,
+        audioMix: AVMutableAudioMix?,
+        outputURL: URL,
+        startTime: Date,
+        progress: @escaping (ExportProgress) -> Void
+    ) async throws {
         guard let exportSession = AVAssetExportSession(
-            asset: result.composition,
-            presetName: exportPresetName
+            asset: composition,
+            presetName: AVAssetExportPresetHighestQuality
         ) else {
             throw ExportError.exportFailed("Cannot create export session")
         }
@@ -112,82 +129,172 @@ public enum ExportService {
         exportSession.outputURL = outputURL
         exportSession.outputFileType = .mp4
         exportSession.shouldOptimizeForNetworkUse = true
+        if let vc = videoComposition { exportSession.videoComposition = vc }
+        if let am = audioMix { exportSession.audioMix = am }
 
-        // Build subtitle overlay using Core Animation if subtitles exist
-        if !subtitleEntries.isEmpty, let videoComp = result.videoComposition {
-            let renderSize = videoComp.renderSize
-            print("[Export] Burning \(subtitleEntries.count) subtitles at \(renderSize)")
-            let subtitleVideoComp = buildSubtitleComposition(
-                baseComposition: result.composition,
-                videoComposition: videoComp,
-                subtitleEntries: subtitleEntries,
-                subtitleStyle: subtitleStyle,
-                timeline: timeline,
-                renderSize: renderSize
-            )
-            exportSession.videoComposition = subtitleVideoComp
-        } else if let videoComp = result.videoComposition {
-            print("[Export] No subtitles (\(subtitleEntries.count) entries, videoComp: \(result.videoComposition != nil))")
-            exportSession.videoComposition = videoComp
-        }
+        let exportTask = Task { await exportSession.export() }
 
-        // Apply audio mix (crossfade)
-        if let audioMix = result.audioMix {
-            exportSession.audioMix = audioMix
-        }
-
-        // Start export
-        let exportTask = Task {
-            await exportSession.export()
-        }
-
-        // Monitor progress
         let progressTask = Task {
             while !Task.isCancelled {
                 let p = exportSession.progress
                 let elapsed = Date().timeIntervalSince(startTime)
                 let remaining: TimeInterval? = p > 0.01 ? elapsed / Double(p) * (1.0 - Double(p)) : nil
-
                 await MainActor.run {
-                    progress(ExportProgress(
-                        fraction: Double(p),
-                        timeElapsed: elapsed,
-                        estimatedRemaining: remaining
-                    ))
+                    progress(ExportProgress(fraction: Double(p), timeElapsed: elapsed, estimatedRemaining: remaining))
                 }
-
                 if p >= 1.0 { break }
                 try? await Task.sleep(for: .milliseconds(100))
             }
         }
 
-        // Wait for export
         await exportTask.value
         progressTask.cancel()
 
-        // Check result
-        switch exportSession.status {
-        case .completed:
-            let elapsed = Date().timeIntervalSince(startTime)
-            print("[Export] Completed in \(String(format: "%.1f", elapsed))s → \(outputURL.lastPathComponent)")
-            await MainActor.run {
-                progress(ExportProgress(fraction: 1.0, timeElapsed: elapsed, estimatedRemaining: 0))
-            }
-        case .failed:
-            throw ExportError.exportFailed(exportSession.error?.localizedDescription ?? "Unknown error")
-        case .cancelled:
-            throw ExportError.cancelled
-        default:
-            throw ExportError.exportFailed("Unexpected status: \(exportSession.status.rawValue)")
+        guard exportSession.status == .completed else {
+            throw ExportError.exportFailed(exportSession.error?.localizedDescription ?? "Status: \(exportSession.status.rawValue)")
         }
+        let elapsed = Date().timeIntervalSince(startTime)
+        print("[Export] Fast completed in \(String(format: "%.1f", elapsed))s")
+        await MainActor.run { progress(ExportProgress(fraction: 1.0, timeElapsed: elapsed, estimatedRemaining: 0)) }
     }
 
-    // MARK: - Subtitle Burn-in via Core Animation
+    // MARK: - Export with Subtitles (AVAssetWriter)
 
-    /// Creates AVVideoComposition with subtitle CATextLayers using AVVideoCompositionCoreAnimationTool
-    private static func buildSubtitleComposition(
-        baseComposition: AVMutableComposition,
+    private static func exportWithSubtitles(
+        composition: AVMutableComposition,
         videoComposition: AVMutableVideoComposition,
+        audioMix: AVMutableAudioMix?,
+        subtitleEntries: [SubtitleEntry],
+        subtitleStyle: SubtitleStyle,
+        timeline: EditTimeline,
+        outputURL: URL,
+        preset: ExportPreset,
+        startTime: Date,
+        progress: @escaping (ExportProgress) -> Void
+    ) async throws {
+        let renderSize = videoComposition.renderSize
+        print("[Export] Render size: \(renderSize)")
+
+        // Add animation tool to the videoComposition
+        let animatedComp = addSubtitleLayers(
+            to: videoComposition,
+            subtitleEntries: subtitleEntries,
+            subtitleStyle: subtitleStyle,
+            timeline: timeline,
+            renderSize: renderSize
+        )
+
+        // --- Reader ---
+        let reader = try AVAssetReader(asset: composition)
+
+        let videoOutput = AVAssetReaderVideoCompositionOutput(
+            videoTracks: composition.tracks(withMediaType: .video),
+            videoSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+        )
+        videoOutput.videoComposition = animatedComp
+        reader.add(videoOutput)
+
+        var audioOutput: AVAssetReaderAudioMixOutput? = nil
+        let audioTracks = composition.tracks(withMediaType: .audio)
+        if !audioTracks.isEmpty {
+            let ao = AVAssetReaderAudioMixOutput(audioTracks: audioTracks, audioSettings: nil)
+            if let am = audioMix { ao.audioMix = am }
+            reader.add(ao)
+            audioOutput = ao
+        }
+
+        // --- Writer ---
+        let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
+
+        let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: Int(renderSize.width),
+            AVVideoHeightKey: Int(renderSize.height),
+            AVVideoCompressionPropertiesKey: [
+                AVVideoAverageBitRateKey: preset.videoBitRate,
+                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
+            ]
+        ])
+        videoInput.expectsMediaDataInRealTime = false
+        writer.add(videoInput)
+
+        var audioInput: AVAssetWriterInput? = nil
+        if audioOutput != nil {
+            let ai = AVAssetWriterInput(mediaType: .audio, outputSettings: [
+                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVSampleRateKey: 44100,
+                AVNumberOfChannelsKey: 2,
+                AVEncoderBitRateKey: preset.audioBitRate
+            ])
+            ai.expectsMediaDataInRealTime = false
+            writer.add(ai)
+            audioInput = ai
+        }
+
+        // --- Start ---
+        reader.startReading()
+        writer.startWriting()
+        writer.startSession(atSourceTime: .zero)
+
+        let totalDuration = CMTimeGetSeconds(composition.duration)
+
+        // Write video
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            videoInput.requestMediaDataWhenReady(on: DispatchQueue(label: "export.video")) {
+                while videoInput.isReadyForMoreMediaData {
+                    if let buffer = videoOutput.copyNextSampleBuffer() {
+                        videoInput.append(buffer)
+
+                        let t = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(buffer))
+                        let frac = min(t / totalDuration, 0.95)
+                        let elapsed = Date().timeIntervalSince(startTime)
+                        Task { @MainActor in
+                            progress(ExportProgress(fraction: frac, timeElapsed: elapsed, estimatedRemaining: nil))
+                        }
+                    } else {
+                        videoInput.markAsFinished()
+                        cont.resume()
+                        return
+                    }
+                }
+            }
+        }
+
+        // Write audio
+        if let audioInput = audioInput, let audioOutput = audioOutput {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                audioInput.requestMediaDataWhenReady(on: DispatchQueue(label: "export.audio")) {
+                    while audioInput.isReadyForMoreMediaData {
+                        if let buffer = audioOutput.copyNextSampleBuffer() {
+                            audioInput.append(buffer)
+                        } else {
+                            audioInput.markAsFinished()
+                            cont.resume()
+                            return
+                        }
+                    }
+                }
+            }
+        }
+
+        // Finalize
+        await writer.finishWriting()
+
+        guard writer.status == .completed else {
+            throw ExportError.exportFailed(writer.error?.localizedDescription ?? "Writer status: \(writer.status.rawValue)")
+        }
+
+        reader.cancelReading()
+
+        let elapsed = Date().timeIntervalSince(startTime)
+        print("[Export] Subtitle export completed in \(String(format: "%.1f", elapsed))s → \(outputURL.lastPathComponent)")
+        await MainActor.run { progress(ExportProgress(fraction: 1.0, timeElapsed: elapsed, estimatedRemaining: 0)) }
+    }
+
+    // MARK: - Subtitle Layer Builder
+
+    private static func addSubtitleLayers(
+        to videoComposition: AVMutableVideoComposition,
         subtitleEntries: [SubtitleEntry],
         subtitleStyle: SubtitleStyle,
         timeline: EditTimeline,
@@ -197,6 +304,7 @@ public enum ExportService {
         // Parent layer (full render size)
         let parentLayer = CALayer()
         parentLayer.frame = CGRect(origin: .zero, size: renderSize)
+        parentLayer.isGeometryFlipped = true  // match SwiftUI coordinate system
 
         // Video layer
         let videoLayer = CALayer()
@@ -212,7 +320,6 @@ public enum ExportService {
         let scaleY = renderSize.height / 1920
 
         for entry in subtitleEntries {
-            // Map source time → timeline time for this entry
             guard let startTL = timeline.timelineTime(forSourceTime: entry.startTime),
                   let endTL = timeline.timelineTime(forSourceTime: entry.endTime) else { continue }
 
@@ -220,10 +327,9 @@ public enum ExportService {
             let endSec = CMTimeGetSeconds(endTL)
             guard endSec > startSec else { continue }
 
-            // Build subtitle text
             let text = subtitleStyle.isUppercase ? entry.text.uppercased() : entry.text
 
-            // Create text layer
+            // Text layer
             let textLayer = CATextLayer()
             let fontSize = subtitleStyle.fontSize * min(scaleX, scaleY)
             let font = NSFont(name: subtitleStyle.fontName, size: fontSize)
@@ -242,25 +348,21 @@ public enum ExportService {
             textLayer.isWrapped = true
             textLayer.alignmentMode = .center
             textLayer.contentsScale = 2
-
-            // Shadow for readability
             textLayer.shadowColor = NSColor.black.cgColor
-            textLayer.shadowOffset = CGSize(width: 0, height: -1)
-            textLayer.shadowRadius = 2
-            textLayer.shadowOpacity = 0.8
+            textLayer.shadowOffset = CGSize(width: 0, height: 2)
+            textLayer.shadowRadius = 3
+            textLayer.shadowOpacity = 0.9
 
-            // Position (Core Animation: y=0 is BOTTOM, opposite of SwiftUI)
+            // Position (isGeometryFlipped = true, so y goes top-down like SwiftUI)
             let yCenter = subtitleStyle.position.yCenter * scaleY
-            let yFromBottom = renderSize.height - yCenter
-            let padding = SafeZone.left * scaleX
+            let padding = max(SafeZone.left, SafeZone.right) * scaleX
             let width = renderSize.width - padding * 2
-            textLayer.frame = CGRect(x: padding, y: yFromBottom - 40, width: width, height: 80)
+            let layerHeight: CGFloat = 120 * scaleY
+            textLayer.frame = CGRect(x: padding, y: yCenter - layerHeight / 2, width: width, height: layerHeight)
 
-            // Animated: show only during subtitle's time range
-            // Using AVCoreAnimationBeginTimeAtZero convention
+            // Timing: hidden by default, show only during subtitle time
             textLayer.opacity = 0
 
-            // Fade in
             let fadeIn = CABasicAnimation(keyPath: "opacity")
             fadeIn.fromValue = 0
             fadeIn.toValue = 1
@@ -270,7 +372,6 @@ public enum ExportService {
             fadeIn.isRemovedOnCompletion = false
             textLayer.add(fadeIn, forKey: "fadeIn")
 
-            // Fade out
             let fadeOut = CABasicAnimation(keyPath: "opacity")
             fadeOut.fromValue = 1
             fadeOut.toValue = 0
@@ -280,7 +381,7 @@ public enum ExportService {
             fadeOut.isRemovedOnCompletion = false
             textLayer.add(fadeOut, forKey: "fadeOut")
 
-            // Background pill for classic style
+            // Background
             if subtitleStyle.backgroundOpacity > 0.01 {
                 let bgLayer = CALayer()
                 bgLayer.frame = textLayer.frame.insetBy(dx: -12 * scaleX, dy: -6 * scaleY)
@@ -292,13 +393,10 @@ public enum ExportService {
                 ).cgColor
                 bgLayer.cornerRadius = 8 * min(scaleX, scaleY)
                 bgLayer.opacity = 0
-
-                // Same timing animations
-                let bgFadeIn = fadeIn.copy() as! CABasicAnimation
-                bgLayer.add(bgFadeIn, forKey: "fadeIn")
-                let bgFadeOut = fadeOut.copy() as! CABasicAnimation
-                bgLayer.add(bgFadeOut, forKey: "fadeOut")
-
+                let bgIn = fadeIn.copy() as! CABasicAnimation
+                bgLayer.add(bgIn, forKey: "fadeIn")
+                let bgOut = fadeOut.copy() as! CABasicAnimation
+                bgLayer.add(bgOut, forKey: "fadeOut")
                 overlayLayer.addSublayer(bgLayer)
             }
 
@@ -306,14 +404,13 @@ public enum ExportService {
         }
 
         parentLayer.addSublayer(overlayLayer)
+        print("[Export] Built \(subtitleEntries.count) subtitle layers")
 
-        // Create new video composition with animation tool
-        let animTool = AVVideoCompositionCoreAnimationTool(
+        // Attach animation tool
+        videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(
             postProcessingAsVideoLayer: videoLayer,
             in: parentLayer
         )
-
-        videoComposition.animationTool = animTool
 
         return videoComposition
     }
