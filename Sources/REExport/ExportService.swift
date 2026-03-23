@@ -263,40 +263,60 @@ public enum ExportService {
 
         try await Task.detached {
             var fc = 0
-            while reader.status == .reading {
-                if vInput.isReadyForMoreMediaData {
-                    guard let buf = vOutput.copyNextSampleBuffer() else { break }
-                    let pts = CMSampleBufferGetPresentationTimeStamp(buf)
-                    let t = CMTimeGetSeconds(pts)
+            var videoDone = false
+            var audioDone = (aInput == nil)
 
-                    if let sub = subtitleRanges.first(where: { t >= $0.start && t < $0.end }),
-                       let pb = CMSampleBufferGetImageBuffer(buf) {
-                        drawSubtitle(text: sub.text, on: pb, renderSize: renderSize,
-                                     sourceTransform: xform, style: subtitleStyle, font: ctFont)
-                    }
-                    vInput.append(buf)
-                    fc += 1
-                    if fc % 60 == 0 {
-                        let frac = 0.4 + min(t / totalDur, 1.0) * 0.6
-                        Task { @MainActor in
-                            progress(ExportProgress(fraction: frac, timeElapsed: Date().timeIntervalSince(startTime), estimatedRemaining: nil))
+            while reader.status == .reading && !(videoDone && audioDone) {
+                var didWork = false
+
+                // Video
+                if !videoDone && vInput.isReadyForMoreMediaData {
+                    if let buf = vOutput.copyNextSampleBuffer() {
+                        let pts = CMSampleBufferGetPresentationTimeStamp(buf)
+                        let t = CMTimeGetSeconds(pts)
+
+                        if let sub = subtitleRanges.first(where: { t >= $0.start && t < $0.end }),
+                           let pb = CMSampleBufferGetImageBuffer(buf) {
+                            drawSubtitle(text: sub.text, on: pb, renderSize: renderSize,
+                                         sourceTransform: xform, style: subtitleStyle, font: ctFont)
                         }
-                    }
-                } else { Thread.sleep(forTimeInterval: 0.005) }
-            }
-            vInput.markAsFinished()
-            print("[Export] Pass 2 video: \(fc) frames")
+                        vInput.append(buf)
+                        fc += 1
+                        didWork = true
 
-            if let aInput = aInput, let aOutput = aOutput {
-                while true {
-                    if aInput.isReadyForMoreMediaData {
-                        guard let b = aOutput.copyNextSampleBuffer() else { break }
-                        aInput.append(b)
-                    } else { Thread.sleep(forTimeInterval: 0.005) }
+                        if fc % 60 == 0 {
+                            let frac = 0.4 + min(t / totalDur, 1.0) * 0.6
+                            Task { @MainActor in
+                                progress(ExportProgress(fraction: frac, timeElapsed: Date().timeIntervalSince(startTime), estimatedRemaining: nil))
+                            }
+                        }
+                    } else {
+                        vInput.markAsFinished()
+                        videoDone = true
+                        print("[Export] Pass 2 video: \(fc) frames")
+                    }
                 }
-                aInput.markAsFinished()
-                print("[Export] Pass 2 audio done")
+
+                // Audio (interleaved)
+                if !audioDone, let aIn = aInput, let aOut = aOutput, aIn.isReadyForMoreMediaData {
+                    if let b = aOut.copyNextSampleBuffer() {
+                        aIn.append(b)
+                        didWork = true
+                    } else {
+                        aIn.markAsFinished()
+                        audioDone = true
+                        print("[Export] Pass 2 audio done")
+                    }
+                }
+
+                if !didWork {
+                    Thread.sleep(forTimeInterval: 0.005)
+                }
             }
+
+            // Finish any remaining
+            if !videoDone { vInput.markAsFinished() }
+            if !audioDone, let aIn = aInput { aIn.markAsFinished() }
         }.value
 
         await writer.finishWriting()
