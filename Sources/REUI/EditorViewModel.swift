@@ -339,6 +339,27 @@ public class EditorViewModel {
         }
     }
 
+    /// Re-split words when user edits subtitle text
+    public func updateSubtitleWords(at index: Int) {
+        guard index < subtitleEntries.count else { return }
+        let entry = subtitleEntries[index]
+        let words = entry.text.split(separator: " ").map(String.init)
+        guard !words.isEmpty else { return }
+
+        // Distribute time evenly across new words
+        let start = CMTimeGetSeconds(entry.startTime)
+        let end = CMTimeGetSeconds(entry.endTime)
+        let perWord = (end - start) / Double(words.count)
+
+        subtitleEntries[index].words = words.enumerated().map { i, word in
+            RECore.WordTiming(
+                word: word,
+                startTime: CMTime(seconds: start + Double(i) * perWord, preferredTimescale: 600),
+                endTime: CMTime(seconds: start + Double(i + 1) * perWord, preferredTimescale: 600)
+            )
+        }
+    }
+
     /// Find active subtitle at current playhead position
     public func activeSubtitle(at playheadTime: CMTime) -> SubtitleEntry? {
         // Map timeline time → source time
@@ -376,7 +397,9 @@ public class EditorViewModel {
                 try await ExportService.export(
                     timeline: timeline,
                     to: url,
-                    preset: exportPreset
+                    preset: exportPreset,
+                    subtitleEntries: showSubtitles ? subtitleEntries : [],
+                    subtitleStyle: subtitleStyle
                 ) { progress in
                     self.exportProgress = progress.fraction
                 }

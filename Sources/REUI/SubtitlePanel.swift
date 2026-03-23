@@ -101,13 +101,21 @@ struct SubtitlePanel: View {
                 .foregroundColor(.secondary)
                 .frame(width: 55, alignment: .trailing)
 
-            Text(entry.text)
-                .font(.caption)
-                .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            TextField("", text: Binding(
+                get: { viewModel.subtitleEntries[safe: index]?.text ?? "" },
+                set: { newText in
+                    if index < viewModel.subtitleEntries.count {
+                        viewModel.subtitleEntries[index].text = newText
+                        // Re-split words from edited text
+                        viewModel.updateSubtitleWords(at: index)
+                    }
+                }
+            ))
+            .font(.caption)
+            .textFieldStyle(.plain)
+            .frame(maxWidth: .infinity)
 
             Button {
-                // Seek to subtitle start (in timeline time)
                 if let tlTime = viewModel.timeline.timelineTime(forSourceTime: entry.startTime) {
                     viewModel.seekSmoothly(to: tlTime)
                 }
@@ -116,6 +124,17 @@ struct SubtitlePanel: View {
             }
             .buttonStyle(.plain)
             .font(.caption)
+
+            Button {
+                if index < viewModel.subtitleEntries.count {
+                    viewModel.subtitleEntries.remove(at: index)
+                }
+            } label: {
+                Image(systemName: "trash")
+                    .foregroundColor(.red.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .font(.caption2)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
