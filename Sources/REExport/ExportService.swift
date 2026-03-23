@@ -170,16 +170,18 @@ public enum ExportService {
         // --- Reader ---
         let reader = try AVAssetReader(asset: composition)
 
-        // Read raw pixel buffers (NO videoComposition with animationTool)
-        let videoOutput = AVAssetReaderVideoCompositionOutput(
-            videoTracks: composition.tracks(withMediaType: .video),
-            videoSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
-        )
-        // Use videoComposition for orientation but WITHOUT animationTool
-        if let vc = videoComposition {
-            videoOutput.videoComposition = vc
+        // Use simple track output (not VideoCompositionOutput which blocks)
+        guard let videoTrack = composition.tracks(withMediaType: .video).first else {
+            throw ExportError.exportFailed("No video track")
         }
+        let videoOutput = AVAssetReaderTrackOutput(
+            track: videoTrack,
+            outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+        )
         reader.add(videoOutput)
+
+        // Get source transform for manual rotation
+        let sourceTransform = videoTrack.preferredTransform
 
         var audioOutput: AVAssetReaderAudioMixOutput? = nil
         let audioTracks = composition.tracks(withMediaType: .audio)
@@ -193,25 +195,23 @@ public enum ExportService {
         // --- Writer ---
         let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
 
+        // Writer input with correct orientation
+        // For portrait iPhone video: source is 1920x1080 rotated 90°
+        // AVAssetWriterInput.transform handles the rotation metadata
+        let sourceSize = videoTrack.naturalSize
         let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: [
             AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: Int(renderSize.width),
-            AVVideoHeightKey: Int(renderSize.height),
+            AVVideoWidthKey: Int(sourceSize.width),
+            AVVideoHeightKey: Int(sourceSize.height),
             AVVideoCompressionPropertiesKey: [
                 AVVideoAverageBitRateKey: preset.videoBitRate,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
             ]
         ])
+        videoInput.transform = sourceTransform
         videoInput.expectsMediaDataInRealTime = false
+        print("[Export] Source: \(sourceSize), transform: \(sourceTransform), render: \(renderSize)")
 
-        let adaptor = AVAssetWriterInputPixelBufferAdaptor(
-            assetWriterInput: videoInput,
-            sourcePixelBufferAttributes: [
-                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-                kCVPixelBufferWidthKey as String: Int(renderSize.width),
-                kCVPixelBufferHeightKey as String: Int(renderSize.height)
-            ]
-        )
         writer.add(videoInput)
 
         var audioInput: AVAssetWriterInput? = nil
@@ -258,20 +258,19 @@ public enum ExportService {
                     let activeSubtitle = subtitleRanges.first { timeSec >= $0.start && timeSec < $0.end }
 
                     if let sub = activeSubtitle, let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-                        // Draw subtitle onto pixel buffer
+                        // Draw subtitle onto pixel buffer (in source orientation)
                         drawSubtitle(
                             text: sub.text,
                             on: pixelBuffer,
                             renderSize: renderSize,
+                            sourceTransform: sourceTransform,
                             style: subtitleStyle,
                             font: ctFont
                         )
                     }
 
-                    // Write (modified or original) frame
-                    if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-                        adaptor.append(pixelBuffer, withPresentationTime: pts)
-                    }
+                    // Write frame
+                    videoInput.append(sampleBuffer)
 
                     frameCount += 1
                     if frameCount % 30 == 0 {
@@ -319,44 +318,50 @@ public enum ExportService {
     // MARK: - Core Graphics Subtitle Rendering
 
     /// Draw subtitle text directly onto a CVPixelBuffer using Core Graphics + Core Text
+    /// sourceTransform: the video track's preferredTransform (e.g. 90° for portrait iPhone)
     private static func drawSubtitle(
         text: String,
         on pixelBuffer: CVPixelBuffer,
         renderSize: CGSize,
+        sourceTransform: CGAffineTransform,
         style: SubtitleStyle,
         font: CTFont
     ) {
         CVPixelBufferLockBaseAddress(pixelBuffer, [])
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
 
-        let width = CVPixelBufferGetWidth(pixelBuffer)
-        let height = CVPixelBufferGetHeight(pixelBuffer)
+        let bufW = CVPixelBufferGetWidth(pixelBuffer)
+        let bufH = CVPixelBufferGetHeight(pixelBuffer)
         let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
         guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else { return }
 
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         guard let context = CGContext(
             data: baseAddress,
-            width: width,
-            height: height,
+            width: bufW,
+            height: bufH,
             bitsPerComponent: 8,
             bytesPerRow: bytesPerRow,
             space: colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
         ) else { return }
 
-        // CGContext: y=0 is bottom. Flip to make y=0 top.
-        context.translateBy(x: 0, y: CGFloat(height))
-        context.scaleBy(x: 1, y: -1)
+        // Apply the source transform so subtitles appear correctly oriented
+        // For portrait iPhone: buffer is 1920×1080 (landscape), transform rotates to 1080×1920
+        context.saveGState()
+        context.concatenate(sourceTransform)
+
+        // Now we draw in renderSize coordinates (e.g. 1080×1920 for portrait)
+        let drawW = renderSize.width
+        let drawH = renderSize.height
 
         // Scale from 1080×1920 design coordinates
-        let scaleX = CGFloat(width) / 1080
-        let scaleY = CGFloat(height) / 1920
+        let scaleX = drawW / 1080
+        let scaleY = drawH / 1920
 
         // Text area
         let padding = max(SafeZone.left, SafeZone.right) * scaleX
-        let textWidth = CGFloat(width) - padding * 2
-        let yCenter = style.position.yCenter * scaleY
+        let textWidth = drawW - padding * 2
         let boxHeight: CGFloat = 120 * scaleY
 
         // Build attributed string
@@ -372,17 +377,20 @@ public enum ExportService {
         ]
         let attrStr = NSAttributedString(string: text, attributes: attributes)
 
-        // Calculate text bounding box
         let framesetter = CTFramesetterCreateWithAttributedString(attrStr)
         let textSize = CTFramesetterSuggestFrameSizeWithConstraints(
             framesetter, CFRange(location: 0, length: 0),
             nil, CGSize(width: textWidth, height: boxHeight), nil
         )
 
-        let textX = padding + (textWidth - textSize.width) / 2
-        let textY = yCenter - textSize.height / 2
+        // Position: yCenter in top-down coordinates → convert to CG bottom-up
+        let yCenter = style.position.yCenter * scaleY
+        let yFromBottom = drawH - yCenter
 
-        // Draw background
+        let textX = padding + (textWidth - textSize.width) / 2
+        let textY = yFromBottom - textSize.height / 2
+
+        // Background
         if style.backgroundOpacity > 0.01 {
             let bgRect = CGRect(
                 x: textX - 16 * scaleX,
@@ -390,36 +398,26 @@ public enum ExportService {
                 width: textSize.width + 32 * scaleX,
                 height: textSize.height + 16 * scaleY
             )
-            let bgColor = NSColor(
+            context.setFillColor(NSColor(
                 red: style.backgroundColor.red,
                 green: style.backgroundColor.green,
                 blue: style.backgroundColor.blue,
                 alpha: style.backgroundOpacity
-            )
-            context.setFillColor(bgColor.cgColor)
+            ).cgColor)
             let bgPath = CGPath(roundedRect: bgRect, cornerWidth: 8 * min(scaleX, scaleY), cornerHeight: 8 * min(scaleX, scaleY), transform: nil)
             context.addPath(bgPath)
             context.fillPath()
         }
 
-        // Draw text shadow
-        context.setShadow(offset: CGSize(width: 0, height: 2), blur: 3 * min(scaleX, scaleY), color: NSColor.black.withAlphaComponent(0.9).cgColor)
+        // Text shadow
+        context.setShadow(offset: CGSize(width: 0, height: -2), blur: 3, color: NSColor.black.withAlphaComponent(0.9).cgColor)
 
-        // Draw text
+        // Draw text via CTFrame (CG native coordinates, y=0 bottom)
         let textRect = CGRect(x: textX, y: textY, width: textSize.width, height: textSize.height)
         let path = CGPath(rect: textRect, transform: nil)
-        let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), path, nil)
+        let ctFrame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), path, nil)
+        CTFrameDraw(ctFrame, context)
 
-        // CTFrame draws with y=0 at bottom within the path, need to save/restore context
-        context.saveGState()
-        // Undo our flip for CTFrameDraw (it expects standard CG coordinates)
-        context.translateBy(x: 0, y: CGFloat(height))
-        context.scaleBy(x: 1, y: -1)
-        // Convert textRect to flipped coordinates
-        let flippedRect = CGRect(x: textX, y: CGFloat(height) - textY - textSize.height, width: textSize.width, height: textSize.height)
-        let flippedPath = CGPath(rect: flippedRect, transform: nil)
-        let flippedFrame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), flippedPath, nil)
-        CTFrameDraw(flippedFrame, context)
         context.restoreGState()
     }
 }
