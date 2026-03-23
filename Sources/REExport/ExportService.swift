@@ -191,8 +191,52 @@ public enum ExportService {
                 if tlEnd == nil || te > tlEnd! { tlEnd = te }
             }
 
+            // Fallback: if no direct overlap, map to nearest clip
+            if tlStart == nil || tlEnd == nil {
+                let srcMid = (srcStart + srcEnd) / 2
+                var bestClip: TimelineClip?
+                var bestDist = Double.greatestFiniteMagnitude
+
+                for clip in timeline.clips where clip.isEnabled {
+                    let clipSrcStart = CMTimeGetSeconds(clip.sourceRange.start)
+                    let clipSrcEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
+                    let clipMid = (clipSrcStart + clipSrcEnd) / 2
+                    let dist = abs(srcMid - clipMid)
+                    if dist < bestDist {
+                        bestDist = dist
+                        bestClip = clip
+                    }
+                }
+
+                if let clip = bestClip {
+                    let clipSrcStart = CMTimeGetSeconds(clip.sourceRange.start)
+                    let clipSrcEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
+                    let tlOffset = CMTimeGetSeconds(clip.timelineOffset)
+                    let clipTlDur = CMTimeGetSeconds(clip.effectiveDuration)
+
+                    // Clamp subtitle to clip boundaries
+                    let clampedStart = max(srcStart, clipSrcStart)
+                    let clampedEnd = min(srcEnd, clipSrcEnd)
+
+                    if clampedEnd > clampedStart {
+                        tlStart = tlOffset + (clampedStart - clipSrcStart) / clip.speed
+                        tlEnd = tlOffset + (clampedEnd - clipSrcStart) / clip.speed
+                    } else {
+                        // Subtitle is entirely outside this clip — show at clip edge
+                        if srcMid < clipSrcStart {
+                            tlStart = tlOffset
+                            tlEnd = tlOffset + min(2.0, clipTlDur)
+                        } else {
+                            tlEnd = tlOffset + clipTlDur
+                            tlStart = max(tlOffset, tlEnd! - 2.0)
+                        }
+                    }
+                    print("[Export] FALLBACK subtitle: \(entry.text.prefix(30))... → nearest clip")
+                }
+            }
+
             guard let s = tlStart, let e = tlEnd, e > s + 0.01 else {
-                print("[Export] SKIP subtitle: \(entry.text.prefix(30))... (no clip overlap)")
+                print("[Export] SKIP subtitle: \(entry.text.prefix(30))... (no clips at all)")
                 return nil
             }
 
