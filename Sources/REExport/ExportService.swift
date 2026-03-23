@@ -239,8 +239,10 @@ public enum ExportService {
         writer.add(vInput)
 
         var aInput: AVAssetWriterInput? = nil
-        if aOutput != nil {
-            let ai = AVAssetWriterInput(mediaType: .audio, outputSettings: nil)
+        if let aTrack2 = try await tempAsset.loadTracks(withMediaType: .audio).first {
+            let fmtDescs = try await aTrack2.load(.formatDescriptions)
+            let hint = fmtDescs.first
+            let ai = AVAssetWriterInput(mediaType: .audio, outputSettings: nil, sourceFormatHint: hint)
             ai.expectsMediaDataInRealTime = false
             writer.add(ai)
             aInput = ai
