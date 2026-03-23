@@ -161,11 +161,42 @@ public enum ExportService {
             let end: Double
             let words: [(word: String, start: Double, end: Double)]
         }
+        // Map subtitle source times → timeline times
+        // Subtitles may span across clip boundaries or fall in removed silence,
+        // so we find the FIRST and LAST valid mapping within each subtitle's range
         let subtitleRanges: [SubRange] = subtitleEntries.compactMap { entry in
-            guard let startTL = timeline.timelineTime(forSourceTime: entry.startTime),
-                  let endTL = timeline.timelineTime(forSourceTime: entry.endTime) else { return nil }
-            let s = CMTimeGetSeconds(startTL), e = CMTimeGetSeconds(endTL)
-            guard e > s else { return nil }
+            let srcStart = CMTimeGetSeconds(entry.startTime)
+            let srcEnd = CMTimeGetSeconds(entry.endTime)
+
+            // Find any enabled clip that overlaps with this subtitle's source range
+            var tlStart: Double?
+            var tlEnd: Double?
+
+            for clip in timeline.clips where clip.isEnabled {
+                let clipSrcStart = CMTimeGetSeconds(clip.sourceRange.start)
+                let clipSrcEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
+
+                // Check overlap
+                let overlapStart = max(srcStart, clipSrcStart)
+                let overlapEnd = min(srcEnd, clipSrcEnd)
+                guard overlapEnd > overlapStart else { continue }
+
+                // Map overlap boundaries to timeline time
+                let oStartCM = CMTime(seconds: overlapStart, preferredTimescale: 600)
+                let oEndCM = CMTime(seconds: overlapEnd, preferredTimescale: 600)
+
+                if let ts = timeline.timelineTime(forSourceTime: oStartCM) {
+                    let tsSec = CMTimeGetSeconds(ts)
+                    if tlStart == nil || tsSec < tlStart! { tlStart = tsSec }
+                }
+                if let te = timeline.timelineTime(forSourceTime: oEndCM) {
+                    let teSec = CMTimeGetSeconds(te)
+                    if tlEnd == nil || teSec > tlEnd! { tlEnd = teSec }
+                }
+            }
+
+            guard let s = tlStart, let e = tlEnd, e > s else { return nil }
+
             let text = subtitleStyle.isUppercase ? entry.text.uppercased() : entry.text
             let words: [(word: String, start: Double, end: Double)] = entry.words.compactMap { w in
                 guard let ws = timeline.timelineTime(forSourceTime: w.startTime),
