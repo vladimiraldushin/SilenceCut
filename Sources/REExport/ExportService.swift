@@ -162,12 +162,18 @@ public enum ExportService {
             let words: [(word: String, start: Double, end: Double)]
         }
         // Map subtitle source times → timeline times using clip overlap detection
+        // Expand subtitle search range by tolerance to catch edge cases where
+        // WhisperKit and silence detector disagree on boundaries
+        let overlapTolerance = 0.5 // 500ms tolerance on each side
         let subtitleRanges: [SubRange] = subtitleEntries.compactMap { entry in
             let srcStart = CMTimeGetSeconds(entry.startTime)
             let srcEnd = CMTimeGetSeconds(entry.endTime)
             guard srcEnd > srcStart else { return nil }
 
-            // Find overlap with ANY enabled clip (subtitle may span speech+silence)
+            // Expanded search range (subtitle ± tolerance)
+            let searchStart = srcStart - overlapTolerance
+            let searchEnd = srcEnd + overlapTolerance
+
             var tlStart: Double?
             var tlEnd: Double?
 
@@ -175,68 +181,42 @@ public enum ExportService {
                 let clipSrcStart = CMTimeGetSeconds(clip.sourceRange.start)
                 let clipSrcEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
 
-                let overlapStart = max(srcStart, clipSrcStart)
-                let overlapEnd = min(srcEnd, clipSrcEnd)
-                guard overlapEnd > overlapStart + 0.01 else { continue }
+                // Check overlap with expanded range
+                let overlapStart = max(searchStart, clipSrcStart)
+                let overlapEnd = min(searchEnd, clipSrcEnd)
+                guard overlapEnd > overlapStart else { continue }
 
-                // Manually compute timeline time (avoid strict boundary check)
-                let offsetStart = (overlapStart - clipSrcStart) / clip.speed
-                let offsetEnd = (overlapEnd - clipSrcStart) / clip.speed
+                // Clamp actual subtitle times to clip boundaries
+                let mappedStart = max(srcStart, clipSrcStart)
+                let mappedEnd = min(srcEnd, clipSrcEnd)
+
+                // Even if subtitle doesn't directly overlap, show at clip edge
+                let effectiveStart: Double
+                let effectiveEnd: Double
+                if mappedEnd > mappedStart {
+                    effectiveStart = mappedStart
+                    effectiveEnd = mappedEnd
+                } else {
+                    // Subtitle is in the tolerance zone — show at nearest clip edge
+                    if srcStart >= clipSrcEnd {
+                        effectiveStart = clipSrcEnd - min(0.5, clipSrcEnd - clipSrcStart)
+                        effectiveEnd = clipSrcEnd
+                    } else {
+                        effectiveStart = clipSrcStart
+                        effectiveEnd = clipSrcStart + min(0.5, clipSrcEnd - clipSrcStart)
+                    }
+                }
+
                 let tlOffset = CMTimeGetSeconds(clip.timelineOffset)
-
-                let ts = tlOffset + offsetStart
-                let te = tlOffset + offsetEnd
+                let ts = tlOffset + (effectiveStart - clipSrcStart) / clip.speed
+                let te = tlOffset + (effectiveEnd - clipSrcStart) / clip.speed
 
                 if tlStart == nil || ts < tlStart! { tlStart = ts }
                 if tlEnd == nil || te > tlEnd! { tlEnd = te }
             }
 
-            // Fallback: if no direct overlap, map to nearest clip
-            if tlStart == nil || tlEnd == nil {
-                let srcMid = (srcStart + srcEnd) / 2
-                var bestClip: TimelineClip?
-                var bestDist = Double.greatestFiniteMagnitude
-
-                for clip in timeline.clips where clip.isEnabled {
-                    let clipSrcStart = CMTimeGetSeconds(clip.sourceRange.start)
-                    let clipSrcEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
-                    let clipMid = (clipSrcStart + clipSrcEnd) / 2
-                    let dist = abs(srcMid - clipMid)
-                    if dist < bestDist {
-                        bestDist = dist
-                        bestClip = clip
-                    }
-                }
-
-                if let clip = bestClip {
-                    let clipSrcStart = CMTimeGetSeconds(clip.sourceRange.start)
-                    let clipSrcEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
-                    let tlOffset = CMTimeGetSeconds(clip.timelineOffset)
-                    let clipTlDur = CMTimeGetSeconds(clip.effectiveDuration)
-
-                    // Clamp subtitle to clip boundaries
-                    let clampedStart = max(srcStart, clipSrcStart)
-                    let clampedEnd = min(srcEnd, clipSrcEnd)
-
-                    if clampedEnd > clampedStart {
-                        tlStart = tlOffset + (clampedStart - clipSrcStart) / clip.speed
-                        tlEnd = tlOffset + (clampedEnd - clipSrcStart) / clip.speed
-                    } else {
-                        // Subtitle is entirely outside this clip — show at clip edge
-                        if srcMid < clipSrcStart {
-                            tlStart = tlOffset
-                            tlEnd = tlOffset + min(2.0, clipTlDur)
-                        } else {
-                            tlEnd = tlOffset + clipTlDur
-                            tlStart = max(tlOffset, tlEnd! - 2.0)
-                        }
-                    }
-                    print("[Export] FALLBACK subtitle: \(entry.text.prefix(30))... → nearest clip")
-                }
-            }
-
             guard let s = tlStart, let e = tlEnd, e > s + 0.01 else {
-                print("[Export] SKIP subtitle: \(entry.text.prefix(30))... (no clips at all)")
+                print("[Export] SKIP subtitle: \(entry.text.prefix(30))... (no nearby clip)")
                 return nil
             }
 
