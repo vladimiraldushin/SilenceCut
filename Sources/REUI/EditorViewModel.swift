@@ -62,6 +62,15 @@ public class EditorViewModel {
         project.sourceURL = url
         project.name = url.deletingPathExtension().lastPathComponent
 
+        // Reset state from previous project
+        subtitleEntries = []
+        silenceResult = nil
+        selectedClipId = nil
+        playheadPosition = .zero
+        isPlaying = false
+        undoStack.removeAll()
+        redoStack.removeAll()
+
         Task { @MainActor in
             let asset = AVURLAsset(url: url)
             do {
@@ -133,7 +142,7 @@ public class EditorViewModel {
             } else {
                 seekTime = currentTime
             }
-            await player?.seek(to: seekTime, toleranceBefore: .zero, toleranceAfter: .zero)
+            await player?.seek(to: seekTime)
             playheadPosition = seekTime
             isPlaying = false
 
@@ -202,6 +211,7 @@ public class EditorViewModel {
         saveUndoState()
         timeline.deleteClip(id: id)
         if selectedClipId == id { selectedClipId = nil }
+        playheadPosition = .zero
         Task { @MainActor in await rebuildPreview() }
     }
 

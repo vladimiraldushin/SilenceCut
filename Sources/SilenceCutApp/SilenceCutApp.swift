@@ -9,9 +9,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 
-        // Global key monitor
+        // Global key monitor (skip when editing text fields)
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let vm = self?.viewModel else { return event }
+
+            // Don't intercept keys when user is typing in a text field
+            if let responder = NSApp.keyWindow?.firstResponder,
+               responder is NSTextView || responder is NSTextField {
+                return event
+            }
 
             switch event.keyCode {
             case 51, 117: // Backspace, Forward Delete
