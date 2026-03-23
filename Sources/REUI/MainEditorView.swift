@@ -107,6 +107,20 @@ public struct MainEditorView: View {
 
             Spacer()
 
+            // Export
+            if viewModel.isExporting {
+                ProgressView(value: viewModel.exportProgress)
+                    .frame(width: 120)
+                Text("\(Int(viewModel.exportProgress * 100))%")
+                    .font(.caption)
+                    .monospacedDigit()
+            } else {
+                Button { viewModel.exportVideo() } label: {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                }
+                .disabled(viewModel.timeline.clips.isEmpty)
+            }
+
             Text("\(viewModel.timeline.enabledClipCount) clips")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -184,7 +198,18 @@ public struct MainEditorView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 6).fill(.background))
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(viewModel.selectedClipId == clip.id ? Color.accentColor.opacity(0.2) : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(viewModel.selectedClipId == clip.id ? Color.accentColor : Color.clear, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            viewModel.selectedClipId = clip.id
+        }
     }
 
     // MARK: - Timeline

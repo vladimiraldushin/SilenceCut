@@ -1,0 +1,90 @@
+name: SilenceCut
+options:
+  bundleIdPrefix: ru.aldushin
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    ENABLE_HARDENED_RUNTIME: false
+    CODE_SIGN_IDENTITY: ""
+    CODE_SIGNING_REQUIRED: false
+    CODE_SIGNING_ALLOWED: false
+    GENERATE_INFOPLIST_FILE: true
+
+targets:
+  RECore:
+    type: framework
+    platform: macOS
+    sources: [Sources/RECore]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.RECore
+        GENERATE_INFOPLIST_FILE: true
+
+  RETimeline:
+    type: framework
+    platform: macOS
+    sources: [Sources/RETimeline]
+    dependencies:
+      - target: RECore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.RETimeline
+        GENERATE_INFOPLIST_FILE: true
+
+  REAudioAnalysis:
+    type: framework
+    platform: macOS
+    sources: [Sources/REAudioAnalysis]
+    dependencies:
+      - target: RECore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REAudioAnalysis
+        GENERATE_INFOPLIST_FILE: true
+
+  REExport:
+    type: framework
+    platform: macOS
+    sources: [Sources/REExport]
+    dependencies:
+      - target: RECore
+      - target: RETimeline
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REExport
+        GENERATE_INFOPLIST_FILE: true
+
+  REUI:
+    type: framework
+    platform: macOS
+    sources: [Sources/REUI]
+    dependencies:
+      - target: RECore
+      - target: RETimeline
+      - target: REAudioAnalysis
+      - target: REExport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REUI
+        GENERATE_INFOPLIST_FILE: true
+
+  SilenceCut:
+    type: application
+    platform: macOS
+    sources: [Sources/SilenceCutApp]
+    dependencies:
+      - target: RECore
+      - target: RETimeline
+      - target: REAudioAnalysis
+      - target: REUI
+    info:
+      path: Sources/SilenceCutApp/Resources/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.SilenceCut
+        PRODUCT_NAME: SilenceCut

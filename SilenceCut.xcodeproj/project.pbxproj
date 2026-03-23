@@ -1,0 +1,1059 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		08B467E82F55CE12002416EF /* REAudioAnalysis.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; };
+		1613417A9581F131014A3F37 /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
+		19A16C74062B0C57D698F6D2 /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
+		2276EF16D328935D14AC7785 /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
+		2C19A9BEC214756BC0ED0FB7 /* SilenceDetectionPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */; };
+		2EB5A1E61AD378452AB4FB79 /* PreviewPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */; };
+		3D3D7B956C5DD2C2928BDC56 /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E137873BB74A6C52AB2EC48F /* TimelineView.swift */; };
+		4220AF0AF30BEA03F68F3DBF /* EditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */; };
+		43DBDEEB6F3F2509C0E6BD36 /* REExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30B341310F52289E17CF1B20 /* REExport.swift */; };
+		4F9F596CC1BF2C7DA2C6D0F7 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BABFCA147DD5F237B860EE /* Project.swift */; };
+		665D72E21155118E3C09371B /* REAudioAnalysis.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; };
+		79963385730F18B52AED0930 /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
+		7C3E08B5902FFECBC1BD1D0E /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
+		AC0F5A4F77D95F6452431A13 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C38F6599CFE96AB9F4C0579C /* ExportService.swift */; };
+		CB19976B440D2237D385396B /* TimelineClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = D22634EE80EF00F6A0200C90 /* TimelineClip.swift */; };
+		CD5EC822C617DEFBF1E34D90 /* SilenceCutApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */; };
+		CE350A0F8F5C3F54427CB6A2 /* REUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 433492D71088FF4C3B8BA465 /* REUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CFAEF41566E8580A5E862C5C /* SilenceDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7438A77723E8F226465D2E3C /* SilenceDetector.swift */; };
+		D60B61C8B6DC16CD1C3511AB /* EditTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */; };
+		D73E184BFD3AA566DC911375 /* CompositionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B393CEBEB6454425D206940 /* CompositionBuilder.swift */; };
+		D7E316E70D864713A40F1659 /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
+		DC4A05DEB5672EB489B633FD /* MainEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC4FE533556380FCB651AF5A /* MainEditorView.swift */; };
+		DC5874A8E0B50897C648A708 /* REAudioAnalysis.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		DF7C38CE4C643850FF0A8FCB /* REExport.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AFB408B69327330EBAFC712 /* REExport.framework */; };
+		E4521790832C279F659B919F /* RETimeline.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		ECC99C48A29B32E4E9EB87AC /* REUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 433492D71088FF4C3B8BA465 /* REUI.framework */; };
+		ED3417F5C5C2836B5779CB2A /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
+		F1B55D70DC264FBBC0FFE546 /* RECore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		F76B46BCA2D1F9099CBCEC24 /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
+		F8DD8A4C0D865B40681E42E2 /* REAudioAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2082CF3D9D788A93605AEFE6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 54C6992E3E766FA2B75891CF;
+			remoteInfo = RETimeline;
+		};
+		27DE55E5A84AF60AE4C01F2D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E4A2B8DEFE1E9E13EF100E97;
+			remoteInfo = REUI;
+		};
+		2B3BAD840BEB449115F4399B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FA15AC306AF5978F1AD679CC;
+			remoteInfo = REAudioAnalysis;
+		};
+		4A2671B36E33145D3029B2E5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 54C6992E3E766FA2B75891CF;
+			remoteInfo = RETimeline;
+		};
+		5CB37E6F18514E018698B8CC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FA15AC306AF5978F1AD679CC;
+			remoteInfo = REAudioAnalysis;
+		};
+		65BE143949AEF5AF7CFD8031 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 97E931C3A6EB696A863A3309;
+			remoteInfo = RECore;
+		};
+		89D555E5FC3574A554A2C9F5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 54C6992E3E766FA2B75891CF;
+			remoteInfo = RETimeline;
+		};
+		8A3B480CB3595ABAEA82FEB6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A08C61DD83950F830CEC669;
+			remoteInfo = REExport;
+		};
+		91D7F82B74D3F3CC71645151 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 97E931C3A6EB696A863A3309;
+			remoteInfo = RECore;
+		};
+		B97E5D0FAC3A1B9CF8C09BA6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 97E931C3A6EB696A863A3309;
+			remoteInfo = RECore;
+		};
+		DCB55B9690617BD85EE169EA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 97E931C3A6EB696A863A3309;
+			remoteInfo = RECore;
+		};
+		F99EDF0D37CC1F3597E753ED /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 97E931C3A6EB696A863A3309;
+			remoteInfo = RECore;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		48359D4E8AC33682EABA9482 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				F1B55D70DC264FBBC0FFE546 /* RECore.framework in Embed Frameworks */,
+				E4521790832C279F659B919F /* RETimeline.framework in Embed Frameworks */,
+				DC5874A8E0B50897C648A708 /* REAudioAnalysis.framework in Embed Frameworks */,
+				CE350A0F8F5C3F54427CB6A2 /* REUI.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		0B393CEBEB6454425D206940 /* CompositionBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionBuilder.swift; sourceTree = "<group>"; };
+		127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = REAudioAnalysis.swift; sourceTree = "<group>"; };
+		134FE371429BBCD27437CB9A /* SilenceCut.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SilenceCut.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		16BABFCA147DD5F237B860EE /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
+		30B341310F52289E17CF1B20 /* REExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = REExport.swift; sourceTree = "<group>"; };
+		3558AEAE76CD06B8D030642A /* RECore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RECore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		36F19C0B65C1CF9DA62657AF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceCutApp.swift; sourceTree = "<group>"; };
+		433492D71088FF4C3B8BA465 /* REUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = REUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		7438A77723E8F226465D2E3C /* SilenceDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceDetector.swift; sourceTree = "<group>"; };
+		9AFB408B69327330EBAFC712 /* REExport.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = REExport.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPlayerView.swift; sourceTree = "<group>"; };
+		C38F6599CFE96AB9F4C0579C /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
+		C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = REAudioAnalysis.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorViewModel.swift; sourceTree = "<group>"; };
+		CC4FE533556380FCB651AF5A /* MainEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainEditorView.swift; sourceTree = "<group>"; };
+		D22634EE80EF00F6A0200C90 /* TimelineClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineClip.swift; sourceTree = "<group>"; };
+		E137873BB74A6C52AB2EC48F /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineView.swift; sourceTree = "<group>"; };
+		E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceDetectionPanel.swift; sourceTree = "<group>"; };
+		EB82737643CD2BE53F03862A /* RETimeline.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RETimeline.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTimeline.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5BA8B977A75F75859DE3A3F7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D7E316E70D864713A40F1659 /* RECore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6CEED2D7252322CBB090D182 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ED3417F5C5C2836B5779CB2A /* RECore.framework in Frameworks */,
+				7C3E08B5902FFECBC1BD1D0E /* RETimeline.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		71F7A7918043A42DE4E12F07 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2276EF16D328935D14AC7785 /* RECore.framework in Frameworks */,
+				79963385730F18B52AED0930 /* RETimeline.framework in Frameworks */,
+				08B467E82F55CE12002416EF /* REAudioAnalysis.framework in Frameworks */,
+				ECC99C48A29B32E4E9EB87AC /* REUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		88394D4EDD4DA692CF53CD1B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1613417A9581F131014A3F37 /* RECore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCE077DE692C94589D81D869 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F76B46BCA2D1F9099CBCEC24 /* RECore.framework in Frameworks */,
+				19A16C74062B0C57D698F6D2 /* RETimeline.framework in Frameworks */,
+				665D72E21155118E3C09371B /* REAudioAnalysis.framework in Frameworks */,
+				DF7C38CE4C643850FF0A8FCB /* REExport.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0158DDEA15FC1D0A51FC8FB9 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				36F19C0B65C1CF9DA62657AF /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		0D6E644A6E9CA3C33602D8E0 /* REAudioAnalysis */ = {
+			isa = PBXGroup;
+			children = (
+				127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */,
+				7438A77723E8F226465D2E3C /* SilenceDetector.swift */,
+			);
+			path = REAudioAnalysis;
+			sourceTree = "<group>";
+		};
+		12C4C2088143F0B14CAF9140 = {
+			isa = PBXGroup;
+			children = (
+				55F5A240E59C2C8306ADE25A /* Sources */,
+				4E2BF2D5086838381E9DC5BB /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		2AECFADAEBED0E68B9E69EEC /* SilenceCutApp */ = {
+			isa = PBXGroup;
+			children = (
+				3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */,
+				0158DDEA15FC1D0A51FC8FB9 /* Resources */,
+			);
+			path = SilenceCutApp;
+			sourceTree = "<group>";
+		};
+		37EA378C04492851090424D0 /* REExport */ = {
+			isa = PBXGroup;
+			children = (
+				C38F6599CFE96AB9F4C0579C /* ExportService.swift */,
+				30B341310F52289E17CF1B20 /* REExport.swift */,
+			);
+			path = REExport;
+			sourceTree = "<group>";
+		};
+		4E2BF2D5086838381E9DC5BB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */,
+				3558AEAE76CD06B8D030642A /* RECore.framework */,
+				9AFB408B69327330EBAFC712 /* REExport.framework */,
+				EB82737643CD2BE53F03862A /* RETimeline.framework */,
+				433492D71088FF4C3B8BA465 /* REUI.framework */,
+				134FE371429BBCD27437CB9A /* SilenceCut.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		55F5A240E59C2C8306ADE25A /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				0D6E644A6E9CA3C33602D8E0 /* REAudioAnalysis */,
+				75E77C6E78459C3C9BCC697A /* RECore */,
+				37EA378C04492851090424D0 /* REExport */,
+				BE16DB4C255DC945ED90E9F7 /* RETimeline */,
+				BCB340EC20BE359DCC285B50 /* REUI */,
+				2AECFADAEBED0E68B9E69EEC /* SilenceCutApp */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		75E77C6E78459C3C9BCC697A /* RECore */ = {
+			isa = PBXGroup;
+			children = (
+				FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */,
+				16BABFCA147DD5F237B860EE /* Project.swift */,
+				D22634EE80EF00F6A0200C90 /* TimelineClip.swift */,
+			);
+			path = RECore;
+			sourceTree = "<group>";
+		};
+		BCB340EC20BE359DCC285B50 /* REUI */ = {
+			isa = PBXGroup;
+			children = (
+				C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */,
+				CC4FE533556380FCB651AF5A /* MainEditorView.swift */,
+				A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */,
+				E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */,
+				E137873BB74A6C52AB2EC48F /* TimelineView.swift */,
+			);
+			path = REUI;
+			sourceTree = "<group>";
+		};
+		BE16DB4C255DC945ED90E9F7 /* RETimeline */ = {
+			isa = PBXGroup;
+			children = (
+				0B393CEBEB6454425D206940 /* CompositionBuilder.swift */,
+			);
+			path = RETimeline;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		54C6992E3E766FA2B75891CF /* RETimeline */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 05E2461C942206780C96490E /* Build configuration list for PBXNativeTarget "RETimeline" */;
+			buildPhases = (
+				D755E4809033F15500993AD1 /* Sources */,
+				88394D4EDD4DA692CF53CD1B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9A7A6E9127754A5FF415BEFF /* PBXTargetDependency */,
+			);
+			name = RETimeline;
+			packageProductDependencies = (
+			);
+			productName = RETimeline;
+			productReference = EB82737643CD2BE53F03862A /* RETimeline.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		5A08C61DD83950F830CEC669 /* REExport */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2971F32BE13A4E3E2DB66858 /* Build configuration list for PBXNativeTarget "REExport" */;
+			buildPhases = (
+				2157309AD379363899F4A78A /* Sources */,
+				6CEED2D7252322CBB090D182 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8A80AE882893012387EDE9F9 /* PBXTargetDependency */,
+				A020A6D9A64D7130955BFA40 /* PBXTargetDependency */,
+			);
+			name = REExport;
+			packageProductDependencies = (
+			);
+			productName = REExport;
+			productReference = 9AFB408B69327330EBAFC712 /* REExport.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		97E931C3A6EB696A863A3309 /* RECore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4371367A2C9F1C8C526EF1D1 /* Build configuration list for PBXNativeTarget "RECore" */;
+			buildPhases = (
+				B70A42BFB6288A7A1E143E3E /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RECore;
+			packageProductDependencies = (
+			);
+			productName = RECore;
+			productReference = 3558AEAE76CD06B8D030642A /* RECore.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		DAD8BBD38BC9E2F2A5CC04DC /* SilenceCut */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9D7B4E982D3A20FE6BE5696F /* Build configuration list for PBXNativeTarget "SilenceCut" */;
+			buildPhases = (
+				E69CDBCCC478F344E86DAA1F /* Sources */,
+				71F7A7918043A42DE4E12F07 /* Frameworks */,
+				48359D4E8AC33682EABA9482 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7E962910AAEEE4642E8DCB2C /* PBXTargetDependency */,
+				E2A8A0093FDB2378136A9FC1 /* PBXTargetDependency */,
+				88AFA5157D90843BB81CF1CF /* PBXTargetDependency */,
+				3909DB5E4E1C9CB9E199D4D7 /* PBXTargetDependency */,
+			);
+			name = SilenceCut;
+			packageProductDependencies = (
+			);
+			productName = SilenceCut;
+			productReference = 134FE371429BBCD27437CB9A /* SilenceCut.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E4A2B8DEFE1E9E13EF100E97 /* REUI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 30422DCE82001290F7136EC2 /* Build configuration list for PBXNativeTarget "REUI" */;
+			buildPhases = (
+				82E672E937EBD38DA766E9D9 /* Sources */,
+				CCE077DE692C94589D81D869 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CBD7BED5DDAA865E969F972D /* PBXTargetDependency */,
+				EBC1346033144609FC7D3FD4 /* PBXTargetDependency */,
+				F81C8A01DFBAA0B46B3D452F /* PBXTargetDependency */,
+				39B813EDE00122AC95616CF6 /* PBXTargetDependency */,
+			);
+			name = REUI;
+			packageProductDependencies = (
+			);
+			productName = REUI;
+			productReference = 433492D71088FF4C3B8BA465 /* REUI.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		FA15AC306AF5978F1AD679CC /* REAudioAnalysis */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 513D52A073B5645DCD380786 /* Build configuration list for PBXNativeTarget "REAudioAnalysis" */;
+			buildPhases = (
+				4EA182729081B2D1B96BEC4F /* Sources */,
+				5BA8B977A75F75859DE3A3F7 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9357804FE544025E41746A5E /* PBXTargetDependency */,
+			);
+			name = REAudioAnalysis;
+			packageProductDependencies = (
+			);
+			productName = REAudioAnalysis;
+			productReference = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F54EBB103CBDAE8984DB4051 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+			};
+			buildConfigurationList = 3A9AB0C86E1CC17F63BC22EE /* Build configuration list for PBXProject "SilenceCut" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 12C4C2088143F0B14CAF9140;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				FA15AC306AF5978F1AD679CC /* REAudioAnalysis */,
+				97E931C3A6EB696A863A3309 /* RECore */,
+				5A08C61DD83950F830CEC669 /* REExport */,
+				54C6992E3E766FA2B75891CF /* RETimeline */,
+				E4A2B8DEFE1E9E13EF100E97 /* REUI */,
+				DAD8BBD38BC9E2F2A5CC04DC /* SilenceCut */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2157309AD379363899F4A78A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AC0F5A4F77D95F6452431A13 /* ExportService.swift in Sources */,
+				43DBDEEB6F3F2509C0E6BD36 /* REExport.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4EA182729081B2D1B96BEC4F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F8DD8A4C0D865B40681E42E2 /* REAudioAnalysis.swift in Sources */,
+				CFAEF41566E8580A5E862C5C /* SilenceDetector.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		82E672E937EBD38DA766E9D9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4220AF0AF30BEA03F68F3DBF /* EditorViewModel.swift in Sources */,
+				DC4A05DEB5672EB489B633FD /* MainEditorView.swift in Sources */,
+				2EB5A1E61AD378452AB4FB79 /* PreviewPlayerView.swift in Sources */,
+				2C19A9BEC214756BC0ED0FB7 /* SilenceDetectionPanel.swift in Sources */,
+				3D3D7B956C5DD2C2928BDC56 /* TimelineView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B70A42BFB6288A7A1E143E3E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D60B61C8B6DC16CD1C3511AB /* EditTimeline.swift in Sources */,
+				4F9F596CC1BF2C7DA2C6D0F7 /* Project.swift in Sources */,
+				CB19976B440D2237D385396B /* TimelineClip.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D755E4809033F15500993AD1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D73E184BFD3AA566DC911375 /* CompositionBuilder.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E69CDBCCC478F344E86DAA1F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CD5EC822C617DEFBF1E34D90 /* SilenceCutApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		3909DB5E4E1C9CB9E199D4D7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E4A2B8DEFE1E9E13EF100E97 /* REUI */;
+			targetProxy = 27DE55E5A84AF60AE4C01F2D /* PBXContainerItemProxy */;
+		};
+		39B813EDE00122AC95616CF6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A08C61DD83950F830CEC669 /* REExport */;
+			targetProxy = 8A3B480CB3595ABAEA82FEB6 /* PBXContainerItemProxy */;
+		};
+		7E962910AAEEE4642E8DCB2C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 97E931C3A6EB696A863A3309 /* RECore */;
+			targetProxy = B97E5D0FAC3A1B9CF8C09BA6 /* PBXContainerItemProxy */;
+		};
+		88AFA5157D90843BB81CF1CF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FA15AC306AF5978F1AD679CC /* REAudioAnalysis */;
+			targetProxy = 5CB37E6F18514E018698B8CC /* PBXContainerItemProxy */;
+		};
+		8A80AE882893012387EDE9F9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 97E931C3A6EB696A863A3309 /* RECore */;
+			targetProxy = 91D7F82B74D3F3CC71645151 /* PBXContainerItemProxy */;
+		};
+		9357804FE544025E41746A5E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 97E931C3A6EB696A863A3309 /* RECore */;
+			targetProxy = F99EDF0D37CC1F3597E753ED /* PBXContainerItemProxy */;
+		};
+		9A7A6E9127754A5FF415BEFF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 97E931C3A6EB696A863A3309 /* RECore */;
+			targetProxy = 65BE143949AEF5AF7CFD8031 /* PBXContainerItemProxy */;
+		};
+		A020A6D9A64D7130955BFA40 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 54C6992E3E766FA2B75891CF /* RETimeline */;
+			targetProxy = 2082CF3D9D788A93605AEFE6 /* PBXContainerItemProxy */;
+		};
+		CBD7BED5DDAA865E969F972D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 97E931C3A6EB696A863A3309 /* RECore */;
+			targetProxy = DCB55B9690617BD85EE169EA /* PBXContainerItemProxy */;
+		};
+		E2A8A0093FDB2378136A9FC1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 54C6992E3E766FA2B75891CF /* RETimeline */;
+			targetProxy = 4A2671B36E33145D3029B2E5 /* PBXContainerItemProxy */;
+		};
+		EBC1346033144609FC7D3FD4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 54C6992E3E766FA2B75891CF /* RETimeline */;
+			targetProxy = 89D555E5FC3574A554A2C9F5 /* PBXContainerItemProxy */;
+		};
+		F81C8A01DFBAA0B46B3D452F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FA15AC306AF5978F1AD679CC /* REAudioAnalysis */;
+			targetProxy = 2B3BAD840BEB449115F4399B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0D4BF57AFD721BE8E1D2D54A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.REAudioAnalysis;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		198A1B4387E858B73B360277 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.RETimeline;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		1BA27415DEDDCD68B5598A9A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Sources/SilenceCutApp/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.SilenceCut;
+				PRODUCT_NAME = SilenceCut;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		1BD1CE3E6277A9F33B7F5CB8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.RECore;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		23820111B1E2FD4CE0163AFD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.REExport;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		3EA5271BD0D493DC44755238 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.REUI;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		526F633E466FE08D8382C0E6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+		5C7AF60E481A9CA7FFAB8FCB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.REAudioAnalysis;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		5EBA089C11F39D225B4017F4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.RECore;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		A25DA01D2C528ED28BA73D81 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.REExport;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		B226298CCC6DB3CB8BF327E8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Sources/SilenceCutApp/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.SilenceCut;
+				PRODUCT_NAME = SilenceCut;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		C45635491C09463254D85282 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+		E36011618182052733EECCAF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.RETimeline;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		E8ADA861BA6FE6E742723AE9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.REUI;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		05E2461C942206780C96490E /* Build configuration list for PBXNativeTarget "RETimeline" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E36011618182052733EECCAF /* Debug */,
+				198A1B4387E858B73B360277 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		2971F32BE13A4E3E2DB66858 /* Build configuration list for PBXNativeTarget "REExport" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A25DA01D2C528ED28BA73D81 /* Debug */,
+				23820111B1E2FD4CE0163AFD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		30422DCE82001290F7136EC2 /* Build configuration list for PBXNativeTarget "REUI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3EA5271BD0D493DC44755238 /* Debug */,
+				E8ADA861BA6FE6E742723AE9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3A9AB0C86E1CC17F63BC22EE /* Build configuration list for PBXProject "SilenceCut" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				526F633E466FE08D8382C0E6 /* Debug */,
+				C45635491C09463254D85282 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		4371367A2C9F1C8C526EF1D1 /* Build configuration list for PBXNativeTarget "RECore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5EBA089C11F39D225B4017F4 /* Debug */,
+				1BD1CE3E6277A9F33B7F5CB8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		513D52A073B5645DCD380786 /* Build configuration list for PBXNativeTarget "REAudioAnalysis" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5C7AF60E481A9CA7FFAB8FCB /* Debug */,
+				0D4BF57AFD721BE8E1D2D54A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9D7B4E982D3A20FE6BE5696F /* Build configuration list for PBXNativeTarget "SilenceCut" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B226298CCC6DB3CB8BF327E8 /* Debug */,
+				1BA27415DEDDCD68B5598A9A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F54EBB103CBDAE8984DB4051 /* Project object */;
+}

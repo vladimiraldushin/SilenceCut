@@ -1,8 +1,10 @@
 import SwiftUI
+import AppKit
 import AVFoundation
 import RECore
 import RETimeline
 import REAudioAnalysis
+import REExport
 
 /// Main editor view model — owns the timeline, player, and coordinates changes.
 @Observable
@@ -22,6 +24,11 @@ public class EditorViewModel {
     public var silenceResult: SilenceDetectionResult?
     public var isDetectingSilence = false
     public var detectionProgress: Double = 0
+
+    // Export
+    public var isExporting = false
+    public var exportProgress: Double = 0
+    public var exportPreset: ExportPreset = .high
 
     private var timeObserver: Any?
 
@@ -239,6 +246,38 @@ public class EditorViewModel {
             } catch {
                 statusMessage = "Error restoring: \(error.localizedDescription)"
             }
+        }
+    }
+
+    // MARK: - Export
+
+    public func exportVideo() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.mpeg4Movie]
+        panel.nameFieldStringValue = "\(project.name)_edited.mp4"
+        panel.canCreateDirectories = true
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        isExporting = true
+        exportProgress = 0
+
+        Task { @MainActor in
+            do {
+                try await ExportService.export(
+                    timeline: timeline,
+                    to: url,
+                    preset: exportPreset
+                ) { progress in
+                    self.exportProgress = progress.fraction
+                }
+                statusMessage = "Export complete!"
+                // Reveal in Finder
+                NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: url.deletingLastPathComponent().path)
+            } catch {
+                statusMessage = "Export error: \(error.localizedDescription)"
+            }
+            isExporting = false
         }
     }
 

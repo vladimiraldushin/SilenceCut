@@ -7,6 +7,11 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "SilenceCut", targets: ["SilenceCutApp"]),
+        .library(name: "RECore", targets: ["RECore"]),
+        .library(name: "RETimeline", targets: ["RETimeline"]),
+        .library(name: "REAudioAnalysis", targets: ["REAudioAnalysis"]),
+        .library(name: "REExport", targets: ["REExport"]),
+        .library(name: "REUI", targets: ["REUI"]),
     ],
     targets: [
         // Domain models — ZERO AVFoundation dependency
@@ -22,10 +27,10 @@ let package = Package(
         .target(name: "REExport", dependencies: ["RECore", "RETimeline"], path: "Sources/REExport"),
 
         // UI components
-        .target(name: "REUI", dependencies: ["RECore", "RETimeline", "REAudioAnalysis"], path: "Sources/REUI"),
+        .target(name: "REUI", dependencies: ["RECore", "RETimeline", "REAudioAnalysis", "REExport"], path: "Sources/REUI"),
 
         // App entry point
-        .executableTarget(name: "SilenceCutApp", dependencies: ["RECore", "RETimeline", "REUI"], path: "Sources/SilenceCutApp"),
+        .executableTarget(name: "SilenceCutApp", dependencies: ["RECore", "RETimeline", "REUI", "REExport"], path: "Sources/SilenceCutApp"),
 
         // Tests
         .testTarget(name: "RECoreTests", dependencies: ["RECore"], path: "Tests/RECoreTests"),
