@@ -84,10 +84,27 @@ public enum ExportService {
         // Remove existing file
         try? FileManager.default.removeItem(at: outputURL)
 
-        // Use AVAssetExportSession for simplicity and HW acceleration
+        // AVAssetExportPresetHighestQuality doesn't support animationTool
+        // Use specific resolution preset when subtitles are present
+        let exportPresetName: String
+        if !subtitleEntries.isEmpty {
+            // Need specific preset for animationTool support
+            let h = result.videoComposition?.renderSize.height ?? 1920
+            if h >= 1920 {
+                exportPresetName = AVAssetExportPreset1920x1080  // Will be rotated for portrait
+            } else if h >= 1280 {
+                exportPresetName = AVAssetExportPreset1280x720
+            } else {
+                exportPresetName = AVAssetExportPreset960x540
+            }
+            print("[Export] Using preset \(exportPresetName) for subtitle burn-in")
+        } else {
+            exportPresetName = AVAssetExportPresetHighestQuality
+        }
+
         guard let exportSession = AVAssetExportSession(
             asset: result.composition,
-            presetName: AVAssetExportPresetHighestQuality
+            presetName: exportPresetName
         ) else {
             throw ExportError.exportFailed("Cannot create export session")
         }
@@ -99,6 +116,7 @@ public enum ExportService {
         // Build subtitle overlay using Core Animation if subtitles exist
         if !subtitleEntries.isEmpty, let videoComp = result.videoComposition {
             let renderSize = videoComp.renderSize
+            print("[Export] Burning \(subtitleEntries.count) subtitles at \(renderSize)")
             let subtitleVideoComp = buildSubtitleComposition(
                 baseComposition: result.composition,
                 videoComposition: videoComp,
@@ -109,6 +127,7 @@ public enum ExportService {
             )
             exportSession.videoComposition = subtitleVideoComp
         } else if let videoComp = result.videoComposition {
+            print("[Export] No subtitles (\(subtitleEntries.count) entries, videoComp: \(result.videoComposition != nil))")
             exportSession.videoComposition = videoComp
         }
 
