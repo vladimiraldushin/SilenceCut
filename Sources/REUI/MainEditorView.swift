@@ -36,7 +36,8 @@ public struct MainEditorView: View {
                                             return viewModel.activeWordIndex(in: sub, at: viewModel.playheadPosition)
                                         }(),
                                         style: viewModel.subtitleStyle,
-                                        videoFrame: geo.size
+                                        videoFrame: geo.size,
+                                        showSafeZones: viewModel.showSafeZones
                                     )
                                 }
                             }
@@ -138,6 +139,20 @@ public struct MainEditorView: View {
             }
 
             Spacer()
+
+            // Auto-split toggle
+            Toggle("Split", isOn: $viewModel.autoSplitEnabled)
+                .toggleStyle(.checkbox)
+                .font(.caption)
+            if viewModel.autoSplitEnabled {
+                Picker("", selection: $viewModel.autoSplitDuration) {
+                    Text("30s").tag(30.0)
+                    Text("60s").tag(60.0)
+                    Text("90s").tag(90.0)
+                    Text("120s").tag(120.0)
+                }
+                .frame(width: 70)
+            }
 
             // Export
             if viewModel.isExporting {

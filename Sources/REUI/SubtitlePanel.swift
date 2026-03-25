@@ -52,13 +52,50 @@ struct SubtitlePanel: View {
                 Toggle("Show subtitles", isOn: $viewModel.showSubtitles)
                     .font(.caption)
 
-                // Position
-                Picker("Position", selection: $viewModel.subtitleStyle.position) {
-                    Text("Top").tag(SubtitlePosition.top)
-                    Text("Center").tag(SubtitlePosition.center)
-                    Text("Bottom").tag(SubtitlePosition.bottom)
+                // Position presets
+                HStack {
+                    Text("Position")
+                    Spacer()
+                    Button("Top") {
+                        viewModel.subtitleStyle.position = .top
+                        viewModel.subtitleStyle.customYCenter = SubtitlePosition.top.yCenter
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    Button("Center") {
+                        viewModel.subtitleStyle.position = .center
+                        viewModel.subtitleStyle.customYCenter = SubtitlePosition.center.yCenter
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    Button("Bottom") {
+                        viewModel.subtitleStyle.position = .bottom
+                        viewModel.subtitleStyle.customYCenter = SubtitlePosition.bottom.yCenter
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
-                .pickerStyle(.segmented)
+
+                // Fine Y position slider
+                HStack {
+                    Text("Y")
+                    Slider(
+                        value: Binding(
+                            get: { viewModel.subtitleStyle.effectiveYCenter },
+                            set: { viewModel.subtitleStyle.customYCenter = $0 }
+                        ),
+                        in: 200...1700,
+                        step: 10
+                    )
+                    Text("\(Int(viewModel.subtitleStyle.effectiveYCenter))")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .frame(width: 40)
+                }
+
+                // Safe zone overlay toggle
+                Toggle("Show safe zones", isOn: $viewModel.showSafeZones)
+                    .font(.caption)
 
                 // Font size
                 HStack {

@@ -434,7 +434,7 @@ public enum ExportService {
             nil, CGSize(width: textWidth, height: maxBoxHeight), nil
         )
 
-        let yCenter = style.position.yCenter * scaleY
+        let yCenter = style.effectiveYCenter * scaleY
         let yFromBottom = drawH - yCenter
         let textX = padding + (textWidth - textSize.width) / 2
         // Position so text is centered vertically at yCenter

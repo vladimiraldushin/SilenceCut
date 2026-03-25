@@ -10,27 +10,69 @@ public struct SubtitleOverlayView: View {
     let activeWordIndex: Int?
     let style: SubtitleStyle
     let videoFrame: CGSize
+    var showSafeZones: Bool = false
 
-    public init(entry: SubtitleEntry?, activeWordIndex: Int?, style: SubtitleStyle, videoFrame: CGSize) {
+    public init(entry: SubtitleEntry?, activeWordIndex: Int?, style: SubtitleStyle, videoFrame: CGSize, showSafeZones: Bool = false) {
         self.entry = entry
         self.activeWordIndex = activeWordIndex
         self.style = style
         self.videoFrame = videoFrame
+        self.showSafeZones = showSafeZones
     }
 
     public var body: some View {
         GeometryReader { geo in
-            if let entry = entry, !entry.words.isEmpty {
-                subtitleContent(entry: entry, size: geo.size)
+            ZStack {
+                if showSafeZones {
+                    safeZoneOverlay(size: geo.size)
+                }
+                if let entry = entry, !entry.words.isEmpty {
+                    subtitleContent(entry: entry, size: geo.size)
+                }
             }
         }
+    }
+
+    @ViewBuilder
+    private func safeZoneOverlay(size: CGSize) -> some View {
+        let scale = min(size.width / 1080, size.height / 1920)
+        let topH = SafeZone.top * scale
+        let bottomH = SafeZone.bottom * scale
+        let leftW = SafeZone.left * scale
+        let rightW = SafeZone.right * scale
+
+        // Top zone
+        Rectangle()
+            .fill(Color.red.opacity(0.15))
+            .frame(width: size.width, height: topH)
+            .position(x: size.width / 2, y: topH / 2)
+        // Bottom zone
+        Rectangle()
+            .fill(Color.red.opacity(0.15))
+            .frame(width: size.width, height: bottomH)
+            .position(x: size.width / 2, y: size.height - bottomH / 2)
+        // Left zone
+        Rectangle()
+            .fill(Color.orange.opacity(0.1))
+            .frame(width: leftW, height: size.height - topH - bottomH)
+            .position(x: leftW / 2, y: size.height / 2)
+        // Right zone
+        Rectangle()
+            .fill(Color.orange.opacity(0.1))
+            .frame(width: rightW, height: size.height - topH - bottomH)
+            .position(x: size.width - rightW / 2, y: size.height / 2)
+        // Labels
+        Text("Safe Zone")
+            .font(.system(size: 10 * scale))
+            .foregroundColor(.red.opacity(0.5))
+            .position(x: size.width / 2, y: topH + 10 * scale)
     }
 
     @ViewBuilder
     private func subtitleContent(entry: SubtitleEntry, size: CGSize) -> some View {
         let scale = min(size.width / 1080, size.height / 1920)
         let fontSize = style.fontSize * scale
-        let yPos = style.position.yCenter * scale
+        let yPos = style.effectiveYCenter * scale
         let hasBackground = style.backgroundOpacity > 0.01
         let maxWidth = size.width - (SafeZone.left + SafeZone.right) * scale
 

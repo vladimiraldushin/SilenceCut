@@ -102,8 +102,14 @@ public struct SubtitleStyle: Codable, Equatable {
     public var backgroundColor: CodableColor
     public var backgroundOpacity: CGFloat
     public var position: SubtitlePosition
+    public var customYCenter: CGFloat?    // nil = use position.yCenter, set = override
     public var isUppercase: Bool
     public var maxWordsPerLine: Int
+
+    /// Effective Y center — uses customYCenter if set, otherwise position preset
+    public var effectiveYCenter: CGFloat {
+        customYCenter ?? position.yCenter
+    }
 
     public init(
         preset: SubtitlePreset = .classic,
@@ -114,6 +120,7 @@ public struct SubtitleStyle: Codable, Equatable {
         backgroundColor: CodableColor = .black,
         backgroundOpacity: CGFloat = 0.7,
         position: SubtitlePosition = .bottom,
+        customYCenter: CGFloat? = nil,
         isUppercase: Bool = false,
         maxWordsPerLine: Int = 6
     ) {
@@ -125,6 +132,7 @@ public struct SubtitleStyle: Codable, Equatable {
         self.backgroundColor = backgroundColor
         self.backgroundOpacity = backgroundOpacity
         self.position = position
+        self.customYCenter = customYCenter
         self.isUppercase = isUppercase
         self.maxWordsPerLine = maxWordsPerLine
     }

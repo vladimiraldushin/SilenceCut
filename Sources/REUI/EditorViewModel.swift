@@ -35,6 +35,11 @@ public class EditorViewModel {
     public var transcriptionProgress: Double = 0
     public var transcriptionPhase: String = ""
     public var showSubtitles = true
+    public var showSafeZones = false
+
+    // Auto-split export
+    public var autoSplitEnabled = false
+    public var autoSplitDuration: Double = 60  // seconds
 
     // Export
     public var isExporting = false
@@ -445,20 +450,69 @@ public class EditorViewModel {
         isExporting = true
         exportProgress = 0
 
+        let subs = showSubtitles ? subtitleEntries : []
+        let style = subtitleStyle
+        let splitEnabled = autoSplitEnabled
+        let splitDur = autoSplitDuration
+
         Task { @MainActor in
             do {
-                try await ExportService.export(
-                    timeline: timeline,
-                    to: url,
-                    preset: exportPreset,
-                    subtitleEntries: showSubtitles ? subtitleEntries : [],
-                    subtitleStyle: subtitleStyle
-                ) { progress in
-                    self.exportProgress = progress.fraction
+                if splitEnabled && splitDur > 0 {
+                    // Export full file first, then split with AVAssetExportSession per segment
+                    let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("silencecut_full_\(UUID().uuidString).mp4")
+                    try await ExportService.export(
+                        timeline: timeline,
+                        to: tempURL,
+                        preset: exportPreset,
+                        subtitleEntries: subs,
+                        subtitleStyle: style
+                    ) { progress in
+                        self.exportProgress = progress.fraction * 0.5
+                    }
+
+                    // Split the exported file
+                    let asset = AVURLAsset(url: tempURL)
+                    let totalDur = CMTimeGetSeconds(try await asset.load(.duration))
+                    let numParts = Int(ceil(totalDur / splitDur))
+                    let baseName = url.deletingPathExtension().lastPathComponent
+                    let dir = url.deletingLastPathComponent()
+
+                    for i in 0..<numParts {
+                        let partStart = Double(i) * splitDur
+                        let partDur = min(splitDur, totalDur - partStart)
+                        let partName = "\(baseName)_\(String(format: "%03d", i + 1)).mp4"
+                        let partURL = dir.appendingPathComponent(partName)
+                        try? FileManager.default.removeItem(at: partURL)
+
+                        guard let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough) else { continue }
+                        session.outputURL = partURL
+                        session.outputFileType = .mp4
+                        session.timeRange = CMTimeRange(
+                            start: CMTime(seconds: partStart, preferredTimescale: 600),
+                            duration: CMTime(seconds: partDur, preferredTimescale: 600)
+                        )
+                        await session.export()
+                        statusMessage = "Split \(i + 1)/\(numParts)..."
+                        exportProgress = 0.5 + (Double(i + 1) / Double(numParts)) * 0.5
+                    }
+
+                    try? FileManager.default.removeItem(at: tempURL)
+                    statusMessage = "Export complete! \(numParts) clips"
+                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: dir.path)
+                } else {
+                    // Single file export
+                    try await ExportService.export(
+                        timeline: timeline,
+                        to: url,
+                        preset: exportPreset,
+                        subtitleEntries: subs,
+                        subtitleStyle: style
+                    ) { progress in
+                        self.exportProgress = progress.fraction
+                    }
+                    statusMessage = "Export complete!"
+                    NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: url.deletingLastPathComponent().path)
                 }
-                statusMessage = "Export complete!"
-                // Reveal in Finder
-                NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: url.deletingLastPathComponent().path)
             } catch {
                 statusMessage = "Export error: \(error.localizedDescription)"
             }
