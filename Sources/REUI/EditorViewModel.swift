@@ -415,20 +415,20 @@ public class EditorViewModel {
 
     /// Find active subtitle at current playhead position
     public func activeSubtitle(at playheadTime: CMTime) -> SubtitleEntry? {
-        // Map timeline time → source time
-        guard let sourceTime = timeline.sourceTime(forTimelineTime: playheadTime) else { return nil }
+        // Subtitles are in TIMELINE time (transcribed from exported video)
+        // No source→timeline mapping needed
         return subtitleEntries.first { entry in
-            CMTimeCompare(sourceTime, entry.startTime) >= 0 &&
-            CMTimeCompare(sourceTime, entry.endTime) < 0
+            CMTimeCompare(playheadTime, entry.startTime) >= 0 &&
+            CMTimeCompare(playheadTime, entry.endTime) < 0
         }
     }
 
     /// Find active word index in a subtitle entry for karaoke
     public func activeWordIndex(in entry: SubtitleEntry, at playheadTime: CMTime) -> Int? {
-        guard let sourceTime = timeline.sourceTime(forTimelineTime: playheadTime) else { return nil }
+        // Word timings are in TIMELINE time
         return entry.words.firstIndex { word in
-            CMTimeCompare(sourceTime, word.startTime) >= 0 &&
-            CMTimeCompare(sourceTime, word.endTime) < 0
+            CMTimeCompare(playheadTime, word.startTime) >= 0 &&
+            CMTimeCompare(playheadTime, word.endTime) < 0
         }
     }
 
