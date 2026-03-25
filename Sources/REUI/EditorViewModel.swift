@@ -200,15 +200,26 @@ public class EditorViewModel {
 
     // MARK: - Timeline Operations
 
+    /// Clear subtitles when timeline changes (they were transcribed from a specific edit state)
+    private func invalidateSubtitles() {
+        if !subtitleEntries.isEmpty {
+            subtitleEntries = []
+            statusMessage = "Subtitles cleared (re-transcribe after editing)"
+            print("[Editor] Subtitles invalidated due to timeline change")
+        }
+    }
+
     public func splitAtPlayhead() {
         guard let idx = timeline.clipIndex(at: playheadPosition) else { return }
         saveUndoState()
+        invalidateSubtitles()
         timeline.splitClip(at: idx, splitTime: playheadPosition)
         Task { @MainActor in await rebuildPreview() }
     }
 
     public func deleteClip(id: UUID) {
         saveUndoState()
+        invalidateSubtitles()
         timeline.deleteClip(id: id)
         if selectedClipId == id { selectedClipId = nil }
         playheadPosition = .zero
@@ -222,12 +233,14 @@ public class EditorViewModel {
 
     public func toggleClip(id: UUID) {
         saveUndoState()
+        invalidateSubtitles()
         timeline.toggleClip(id: id)
         Task { @MainActor in await rebuildPreview() }
     }
 
     public func trimClip(id: UUID, newSourceRange: CMTimeRange) {
         saveUndoState()
+        invalidateSubtitles()
         timeline.trimClip(id: id, newSourceRange: newSourceRange)
         debouncedRebuild()
     }
@@ -259,6 +272,7 @@ public class EditorViewModel {
 
     public func detectSilence() {
         guard let url = project.sourceURL else { return }
+        invalidateSubtitles()
         isDetectingSilence = true
         detectionProgress = 0
 
@@ -303,6 +317,7 @@ public class EditorViewModel {
     /// Restore original (single clip, full video)
     public func restoreOriginal() {
         guard let url = project.sourceURL else { return }
+        invalidateSubtitles()
         Task { @MainActor in
             let asset = AVURLAsset(url: url)
             do {
@@ -326,24 +341,52 @@ public class EditorViewModel {
     // MARK: - Transcription
 
     public func transcribe() {
-        guard let url = project.sourceURL else { return }
+        guard project.sourceURL != nil else { return }
+        guard timeline.enabledClipCount > 0 else {
+            statusMessage = "No clips to transcribe"
+            return
+        }
         isTranscribing = true
         transcriptionProgress = 0
+        transcriptionPhase = "Exporting edit..."
 
         Task { @MainActor in
             do {
+                // Step 1: Export edited timeline to temp file (so subtitles match final video)
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("silencecut_transcribe_\(UUID().uuidString).mp4")
+                defer { try? FileManager.default.removeItem(at: tempURL) }
+
+                transcriptionPhase = "Exporting edit..."
+                try await ExportService.export(
+                    timeline: timeline,
+                    to: tempURL,
+                    preset: .medium
+                ) { p in
+                    Task { @MainActor in
+                        // 0-30% progress for export
+                        self.transcriptionProgress = p.fraction * 0.3
+                    }
+                }
+                print("[Transcribe] Temp export done: \(tempURL.lastPathComponent)")
+
+                // Step 2: Transcribe the exported video (timings = timeline time, no mapping needed)
+                transcriptionPhase = "Transcribing..."
                 subtitleEntries = try await TranscriptionService.transcribe(
-                    url: url,
+                    url: tempURL,
                     language: "ru"
                 ) { progress in
                     Task { @MainActor in
-                        self.transcriptionProgress = progress.fraction
+                        // 30-100% progress for transcription
+                        self.transcriptionProgress = 0.3 + progress.fraction * 0.7
                         self.transcriptionPhase = progress.phase.rawValue
                     }
                 }
                 statusMessage = "\(subtitleEntries.count) subtitle segments"
+                print("[Transcribe] Done: \(subtitleEntries.count) segments — timings match timeline directly")
             } catch {
                 statusMessage = "Transcription error: \(error.localizedDescription)"
+                print("[Transcribe] Error: \(error)")
             }
             isTranscribing = false
         }
