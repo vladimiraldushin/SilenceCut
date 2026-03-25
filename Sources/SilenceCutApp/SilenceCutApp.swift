@@ -14,9 +14,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             guard let vm = self?.viewModel else { return event }
 
             // Don't intercept keys when user is typing in a text field
-            if let responder = NSApp.keyWindow?.firstResponder,
-               responder is NSTextView || responder is NSTextField {
-                return event
+            if let responder = NSApp.keyWindow?.firstResponder {
+                let name = String(describing: type(of: responder))
+                if responder is NSTextView || responder is NSTextField
+                    || name.contains("TextField") || name.contains("TextEditor")
+                    || name.contains("FieldEditor") || name.contains("NSText") {
+                    return event
+                }
+                // Check responder chain — if any superview is a text input, pass through
+                if let view = responder as? NSView {
+                    var current: NSView? = view
+                    while let v = current {
+                        if v is NSTextField || v is NSTextView {
+                            return event
+                        }
+                        current = v.superview
+                    }
+                }
             }
 
             switch event.keyCode {
