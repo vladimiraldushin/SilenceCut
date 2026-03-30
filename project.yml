@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: ru.aldushin
   deploymentTarget:
     macOS: "14.0"
+    iOS: "17.0"
   createIntermediateGroups: true
   generateEmptyDirectories: false
 
@@ -10,6 +11,9 @@ packages:
   WhisperKit:
     url: https://github.com/argmaxinc/WhisperKit.git
     from: "0.9.0"
+  FluidAudio:
+    url: https://github.com/FluidInference/FluidAudio.git
+    from: "0.12.4"
 
 settings:
   base:
@@ -21,6 +25,10 @@ settings:
     GENERATE_INFOPLIST_FILE: true
 
 targets:
+  # ========================
+  # macOS Targets
+  # ========================
+
   RECore:
     type: framework
     platform: macOS
@@ -48,6 +56,7 @@ targets:
     dependencies:
       - target: RECore
       - package: WhisperKit
+      - package: FluidAudio
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REAudioAnalysis
@@ -94,3 +103,101 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.SilenceCut
         PRODUCT_NAME: SilenceCut
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  # ========================
+  # iOS Targets
+  # ========================
+
+  RECore-iOS:
+    type: framework
+    platform: iOS
+    sources: [Sources/RECore]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.RECore
+        PRODUCT_NAME: RECore
+        PRODUCT_MODULE_NAME: RECore
+        GENERATE_INFOPLIST_FILE: true
+
+  RETimeline-iOS:
+    type: framework
+    platform: iOS
+    sources: [Sources/RETimeline]
+    dependencies:
+      - target: RECore-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.RETimeline
+        PRODUCT_NAME: RETimeline
+        PRODUCT_MODULE_NAME: RETimeline
+        GENERATE_INFOPLIST_FILE: true
+
+  REAudioAnalysis-iOS:
+    type: framework
+    platform: iOS
+    sources: [Sources/REAudioAnalysis]
+    dependencies:
+      - target: RECore-iOS
+      - package: WhisperKit
+      - package: FluidAudio
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REAudioAnalysis
+        PRODUCT_NAME: REAudioAnalysis
+        PRODUCT_MODULE_NAME: REAudioAnalysis
+        GENERATE_INFOPLIST_FILE: true
+
+  REExport-iOS:
+    type: framework
+    platform: iOS
+    sources: [Sources/REExport]
+    dependencies:
+      - target: RECore-iOS
+      - target: RETimeline-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REExport
+        PRODUCT_NAME: REExport
+        PRODUCT_MODULE_NAME: REExport
+        GENERATE_INFOPLIST_FILE: true
+
+  REUI-iOS:
+    type: framework
+    platform: iOS
+    sources: [Sources/REUI]
+    dependencies:
+      - target: RECore-iOS
+      - target: RETimeline-iOS
+      - target: REAudioAnalysis-iOS
+      - target: REExport-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REUI
+        PRODUCT_NAME: REUI
+        PRODUCT_MODULE_NAME: REUI
+        GENERATE_INFOPLIST_FILE: true
+
+  SilenceCut-iOS:
+    type: application
+    platform: iOS
+    sources: [Sources/SilenceCutIOSApp]
+    dependencies:
+      - target: RECore-iOS
+      - target: RETimeline-iOS
+      - target: REAudioAnalysis-iOS
+      - target: REExport-iOS
+      - target: REUI-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.SilenceCutiOS
+        PRODUCT_NAME: SilenceCut
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "SilenceCut needs access to save exported videos to your photo library."
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "SilenceCut needs microphone access for audio processing."
+        CODE_SIGN_IDENTITY: "Apple Development"
+        CODE_SIGNING_REQUIRED: true
+        CODE_SIGNING_ALLOWED: true
+        DEVELOPMENT_TEAM: ""

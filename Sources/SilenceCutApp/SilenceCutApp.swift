@@ -79,6 +79,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 struct SilenceCutApp: App {
     @State private var viewModel = EditorViewModel()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -91,16 +92,26 @@ struct SilenceCutApp: App {
         }
         .windowStyle(.titleBar)
         .defaultSize(width: 1200, height: 800)
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .background:
+                viewModel.modelManager.onAppEnteredBackground()
+            case .active:
+                viewModel.modelManager.onAppEnteredForeground()
+            default:
+                break
+            }
+        }
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Open Video...") { openFile() }
+                Button("Открыть видео...") { openFile() }
                     .keyboardShortcut("o", modifiers: .command)
             }
             CommandGroup(replacing: .undoRedo) {
-                Button("Undo") { viewModel.undo() }
+                Button("Отменить") { viewModel.undo() }
                     .keyboardShortcut("z", modifiers: .command)
                     .disabled(!viewModel.canUndo)
-                Button("Redo") { viewModel.redo() }
+                Button("Повторить") { viewModel.redo() }
                     .keyboardShortcut("z", modifiers: [.command, .shift])
                     .disabled(!viewModel.canRedo)
             }

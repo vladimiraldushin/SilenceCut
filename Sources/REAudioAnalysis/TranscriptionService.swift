@@ -2,22 +2,28 @@ import Foundation
 import AVFoundation
 import CoreMedia
 import RECore
-import WhisperKit
 
-/// Progress phases for transcription
+/// Фазы транскрибации
 public enum TranscriptionPhase: String {
-    case downloading = "Downloading model..."
-    case loading = "Loading model..."
-    case transcribing = "Transcribing..."
+    case downloading = "Загрузка модели..."
+    case loading = "Инициализация модели..."
+    case transcribing = "Транскрибация..."
 }
 
-/// Progress info
+/// Прогресс транскрибации
 public struct TranscriptionProgress {
     public let phase: TranscriptionPhase
     public let fraction: Double
+    public let detail: String?
+
+    public init(phase: TranscriptionPhase, fraction: Double, detail: String? = nil) {
+        self.phase = phase
+        self.fraction = fraction
+        self.detail = detail
+    }
 }
 
-/// Transcribes audio from video using WhisperKit (Apple Silicon Neural Engine)
+/// Транскрибирует аудио из видео через ModelManager (WhisperKit / Parakeet)
 public enum TranscriptionService {
 
     public enum TranscriptionError: Error, LocalizedError {
@@ -27,100 +33,75 @@ public enum TranscriptionService {
 
         public var errorDescription: String? {
             switch self {
-            case .noAudioTrack: return "No audio track in video"
-            case .transcriptionFailed(let msg): return "Transcription failed: \(msg)"
-            case .modelLoadFailed: return "Failed to load WhisperKit model"
+            case .noAudioTrack: return "Нет аудиодорожки в видео"
+            case .transcriptionFailed(let msg): return "Ошибка транскрибации: \(msg)"
+            case .modelLoadFailed: return "Не удалось загрузить модель"
             }
         }
     }
 
-    /// Transcribe audio from a video file
+    /// Transcribe audio from a video file using ModelManager
     /// - Parameters:
     ///   - url: Source video URL
-    ///   - language: Language code (e.g. "ru", "en")
-    ///   - modelName: WhisperKit model name (default: large-v3)
+    ///   - modelManager: Manages model lifecycle (download, cache, transcribe)
     ///   - progress: Progress callback
     /// - Returns: Array of SubtitleEntry with word-level timings
+    @MainActor
     public static func transcribe(
         url: URL,
-        language: String = "ru",
-        modelName: String = "large-v3",
+        modelManager: ModelManager,
         progress: @escaping (TranscriptionProgress) -> Void
     ) async throws -> [SubtitleEntry] {
-        progress(TranscriptionProgress(phase: .loading, fraction: 0.1))
 
-        // Initialize WhisperKit
-        let config = WhisperKitConfig(model: modelName)
-        let whisperKit = try await WhisperKit(config)
+        // Step 1: Ensure model is downloaded and loaded (fast if already cached)
+        progress(TranscriptionProgress(phase: .downloading, fraction: 0.0))
 
-        progress(TranscriptionProgress(phase: .transcribing, fraction: 0.3))
+        try await modelManager.ensureLoaded { frac, detail in
+            Task { @MainActor in
+                if frac < 1.0 {
+                    let phase: TranscriptionPhase = frac < 0.7 ? .downloading : .loading
+                    progress(TranscriptionProgress(phase: phase, fraction: frac * 0.5, detail: detail))
+                } else {
+                    progress(TranscriptionProgress(phase: .loading, fraction: 0.5))
+                }
+            }
+        }
 
-        // Configure decoding
-        let options = DecodingOptions(
-            task: .transcribe,
-            language: language,
-            temperature: 0.0,
-            wordTimestamps: true
-        )
+        // Step 2: Transcribe (50% - 95%)
+        progress(TranscriptionProgress(phase: .transcribing, fraction: 0.5))
 
-        // Transcribe
-        let results = try await whisperKit.transcribe(
-            audioPath: url.path,
-            decodeOptions: options
-        )
+        let segments = try await modelManager.transcribe(audioPath: url.path)
 
-        progress(TranscriptionProgress(phase: .transcribing, fraction: 0.9))
+        progress(TranscriptionProgress(phase: .transcribing, fraction: 0.95))
 
-        // Convert WhisperKit results to our SubtitleEntry model
-        var entries: [SubtitleEntry] = []
+        // Step 3: Convert ASRSegment → SubtitleEntry
         let timescale: CMTimeScale = 600
+        var entries: [SubtitleEntry] = []
 
-        for result in results {
-            for segment in result.segments {
-                var wordTimings: [RECore.WordTiming] = []
-
-                if let words = segment.words {
-                    for wt in words {
-                        let cleaned = Self.stripTokens(wt.word)
-                        guard !cleaned.isEmpty else { continue }
-                        wordTimings.append(RECore.WordTiming(
-                            word: cleaned,
-                            startTime: CMTime(seconds: Double(wt.start), preferredTimescale: timescale),
-                            endTime: CMTime(seconds: Double(wt.end), preferredTimescale: timescale)
-                        ))
-                    }
-                }
-
-                let cleanedText = Self.stripTokens(segment.text)
-                let entry = SubtitleEntry(
-                    text: cleanedText,
-                    startTime: CMTime(seconds: Double(segment.start), preferredTimescale: timescale),
-                    endTime: CMTime(seconds: Double(segment.end), preferredTimescale: timescale),
-                    words: wordTimings
+        for segment in segments {
+            let wordTimings: [RECore.WordTiming] = segment.words.map { w in
+                RECore.WordTiming(
+                    word: w.word,
+                    startTime: CMTime(seconds: w.start, preferredTimescale: timescale),
+                    endTime: CMTime(seconds: w.end, preferredTimescale: timescale)
                 )
+            }
 
-                // Skip empty segments
-                if !entry.text.isEmpty {
-                    entries.append(entry)
-                }
+            let entry = SubtitleEntry(
+                text: segment.text,
+                startTime: CMTime(seconds: segment.start, preferredTimescale: timescale),
+                endTime: CMTime(seconds: segment.end, preferredTimescale: timescale),
+                words: wordTimings
+            )
+
+            if !entry.text.isEmpty {
+                entries.append(entry)
             }
         }
 
         progress(TranscriptionProgress(phase: .transcribing, fraction: 1.0))
-
         print("[Transcription] Complete: \(entries.count) segments, \(entries.flatMap(\.words).count) words")
 
         return entries
-    }
-
-    /// Strip WhisperKit control tokens like <|startoftranscript|>, <|ru|>, <|0.00|>, etc.
-    private static func stripTokens(_ text: String) -> String {
-        // Use regex to safely remove all <|...|> tokens
-        let cleaned = text.replacingOccurrences(
-            of: "<\\|[^|]*\\|>",
-            with: "",
-            options: .regularExpression
-        )
-        return cleaned.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
     }
 }

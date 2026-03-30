@@ -3,7 +3,11 @@ import AVFoundation
 import CoreMedia
 import CoreGraphics
 import CoreText
+#if os(macOS)
 import AppKit
+#elseif os(iOS)
+import UIKit
+#endif
 import RECore
 import RETimeline
 
@@ -389,16 +393,16 @@ public enum ExportService {
         let maxBoxHeight: CGFloat = 400 * scaleY // enough for 6+ lines
         let fontSize = style.fontSize * min(scaleX, scaleY)
 
-        let nsFont = NSFont(name: style.fontName, size: fontSize) ?? NSFont.boldSystemFont(ofSize: fontSize)
+        let ctFont = CTFontCreateWithName(style.fontName as CFString, fontSize, nil)
 
         // Build attributed string with karaoke highlighting
-        let normalColor = NSColor(
+        let normalColor = CGColor(
             red: style.textColor.red,
             green: style.textColor.green,
             blue: style.textColor.blue,
             alpha: style.textColor.alpha
         )
-        let highlightColor = NSColor(
+        let highlightColor = CGColor(
             red: style.highlightColor.red,
             green: style.highlightColor.green,
             blue: style.highlightColor.blue,
@@ -407,24 +411,39 @@ public enum ExportService {
 
         // Find active word index
         let activeWordIdx = words.firstIndex { frameTime >= $0.start && frameTime < $0.end }
+        let useGlow = style.highlightMode == .glow
+
+        // For glow mode: inactive words are dimmed
+        let dimColor = CGColor(
+            red: style.textColor.red,
+            green: style.textColor.green,
+            blue: style.textColor.blue,
+            alpha: useGlow ? style.textColor.alpha * 0.5 : style.textColor.alpha
+        )
 
         let attrStr: NSAttributedString
         if !words.isEmpty {
             let mutable = NSMutableAttributedString()
             for (i, w) in words.enumerated() {
-                let color = (i == activeWordIdx) ? highlightColor : normalColor
+                let isActive = i == activeWordIdx
+                let color: CGColor
+                if useGlow {
+                    color = isActive ? CGColor(red: 1, green: 1, blue: 1, alpha: 1) : dimColor
+                } else {
+                    color = isActive ? highlightColor : normalColor
+                }
                 let wordStr = NSAttributedString(string: (i > 0 ? " " : "") + w.word, attributes: [
-                    .font: nsFont,
+                    .font: ctFont,
                     .foregroundColor: color
-                ])
+                ] as [NSAttributedString.Key: Any])
                 mutable.append(wordStr)
             }
             attrStr = mutable
         } else {
             attrStr = NSAttributedString(string: text, attributes: [
-                .font: nsFont,
+                .font: ctFont,
                 .foregroundColor: normalColor
-            ])
+            ] as [NSAttributedString.Key: Any])
         }
 
         let framesetter = CTFramesetterCreateWithAttributedString(attrStr)
@@ -442,26 +461,88 @@ public enum ExportService {
 
         // Background
         if style.backgroundOpacity > 0.01 {
-            let bgRect = CGRect(
-                x: textX - 16 * scaleX, y: textY - 8 * scaleY,
-                width: textSize.width + 32 * scaleX, height: textSize.height + 16 * scaleY
-            )
-            context.setFillColor(NSColor(
-                red: style.backgroundColor.red, green: style.backgroundColor.green,
-                blue: style.backgroundColor.blue, alpha: style.backgroundOpacity
-            ).cgColor)
-            let r = 8 * min(scaleX, scaleY)
-            context.addPath(CGPath(roundedRect: bgRect, cornerWidth: r, cornerHeight: r, transform: nil))
-            context.fillPath()
+            let basePadX: CGFloat = style.backgroundPaddingH * scaleX
+            let basePadY: CGFloat = style.backgroundPaddingV * scaleY
+            let blurRadius = style.backgroundBlurRadius * min(scaleX, scaleY)
+            let isOval = style.backgroundShape == .oval
+
+            func bgPath(rect: CGRect) -> CGPath {
+                if isOval {
+                    return CGPath(ellipseIn: rect, transform: nil)
+                } else {
+                    let r = 8 * min(scaleX, scaleY)
+                    return CGPath(roundedRect: rect, cornerWidth: r, cornerHeight: r, transform: nil)
+                }
+            }
+
+            if blurRadius > 1 {
+                let steps = 8
+                for i in 0..<steps {
+                    let frac = CGFloat(i) / CGFloat(steps - 1)
+                    let expand = frac * blurRadius
+                    let alpha = style.backgroundOpacity * (1.0 - frac * 0.85)
+
+                    let bgRect = CGRect(
+                        x: textX - basePadX - expand,
+                        y: textY - basePadY - expand,
+                        width: textSize.width + basePadX * 2 + expand * 2,
+                        height: textSize.height + basePadY * 2 + expand * 2
+                    )
+                    context.setFillColor(CGColor(
+                        red: style.backgroundColor.red, green: style.backgroundColor.green,
+                        blue: style.backgroundColor.blue, alpha: alpha
+                    ))
+                    context.addPath(bgPath(rect: bgRect))
+                    context.fillPath()
+                }
+            } else {
+                let bgRect = CGRect(
+                    x: textX - basePadX, y: textY - basePadY,
+                    width: textSize.width + basePadX * 2, height: textSize.height + basePadY * 2
+                )
+                context.setFillColor(CGColor(
+                    red: style.backgroundColor.red, green: style.backgroundColor.green,
+                    blue: style.backgroundColor.blue, alpha: style.backgroundOpacity
+                ))
+                context.addPath(bgPath(rect: bgRect))
+                context.fillPath()
+            }
         }
 
-        // Shadow
-        context.setShadow(offset: CGSize(width: 0, height: -2), blur: 3, color: NSColor.black.withAlphaComponent(0.9).cgColor)
-
-        // Draw text
         let textRect = CGRect(x: textX, y: textY, width: textSize.width, height: textSize.height)
         let path = CGPath(rect: textRect, transform: nil)
         let ctFrame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: 0), path, nil)
+
+        // Glow passes BEFORE main text (rendered underneath)
+        if useGlow && activeWordIdx != nil {
+            // Build glow-only attributed string (only active word visible)
+            let glowStr: NSAttributedString = {
+                let mutable = NSMutableAttributedString()
+                for (i, w) in words.enumerated() {
+                    let isActive = i == activeWordIdx
+                    let color = isActive ? CGColor(red: 1, green: 1, blue: 1, alpha: 1) : CGColor(red: 0, green: 0, blue: 0, alpha: 0)
+                    let wordStr = NSAttributedString(string: (i > 0 ? " " : "") + w.word, attributes: [
+                        .font: ctFont,
+                        .foregroundColor: color
+                    ] as [NSAttributedString.Key: Any])
+                    mutable.append(wordStr)
+                }
+                return mutable
+            }()
+            let glowFramesetter = CTFramesetterCreateWithAttributedString(glowStr)
+            let glowFrame = CTFramesetterCreateFrame(glowFramesetter, CFRange(location: 0, length: 0), path, nil)
+
+            // Multiple glow passes for intensity
+            for blur in [12.0, 6.0, 3.0] {
+                context.saveGState()
+                context.setShadow(offset: .zero, blur: blur * min(scaleX, scaleY), color: CGColor(red: 1, green: 1, blue: 1, alpha: 0.5))
+                CTFrameDraw(glowFrame, context)
+                context.restoreGState()
+            }
+        }
+
+        // Main text with drop shadow
+        context.setShadow(offset: CGSize(width: 0, height: -2), blur: 3, color: CGColor(red: 0, green: 0, blue: 0, alpha: 0.9))
         CTFrameDraw(ctFrame, context)
 
         context.restoreGState()

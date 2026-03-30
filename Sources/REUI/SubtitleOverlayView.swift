@@ -76,25 +76,72 @@ public struct SubtitleOverlayView: View {
         let hasBackground = style.backgroundOpacity > 0.01
         let maxWidth = size.width - (SafeZone.left + SafeZone.right) * scale
 
-        Text(buildAttributedString(entry: entry, fontSize: fontSize))
-            .multilineTextAlignment(.center)
-            .lineSpacing(4 * scale)
-            .frame(maxWidth: maxWidth)
-            .padding(.horizontal, hasBackground ? 12 * scale : 0)
-            .padding(.vertical, hasBackground ? 6 * scale : 0)
-            .background(
-                hasBackground ?
-                    RoundedRectangle(cornerRadius: 8 * scale)
-                        .fill(Color(
-                            red: style.backgroundColor.red,
-                            green: style.backgroundColor.green,
-                            blue: style.backgroundColor.blue,
-                            opacity: style.backgroundOpacity
-                        ))
-                    : nil
-            )
-            .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
-            .position(x: size.width / 2, y: yPos)
+        let padH = hasBackground ? style.backgroundPaddingH * scale : 0
+        let padV = hasBackground ? style.backgroundPaddingV * scale : 0
+
+        let useGlow = style.highlightMode == .glow && activeWordIndex != nil
+
+        ZStack {
+            // Main text layer
+            Text(buildAttributedString(entry: entry, fontSize: fontSize))
+                .multilineTextAlignment(.center)
+                .lineSpacing(4 * scale)
+                .frame(maxWidth: maxWidth)
+                .padding(.horizontal, padH)
+                .padding(.vertical, padV)
+                .background(
+                    hasBackground ?
+                        subtitleBackground(scale: scale)
+                        : nil
+                )
+                .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
+
+            // Glow layer — only active word rendered, blurred for glow effect
+            if useGlow {
+                Text(buildGlowAttributedString(entry: entry, fontSize: fontSize))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4 * scale)
+                    .frame(maxWidth: maxWidth)
+                    .padding(.horizontal, padH)
+                    .padding(.vertical, padV)
+                    .blur(radius: 6 * scale)
+
+                // Second brighter pass for intense center glow
+                Text(buildGlowAttributedString(entry: entry, fontSize: fontSize))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4 * scale)
+                    .frame(maxWidth: maxWidth)
+                    .padding(.horizontal, padH)
+                    .padding(.vertical, padV)
+                    .blur(radius: 2 * scale)
+            }
+        }
+        .position(x: size.width / 2, y: yPos)
+    }
+
+    /// Background behind subtitles
+    @ViewBuilder
+    private func subtitleBackground(scale: CGFloat) -> some View {
+        let bgColor = Color(
+            red: style.backgroundColor.red,
+            green: style.backgroundColor.green,
+            blue: style.backgroundColor.blue,
+            opacity: style.backgroundOpacity
+        )
+        let blur = style.backgroundBlurRadius * scale
+        let cornerRadius = 8 * scale
+
+        Group {
+            switch style.backgroundShape {
+            case .rectangle:
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(bgColor)
+            case .oval:
+                Capsule()
+                    .fill(bgColor)
+            }
+        }
+        .blur(radius: blur > 1 ? blur : 0)
     }
 
     /// Build a single AttributedString with karaoke highlighting on the active word
@@ -108,12 +155,40 @@ public struct SubtitleOverlayView: View {
         for (idx, word) in entry.words.enumerated() {
             let isActive = idx == activeWordIndex
             let displayWord = style.isUppercase ? word.word.uppercased() : word.word
-            // Add space between words (not before first)
             let text = idx > 0 ? " \(displayWord)" : displayWord
 
             var attr = AttributedString(text)
             attr.font = font
-            attr.foregroundColor = isActive ? highlightColor : textColor
+
+            switch style.highlightMode {
+            case .color:
+                attr.foregroundColor = isActive ? highlightColor : textColor
+            case .glow:
+                // Glow mode: active word is brighter, inactive is dimmed
+                attr.foregroundColor = isActive ? .white : textColor.opacity(0.5)
+            }
+
+            result.append(attr)
+        }
+
+        return result
+    }
+
+    /// Build attributed string for the glow layer (only the active word visible)
+    private func buildGlowAttributedString(entry: SubtitleEntry, fontSize: CGFloat) -> AttributedString {
+        let font = Font.custom(style.fontName, size: fontSize)
+
+        var result = AttributedString()
+
+        for (idx, word) in entry.words.enumerated() {
+            let isActive = idx == activeWordIndex
+            let displayWord = style.isUppercase ? word.word.uppercased() : word.word
+            let text = idx > 0 ? " \(displayWord)" : displayWord
+
+            var attr = AttributedString(text)
+            attr.font = font
+            // Only active word glows — rest is transparent
+            attr.foregroundColor = isActive ? .white : .clear
 
             result.append(attr)
         }

@@ -1,21 +1,21 @@
 import SwiftUI
 import REAudioAnalysis
 
-/// Side panel for silence detection settings and controls
+/// Панель настроек детекции тишины
 struct SilenceDetectionPanel: View {
     @Bindable var viewModel: EditorViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Silence Detection")
+            Text("Детекция тишины")
                 .font(.headline)
 
-            // Results summary
+            // Результаты
             if let result = viewModel.silenceResult {
                 HStack(spacing: 16) {
-                    Label("\(result.pauseCount) pauses", systemImage: "waveform.badge.minus")
+                    Label("Пауз: \(result.pauseCount)", systemImage: "waveform.badge.minus")
                         .foregroundColor(.orange)
-                    Label(String(format: "%.1fs saved", result.totalSilenceDuration),
+                    Label(String(format: "Сохранено: %.1f с", result.totalSilenceDuration),
                           systemImage: "clock.arrow.circlepath")
                         .foregroundColor(.green)
                 }
@@ -24,12 +24,12 @@ struct SilenceDetectionPanel: View {
 
             Divider()
 
-            // Threshold slider
+            // Порог
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Threshold")
+                    Text("Порог")
                     Spacer()
-                    Text("\(Int(viewModel.silenceSettings.thresholdDB)) dB")
+                    Text("\(Int(viewModel.silenceSettings.thresholdDB)) дБ")
                         .foregroundColor(.secondary)
                 }
                 Slider(value: Binding(
@@ -37,29 +37,29 @@ struct SilenceDetectionPanel: View {
                     set: { viewModel.silenceSettings.thresholdDB = Float($0) }
                 ), in: -60...(-15), step: 1)
                 HStack {
-                    Text("More silence").font(.caption2).foregroundColor(.secondary)
+                    Text("Больше тишины").font(.caption2).foregroundColor(.secondary)
                     Spacer()
-                    Text("Less silence").font(.caption2).foregroundColor(.secondary)
+                    Text("Меньше тишины").font(.caption2).foregroundColor(.secondary)
                 }
             }
 
-            // Min duration slider
+            // Мин. длительность
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Min Duration")
+                    Text("Мин. длительность")
                     Spacer()
-                    Text(String(format: "%.1fs", viewModel.silenceSettings.minSilenceDuration))
+                    Text(String(format: "%.1f с", viewModel.silenceSettings.minSilenceDuration))
                         .foregroundColor(.secondary)
                 }
                 Slider(value: $viewModel.silenceSettings.minSilenceDuration, in: 0.1...2.0, step: 0.1)
             }
 
-            // Padding slider
+            // Отступ
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Padding")
+                    Text("Отступ")
                     Spacer()
-                    Text("\(Int(viewModel.silenceSettings.padding * 1000)) ms")
+                    Text("\(Int(viewModel.silenceSettings.padding * 1000)) мс")
                         .foregroundColor(.secondary)
                 }
                 Slider(value: $viewModel.silenceSettings.padding, in: 0.05...0.5, step: 0.05)
@@ -67,22 +67,22 @@ struct SilenceDetectionPanel: View {
 
             Divider()
 
-            // Presets
+            // Пресеты
             HStack(spacing: 8) {
-                Text("Preset:").font(.caption)
-                Button("Aggressive") {
+                Text("Пресет:").font(.caption)
+                Button("Жёсткий") {
                     viewModel.silenceSettings = .aggressive
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
 
-                Button("Normal") {
+                Button("Обычный") {
                     viewModel.silenceSettings = .normal
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
 
-                Button("Conservative") {
+                Button("Мягкий") {
                     viewModel.silenceSettings = .conservative
                 }
                 .buttonStyle(.bordered)
@@ -91,11 +91,11 @@ struct SilenceDetectionPanel: View {
 
             Divider()
 
-            // Action buttons
+            // Кнопки действий
             if viewModel.isDetectingSilence {
                 VStack(spacing: 4) {
                     ProgressView(value: viewModel.detectionProgress)
-                    Text("Detecting silence...")
+                    Text("Поиск пауз...")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -103,7 +103,7 @@ struct SilenceDetectionPanel: View {
                 Button {
                     viewModel.detectSilence()
                 } label: {
-                    Label("Detect Silence", systemImage: "waveform.badge.minus")
+                    Label("Найти паузы", systemImage: "waveform.badge.minus")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -114,7 +114,7 @@ struct SilenceDetectionPanel: View {
                     Button {
                         viewModel.restoreOriginal()
                     } label: {
-                        Label("Restore Original", systemImage: "arrow.uturn.backward")
+                        Label("Восстановить оригинал", systemImage: "arrow.uturn.backward")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)

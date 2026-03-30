@@ -6,6 +6,7 @@ public enum SubtitlePreset: String, Codable, CaseIterable, Identifiable {
     case classic    // White on semi-transparent black pill
     case capcut     // Bold, colored word-by-word highlight
     case hormozi    // Uppercase, green highlight on active word
+    case script     // Serif, italic+glow on active word
 
     public var id: String { rawValue }
 
@@ -14,8 +15,15 @@ public enum SubtitlePreset: String, Codable, CaseIterable, Identifiable {
         case .classic: return "Classic"
         case .capcut: return "CapCut"
         case .hormozi: return "Hormozi"
+        case .script: return "Script"
         }
     }
+}
+
+/// How the active word is highlighted
+public enum HighlightMode: String, Codable, CaseIterable {
+    case color      // Change foreground color (default)
+    case glow      // White glow on active word, inactive dimmed
 }
 
 /// Vertical position for subtitles (in 1080×1920 canvas)
@@ -90,9 +98,29 @@ public struct CodableColor: Codable, Equatable {
     public static let black = CodableColor(red: 0, green: 0, blue: 0)
     public static let yellow = CodableColor(red: 1, green: 0.9, blue: 0)
     public static let green = CodableColor(red: 0, green: 1, blue: 0)
+    public static let cyan = CodableColor(red: 0, green: 0.9, blue: 1)
+    public static let orange = CodableColor(red: 1, green: 0.6, blue: 0)
+    public static let pink = CodableColor(red: 1, green: 0.3, blue: 0.5)
+    public static let red = CodableColor(red: 1, green: 0.2, blue: 0.2)
+
+    /// Predefined highlight colors for karaoke picker
+    public static let highlightPresets: [(name: String, color: CodableColor)] = [
+        ("Жёлтый", .yellow),
+        ("Зелёный", .green),
+        ("Голубой", .cyan),
+        ("Оранжевый", .orange),
+        ("Розовый", .pink),
+        ("Красный", .red),
+        ("Белый", .white),
+    ]
 }
 
 /// Full subtitle styling configuration
+public enum SubtitleBackgroundShape: String, Codable, CaseIterable {
+    case rectangle
+    case oval
+}
+
 public struct SubtitleStyle: Codable, Equatable {
     public var preset: SubtitlePreset
     public var fontName: String
@@ -101,8 +129,14 @@ public struct SubtitleStyle: Codable, Equatable {
     public var highlightColor: CodableColor
     public var backgroundColor: CodableColor
     public var backgroundOpacity: CGFloat
+    public var backgroundBlurRadius: CGFloat  // 0 = sharp edges, 10-40 = smooth feathered gradient
+    public var backgroundPaddingH: CGFloat    // horizontal padding in canvas pixels
+    public var backgroundPaddingV: CGFloat    // vertical padding in canvas pixels
+    public var backgroundShape: SubtitleBackgroundShape
     public var position: SubtitlePosition
     public var customYCenter: CGFloat?    // nil = use position.yCenter, set = override
+    public var highlightMode: HighlightMode
+    public var italicFontName: String?   // used when highlightMode == .glow
     public var isUppercase: Bool
     public var maxWordsPerLine: Int
 
@@ -119,8 +153,14 @@ public struct SubtitleStyle: Codable, Equatable {
         highlightColor: CodableColor = .yellow,
         backgroundColor: CodableColor = .black,
         backgroundOpacity: CGFloat = 0.7,
+        backgroundBlurRadius: CGFloat = 0,
+        backgroundPaddingH: CGFloat = 24,
+        backgroundPaddingV: CGFloat = 12,
+        backgroundShape: SubtitleBackgroundShape = .rectangle,
         position: SubtitlePosition = .bottom,
         customYCenter: CGFloat? = nil,
+        highlightMode: HighlightMode = .color,
+        italicFontName: String? = nil,
         isUppercase: Bool = false,
         maxWordsPerLine: Int = 6
     ) {
@@ -131,8 +171,14 @@ public struct SubtitleStyle: Codable, Equatable {
         self.highlightColor = highlightColor
         self.backgroundColor = backgroundColor
         self.backgroundOpacity = backgroundOpacity
+        self.backgroundBlurRadius = backgroundBlurRadius
+        self.backgroundPaddingH = backgroundPaddingH
+        self.backgroundPaddingV = backgroundPaddingV
+        self.backgroundShape = backgroundShape
         self.position = position
         self.customYCenter = customYCenter
+        self.highlightMode = highlightMode
+        self.italicFontName = italicFontName
         self.isUppercase = isUppercase
         self.maxWordsPerLine = maxWordsPerLine
     }
@@ -147,6 +193,7 @@ public struct SubtitleStyle: Codable, Equatable {
         highlightColor: .yellow,
         backgroundColor: .black,
         backgroundOpacity: 0.7,
+        backgroundBlurRadius: 20,
         position: .bottom,
         isUppercase: false,
         maxWordsPerLine: 6
@@ -160,6 +207,7 @@ public struct SubtitleStyle: Codable, Equatable {
         highlightColor: .yellow,
         backgroundColor: .black,
         backgroundOpacity: 0,
+        backgroundBlurRadius: 0,
         position: .center,
         isUppercase: false,
         maxWordsPerLine: 3
@@ -173,9 +221,29 @@ public struct SubtitleStyle: Codable, Equatable {
         highlightColor: .green,
         backgroundColor: .black,
         backgroundOpacity: 0,
+        backgroundBlurRadius: 0,
         position: .bottom,
         isUppercase: true,
         maxWordsPerLine: 4
+    )
+
+    public static let script = SubtitleStyle(
+        preset: .script,
+        fontName: "Baskerville-Bold",
+        fontSize: 54,
+        textColor: .white,
+        highlightColor: .white,
+        backgroundColor: CodableColor(red: 0.15, green: 0.15, blue: 0.15, alpha: 1),
+        backgroundOpacity: 0.85,
+        backgroundBlurRadius: 0,
+        backgroundPaddingH: 40,
+        backgroundPaddingV: 24,
+        backgroundShape: .rectangle,
+        position: .center,
+        highlightMode: .glow,
+        italicFontName: "Baskerville-BoldItalic",
+        isUppercase: false,
+        maxWordsPerLine: 5
     )
 
     /// Get preset style by type
@@ -184,6 +252,7 @@ public struct SubtitleStyle: Codable, Equatable {
         case .classic: return .classic
         case .capcut: return .capcut
         case .hormozi: return .hormozi
+        case .script: return .script
         }
     }
 }

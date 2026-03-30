@@ -1,5 +1,10 @@
 import SwiftUI
+#if os(macOS)
 import AppKit
+#elseif os(iOS)
+import UIKit
+import PhotosUI
+#endif
 import AVFoundation
 import RECore
 import RETimeline
@@ -14,6 +19,7 @@ public class EditorViewModel {
     public private(set) var player: AVPlayer?
     public var playheadPosition: CMTime = .zero
     public var isPlaying = false
+    public var isImporting = false
     public var statusMessage = ""
     public var pixelsPerSecond: Double = 100
     public var selectedClipId: UUID?
@@ -34,6 +40,7 @@ public class EditorViewModel {
     public var isTranscribing = false
     public var transcriptionProgress: Double = 0
     public var transcriptionPhase: String = ""
+    public var transcriptionDetail: String = ""
     public var showSubtitles = true
     public var showSafeZones = false
 
@@ -58,7 +65,24 @@ public class EditorViewModel {
     private var isSeekInProgress = false
     private var chaseTime: CMTime = .zero
 
-    public init() {}
+    // ASR model manager (cached between transcriptions, shared lifecycle)
+    public let modelManager = ModelManager()
+
+    public init() {
+        // Clean up leftover temp files from previous sessions (crashes, etc.)
+        Self.cleanupTempFiles()
+    }
+
+    /// Remove all silencecut_* temp files from tmp directory
+    static func cleanupTempFiles() {
+        let tmpDir = FileManager.default.temporaryDirectory
+        if let files = try? FileManager.default.contentsOfDirectory(at: tmpDir, includingPropertiesForKeys: nil) {
+            for file in files where file.lastPathComponent.hasPrefix("silencecut_") {
+                try? FileManager.default.removeItem(at: file)
+                print("[Cleanup] Removed: \(file.lastPathComponent)")
+            }
+        }
+    }
 
     // MARK: - File Import
 
@@ -73,6 +97,8 @@ public class EditorViewModel {
         selectedClipId = nil
         playheadPosition = .zero
         isPlaying = false
+        isImporting = true
+        statusMessage = "Загрузка видео..."
         undoStack.removeAll()
         redoStack.removeAll()
 
@@ -99,13 +125,15 @@ public class EditorViewModel {
                     sourceRange: availableRange
                 )
                 timeline = EditTimeline(clips: [clip])
-                statusMessage = "Loaded: \(url.lastPathComponent)"
+                statusMessage = "Загружено: \(url.lastPathComponent)"
                 await rebuildPreview()
 
                 // Generate waveform
                 waveformData = try await WaveformGenerator.generate(from: url)
+                isImporting = false
             } catch {
-                statusMessage = "Error: \(error.localizedDescription)"
+                statusMessage = "Ошибка: \(error.localizedDescription)"
+                isImporting = false
             }
         }
     }
@@ -153,7 +181,7 @@ public class EditorViewModel {
 
             setupTimeObserver()
         } catch {
-            statusMessage = "Preview error: \(error.localizedDescription)"
+            statusMessage = "Ошибка превью: \(error.localizedDescription)"
         }
     }
 
@@ -169,14 +197,29 @@ public class EditorViewModel {
 
     // MARK: - Playback
 
+    /// True while seeking before play — blocks time observer from overwriting playheadPosition
+    private var isSeeking = false
+
     public func togglePlayback() {
         guard let player else { return }
         if isPlaying {
             player.pause()
+            playheadPosition = player.currentTime()
+            isPlaying = false
         } else {
-            player.play()
+            // Seek to playheadPosition FIRST, play only after seek completes.
+            // Block time observer during seek to prevent it overwriting playheadPosition.
+            isSeeking = true
+            let targetTime = playheadPosition
+            player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
+                guard let self, finished else { return }
+                Task { @MainActor in
+                    self.isSeeking = false
+                    self.isPlaying = true
+                    self.player?.play()
+                }
+            }
         }
-        isPlaying.toggle()
     }
 
     // MARK: - Smooth Scrubbing (chase-seek pattern)
@@ -184,6 +227,7 @@ public class EditorViewModel {
     public func seekSmoothly(to time: CMTime) {
         playheadPosition = time
         chaseTime = time
+        // Always chase-seek the player (even when paused) so play() starts from the right spot
         if !isSeekInProgress {
             trySeekToChaseTime()
         }
@@ -209,7 +253,7 @@ public class EditorViewModel {
     private func invalidateSubtitles() {
         if !subtitleEntries.isEmpty {
             subtitleEntries = []
-            statusMessage = "Subtitles cleared (re-transcribe after editing)"
+            statusMessage = "Субтитры сброшены (транскрибируйте заново)"
             print("[Editor] Subtitles invalidated due to timeline change")
         }
     }
@@ -243,11 +287,22 @@ public class EditorViewModel {
         Task { @MainActor in await rebuildPreview() }
     }
 
+    private var isTrimming = false
+
+    /// Called continuously during trim drag. Saves undo only once at start.
     public func trimClip(id: UUID, newSourceRange: CMTimeRange) {
-        saveUndoState()
+        if !isTrimming {
+            saveUndoState()
+            isTrimming = true
+        }
         invalidateSubtitles()
         timeline.trimClip(id: id, newSourceRange: newSourceRange)
         debouncedRebuild()
+    }
+
+    /// Call when trim gesture ends to reset the flag.
+    public func trimEnded() {
+        isTrimming = false
     }
 
     // MARK: - Undo/Redo
@@ -311,9 +366,9 @@ public class EditorViewModel {
                 )
 
                 await rebuildPreview()
-                statusMessage = "\(result.pauseCount) pauses removed, saved \(String(format: "%.1f", result.totalSilenceDuration))s"
+                statusMessage = "Удалено пауз: \(result.pauseCount), сохранено \(String(format: "%.1f", result.totalSilenceDuration)) с"
             } catch {
-                statusMessage = "Detection error: \(error.localizedDescription)"
+                statusMessage = "Ошибка детекции: \(error.localizedDescription)"
             }
             isDetectingSilence = false
         }
@@ -336,9 +391,9 @@ public class EditorViewModel {
                 timeline = EditTimeline(clips: [clip])
                 silenceResult = nil
                 await rebuildPreview()
-                statusMessage = "Restored original"
+                statusMessage = "Оригинал восстановлен"
             } catch {
-                statusMessage = "Error restoring: \(error.localizedDescription)"
+                statusMessage = "Ошибка восстановления: \(error.localizedDescription)"
             }
         }
     }
@@ -348,12 +403,16 @@ public class EditorViewModel {
     public func transcribe() {
         guard project.sourceURL != nil else { return }
         guard timeline.enabledClipCount > 0 else {
-            statusMessage = "No clips to transcribe"
+            statusMessage = "Нет клипов для транскрибации"
             return
         }
         isTranscribing = true
         transcriptionProgress = 0
-        transcriptionPhase = "Exporting edit..."
+        transcriptionPhase = "Экспорт монтажа..."
+        transcriptionDetail = ""
+
+        // Clean up old temp files before creating new ones
+        Self.cleanupTempFiles()
 
         Task { @MainActor in
             do {
@@ -362,7 +421,7 @@ public class EditorViewModel {
                     .appendingPathComponent("silencecut_transcribe_\(UUID().uuidString).mp4")
                 defer { try? FileManager.default.removeItem(at: tempURL) }
 
-                transcriptionPhase = "Exporting edit..."
+                transcriptionPhase = "Экспорт монтажа..."
                 try await ExportService.export(
                     timeline: timeline,
                     to: tempURL,
@@ -375,22 +434,23 @@ public class EditorViewModel {
                 }
                 print("[Transcribe] Temp export done: \(tempURL.lastPathComponent)")
 
-                // Step 2: Transcribe the exported video (timings = timeline time, no mapping needed)
-                transcriptionPhase = "Transcribing..."
+                // Step 2: Transcribe via ModelManager (model stays cached between calls)
+                transcriptionPhase = "Транскрибация..."
                 subtitleEntries = try await TranscriptionService.transcribe(
                     url: tempURL,
-                    language: "ru"
+                    modelManager: modelManager
                 ) { progress in
                     Task { @MainActor in
                         // 30-100% progress for transcription
                         self.transcriptionProgress = 0.3 + progress.fraction * 0.7
                         self.transcriptionPhase = progress.phase.rawValue
+                        self.transcriptionDetail = progress.detail ?? ""
                     }
                 }
-                statusMessage = "\(subtitleEntries.count) subtitle segments"
+                statusMessage = "\(subtitleEntries.count) сегментов субтитров"
                 print("[Transcribe] Done: \(subtitleEntries.count) segments — timings match timeline directly")
             } catch {
-                statusMessage = "Transcription error: \(error.localizedDescription)"
+                statusMessage = "Ошибка транскрибации: \(error.localizedDescription)"
                 print("[Transcribe] Error: \(error)")
             }
             isTranscribing = false
@@ -439,6 +499,11 @@ public class EditorViewModel {
 
     // MARK: - Export
 
+    /// URL of last exported file (iOS uses this to present share sheet)
+    public var lastExportedURL: URL?
+    public var showShareSheet = false
+
+    #if os(macOS)
     public func exportVideo() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.mpeg4Movie]
@@ -446,7 +511,22 @@ public class EditorViewModel {
         panel.canCreateDirectories = true
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
+        performExport(to: url)
+    }
+    #endif
 
+    #if os(iOS)
+    public func exportVideo() {
+        // Clean all old temp files before new export
+        Self.cleanupTempFiles()
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(project.name)_edited.mp4")
+        try? FileManager.default.removeItem(at: url)
+        performExport(to: url)
+    }
+    #endif
+
+    private func performExport(to url: URL) {
         isExporting = true
         exportProgress = 0
 
@@ -458,7 +538,6 @@ public class EditorViewModel {
         Task { @MainActor in
             do {
                 if splitEnabled && splitDur > 0 {
-                    // Export full file first, then split with AVAssetExportSession per segment
                     let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("silencecut_full_\(UUID().uuidString).mp4")
                     try await ExportService.export(
                         timeline: timeline,
@@ -470,7 +549,6 @@ public class EditorViewModel {
                         self.exportProgress = progress.fraction * 0.5
                     }
 
-                    // Split the exported file
                     let asset = AVURLAsset(url: tempURL)
                     let totalDur = CMTimeGetSeconds(try await asset.load(.duration))
                     let numParts = Int(ceil(totalDur / splitDur))
@@ -492,15 +570,19 @@ public class EditorViewModel {
                             duration: CMTime(seconds: partDur, preferredTimescale: 600)
                         )
                         await session.export()
-                        statusMessage = "Split \(i + 1)/\(numParts)..."
+                        statusMessage = "Нарезка \(i + 1)/\(numParts)..."
                         exportProgress = 0.5 + (Double(i + 1) / Double(numParts)) * 0.5
                     }
 
                     try? FileManager.default.removeItem(at: tempURL)
-                    statusMessage = "Export complete! \(numParts) clips"
+                    statusMessage = "Экспорт завершён! \(numParts) клипов"
+                    #if os(macOS)
                     NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: dir.path)
+                    #elseif os(iOS)
+                    lastExportedURL = dir
+                    showShareSheet = true
+                    #endif
                 } else {
-                    // Single file export
                     try await ExportService.export(
                         timeline: timeline,
                         to: url,
@@ -510,11 +592,16 @@ public class EditorViewModel {
                     ) { progress in
                         self.exportProgress = progress.fraction
                     }
-                    statusMessage = "Export complete!"
+                    statusMessage = "Экспорт завершён!"
+                    #if os(macOS)
                     NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: url.deletingLastPathComponent().path)
+                    #elseif os(iOS)
+                    lastExportedURL = url
+                    showShareSheet = true
+                    #endif
                 }
             } catch {
-                statusMessage = "Export error: \(error.localizedDescription)"
+                statusMessage = "Ошибка экспорта: \(error.localizedDescription)"
             }
             isExporting = false
         }
@@ -546,7 +633,7 @@ public class EditorViewModel {
         guard let player else { return }
         let interval = CMTime(seconds: 1.0 / 30.0, preferredTimescale: 600)
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            guard let self, self.isPlaying else { return }
+            guard let self, self.isPlaying, !self.isSeeking else { return }
             self.playheadPosition = time
         }
     }

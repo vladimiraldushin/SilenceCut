@@ -20,18 +20,30 @@ public struct Project: Codable {
     /// Create security-scoped bookmark for the source URL
     public mutating func createBookmark() throws {
         guard let url = sourceURL else { return }
+        #if os(macOS)
         sourceBookmarkData = try url.bookmarkData(
             options: .withSecurityScope,
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )
+        #else
+        sourceBookmarkData = try url.bookmarkData(
+            options: [],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        #endif
     }
 
     /// Resolve security-scoped bookmark
     public mutating func resolveBookmark() throws -> URL? {
         guard let data = sourceBookmarkData else { return sourceURL }
         var isStale = false
+        #if os(macOS)
         let url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale)
+        #else
+        let url = try URL(resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &isStale)
+        #endif
         if isStale { try createBookmark() }
         sourceURL = url
         return url
