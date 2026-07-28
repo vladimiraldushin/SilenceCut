@@ -11,6 +11,7 @@
 		07E7E723D6C2FF3E1EF1566E /* ParakeetEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0732023B9A65CE7DA935948E /* ParakeetEngine.swift */; };
 		08B467E82F55CE12002416EF /* REAudioAnalysis.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; };
 		0CE2E92AA0FBF684C6C07AEA /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
+		10835874261DD9195C7B6B4D /* LoudnessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34B06132238B7B060AE777EC /* LoudnessTests.swift */; };
 		1396EAF72E003EF409D7E6DD /* SubtitleMarkdownExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BE4B5F28EA4351021536B73 /* SubtitleMarkdownExporter.swift */; };
 		1613417A9581F131014A3F37 /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
 		19A16C74062B0C57D698F6D2 /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
@@ -20,6 +21,7 @@
 		2276EF16D328935D14AC7785 /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
 		2639D9B37F21CE06BA44EAB7 /* TimelineClipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867B6544F63DCE6289770469 /* TimelineClipTests.swift */; };
 		2AC4024DD693B192FADFB6EA /* RMSCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F83DF3CD75D6B4B706EE6 /* RMSCacheTests.swift */; };
+		2BC5C312A6C7812B92B012FE /* BatchQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6861562E1DD374AAB9CAE52C /* BatchQueue.swift */; };
 		2C19A9BEC214756BC0ED0FB7 /* SilenceDetectionPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */; };
 		2DEDE8192F641A4B420FFD14 /* REExport-iOS.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2162F30D3452D058FB07F955 /* REExport-iOS.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		2EB5A1E61AD378452AB4FB79 /* PreviewPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */; };
@@ -34,6 +36,7 @@
 		4220AF0AF30BEA03F68F3DBF /* EditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */; };
 		43DBDEEB6F3F2509C0E6BD36 /* REExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30B341310F52289E17CF1B20 /* REExport.swift */; };
 		4407DDB9A71B17E2E67407FE /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E137873BB74A6C52AB2EC48F /* TimelineView.swift */; };
+		45017F175F80B715093FA1D4 /* RenderOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D81370ED6EB2B26A89A474CE /* RenderOptions.swift */; };
 		46A173593CFD63ABC5F7A03D /* TimelineClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = D22634EE80EF00F6A0200C90 /* TimelineClip.swift */; };
 		4CF55A7D7648DD1DCF99CA2A /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C38F6599CFE96AB9F4C0579C /* ExportService.swift */; };
 		4F9F596CC1BF2C7DA2C6D0F7 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BABFCA147DD5F237B860EE /* Project.swift */; };
@@ -43,21 +46,26 @@
 		5F978D6E4AE4B2C2A52719C7 /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BAA5E9E0908542D21B7016D /* TranscriptionService.swift */; };
 		657E72E68B7236F2AFF2E467 /* EditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */; };
 		665D72E21155118E3C09371B /* REAudioAnalysis.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; };
+		6985A6161453F49443A9039D /* BatchQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524CEE0492AABEDE093A58E6 /* BatchQueueView.swift */; };
 		7152B11990A52552CFA4401D /* RETimeline-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C711E78641A8A43545148885 /* RETimeline-iOS.framework */; };
 		726779CBBF822BC6B709A51F /* AudioAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 455465CE544F566169C452E9 /* AudioAnalysis.swift */; };
 		7928D15D820E86B6F17E9D07 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3E3A312256F29CA0F4DD8B70 /* WhisperKit */; };
 		79963385730F18B52AED0930 /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
 		7BAA36E3DC37BF4346CAFD80 /* REAudioAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */; };
 		7C3E08B5902FFECBC1BD1D0E /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
+		7DD61C8C28A41D62FA516E6B /* BatchQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524CEE0492AABEDE093A58E6 /* BatchQueueView.swift */; };
 		8068BD8621AE8B462FA83339 /* ProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0879AC88785B477EA4ADDD8 /* ProjectStore.swift */; };
 		8532292AE5FDC45CD3425BE9 /* SubtitlePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D5E4DCAFBA4616C0B876D5 /* SubtitlePanel.swift */; };
 		8F08823AA9C4F61DB361B780 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = E44C7F4282B7292609D8C05E /* WhisperKit */; };
 		913F0F7CDD9FA93ED8F9EF0C /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
+		9149C82AC20D79B816E0F458 /* RETimeline.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		9C868DEE3CE1722D334604DB /* SubtitleSRTExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90A22F7AA74002BCBC5A7BEF /* SubtitleSRTExporter.swift */; };
+		9D68522E5A0E9C5355E709F3 /* RenderTransformTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D2F3E3C5A22389EBB13EFFF /* RenderTransformTests.swift */; };
 		A18DBD20B692598B6B187AA8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D1306E8BF62643FFD64DB522 /* Assets.xcassets */; };
 		A2D375DDFFE3B2C378F03557 /* RECore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A6993C35B4AAC9B06ABDE027 /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
 		AA0AC4E79E1DFE25980A0B50 /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
+		AB67714A5F1678B7B42B70CD /* RenderOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D81370ED6EB2B26A89A474CE /* RenderOptions.swift */; };
 		AC0F5A4F77D95F6452431A13 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C38F6599CFE96AB9F4C0579C /* ExportService.swift */; };
 		B018259E72569B1F7110F960 /* EditTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */; };
 		B34B009D8EE7C0AB62E05D3A /* RECore-iOS.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -69,10 +77,12 @@
 		BC484A0AB8D8017254F6B7A9 /* SubtitleOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC91C0AC5BACD28407E0713 /* SubtitleOverlayView.swift */; };
 		BD14E8EAD5ECD38DC7C01BF5 /* RETimeline-iOS.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C711E78641A8A43545148885 /* RETimeline-iOS.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BDFB5A7FA89F762EFC667205 /* SubtitleStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DCA24D467FDD6FE62C1C114 /* SubtitleStyle.swift */; };
+		C0C296DE860B4498FCF7D681 /* BatchQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6861562E1DD374AAB9CAE52C /* BatchQueue.swift */; };
 		C13A3FBDB42200C782A20918 /* SubtitleEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C54CB65E77B0DB040CDD51 /* SubtitleEntry.swift */; };
 		C246C2C7476B3EB9F446069B /* REUI-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 567AA8E1F991CCBBF88DA94E /* REUI-iOS.framework */; };
 		C410163504E837845718C647 /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
 		C7E24AF1E8C608F68BCBFF3D /* RETimeline-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C711E78641A8A43545148885 /* RETimeline-iOS.framework */; };
+		C815A72AA37EF25786C60166 /* LoudnessAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420E4DEE9BB0EBACC5D93F1E /* LoudnessAnalyzer.swift */; };
 		C85F0B01B59E79428D0CC726 /* MainEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC4FE533556380FCB651AF5A /* MainEditorView.swift */; };
 		CABAB0B1A398DF849F363E87 /* SubtitleStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DCA24D467FDD6FE62C1C114 /* SubtitleStyle.swift */; };
 		CAEFCB06CC74ACF6D0154FD8 /* PreviewPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */; };
@@ -99,6 +109,7 @@
 		E3B85E06E78798EF22D9774E /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
 		E4521790832C279F659B919F /* RETimeline.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E4936144E4339BC7BE9067DC /* AudioSampleStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE714EC6E75209AEF60D68D /* AudioSampleStream.swift */; };
+		E4F4742A4A51B152A7075011 /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
 		EAAC209A2EF7438B62D01017 /* REAudioAnalysis-iOS.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4E9EE611B9409EF67024B133 /* REAudioAnalysis-iOS.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EB0CCABCB78D810F60ECE486 /* REExport.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9AFB408B69327330EBAFC712 /* REExport.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		ECC99C48A29B32E4E9EB87AC /* REUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 433492D71088FF4C3B8BA465 /* REUI.framework */; };
@@ -107,6 +118,7 @@
 		EF577B63369385D0BC7B2234 /* REExport.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AFB408B69327330EBAFC712 /* REExport.framework */; };
 		F036E12BA3D9A7249E56786D /* SubtitlePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D5E4DCAFBA4616C0B876D5 /* SubtitlePanel.swift */; };
 		F1B55D70DC264FBBC0FFE546 /* RECore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		F40AC023417AFE3DB38D4E7B /* LoudnessAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420E4DEE9BB0EBACC5D93F1E /* LoudnessAnalyzer.swift */; };
 		F76B46BCA2D1F9099CBCEC24 /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
 		F7C21EBC25CB8C050F0143EF /* SilenceCutIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 604BC86BBDAB2709C403C1FA /* SilenceCutIOSApp.swift */; };
 		F8DD8A4C0D865B40681E42E2 /* REAudioAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */; };
@@ -261,6 +273,13 @@
 			remoteGlobalIDString = 805B27799A57F723CCCE15BF;
 			remoteInfo = "REExport-iOS";
 		};
+		D9E5F491193068C47D01D490 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 54C6992E3E766FA2B75891CF;
+			remoteInfo = RETimeline;
+		};
 		DCB55B9690617BD85EE169EA /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
@@ -328,6 +347,17 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		3EEC4A7DF3AB160A42820D8B /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				9149C82AC20D79B816E0F458 /* RETimeline.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		48359D4E8AC33682EABA9482 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -379,21 +409,26 @@
 		2162F30D3452D058FB07F955 /* REExport-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "REExport-iOS.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 		25E767F05369E7F15FB1555B /* ProjectStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectStoreTests.swift; sourceTree = "<group>"; };
 		2CBE6D71D27E42DF5BA25557 /* REAudioAnalysisTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = REAudioAnalysisTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2D2F3E3C5A22389EBB13EFFF /* RenderTransformTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderTransformTests.swift; sourceTree = "<group>"; };
 		2DCA24D467FDD6FE62C1C114 /* SubtitleStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleStyle.swift; sourceTree = "<group>"; };
 		30B341310F52289E17CF1B20 /* REExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = REExport.swift; sourceTree = "<group>"; };
+		34B06132238B7B060AE777EC /* LoudnessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoudnessTests.swift; sourceTree = "<group>"; };
 		3558AEAE76CD06B8D030642A /* RECore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RECore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		36F19C0B65C1CF9DA62657AF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		39807AED0599A68F3B7161DB /* RECoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RECoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceCutApp.swift; sourceTree = "<group>"; };
 		3CE714EC6E75209AEF60D68D /* AudioSampleStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSampleStream.swift; sourceTree = "<group>"; };
 		3F8F83DF3CD75D6B4B706EE6 /* RMSCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RMSCacheTests.swift; sourceTree = "<group>"; };
+		420E4DEE9BB0EBACC5D93F1E /* LoudnessAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoudnessAnalyzer.swift; sourceTree = "<group>"; };
 		433417F55CEB51D23F21BD29 /* SilenceRegionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceRegionTests.swift; sourceTree = "<group>"; };
 		433492D71088FF4C3B8BA465 /* REUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = REUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		455465CE544F566169C452E9 /* AudioAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAnalysis.swift; sourceTree = "<group>"; };
 		4E9EE611B9409EF67024B133 /* REAudioAnalysis-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "REAudioAnalysis-iOS.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		524CEE0492AABEDE093A58E6 /* BatchQueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchQueueView.swift; sourceTree = "<group>"; };
 		567AA8E1F991CCBBF88DA94E /* REUI-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "REUI-iOS.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 		56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "RECore-iOS.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 		604BC86BBDAB2709C403C1FA /* SilenceCutIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceCutIOSApp.swift; sourceTree = "<group>"; };
+		6861562E1DD374AAB9CAE52C /* BatchQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchQueue.swift; sourceTree = "<group>"; };
 		6BE4B5F28EA4351021536B73 /* SubtitleMarkdownExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleMarkdownExporter.swift; sourceTree = "<group>"; };
 		7438A77723E8F226465D2E3C /* SilenceDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceDetector.swift; sourceTree = "<group>"; };
 		7CC91C0AC5BACD28407E0713 /* SubtitleOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleOverlayView.swift; sourceTree = "<group>"; };
@@ -412,10 +447,12 @@
 		CC4FE533556380FCB651AF5A /* MainEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainEditorView.swift; sourceTree = "<group>"; };
 		D1306E8BF62643FFD64DB522 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D22634EE80EF00F6A0200C90 /* TimelineClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineClip.swift; sourceTree = "<group>"; };
+		D81370ED6EB2B26A89A474CE /* RenderOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderOptions.swift; sourceTree = "<group>"; };
 		E137873BB74A6C52AB2EC48F /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineView.swift; sourceTree = "<group>"; };
 		E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceDetectionPanel.swift; sourceTree = "<group>"; };
 		EB82737643CD2BE53F03862A /* RETimeline.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RETimeline.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED4E2740A4D99AF07019E6FB /* ModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelManager.swift; sourceTree = "<group>"; };
+		FE49B8DE07A63647101E4BCE /* RETimelineTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RETimelineTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTimeline.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -429,6 +466,14 @@
 				D334D41C680E2F57967F1498 /* REAudioAnalysis-iOS.framework in Frameworks */,
 				1F0E18D3CFAC3A7436BC778A /* REExport-iOS.framework in Frameworks */,
 				C246C2C7476B3EB9F446069B /* REUI-iOS.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4A2BFCE66FA681AAB2F167C7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E4F4742A4A51B152A7075011 /* RETimeline.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -552,6 +597,7 @@
 			children = (
 				455465CE544F566169C452E9 /* AudioAnalysis.swift */,
 				3CE714EC6E75209AEF60D68D /* AudioSampleStream.swift */,
+				420E4DEE9BB0EBACC5D93F1E /* LoudnessAnalyzer.swift */,
 				ED4E2740A4D99AF07019E6FB /* ModelManager.swift */,
 				0732023B9A65CE7DA935948E /* ParakeetEngine.swift */,
 				127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */,
@@ -614,6 +660,7 @@
 				9AFB408B69327330EBAFC712 /* REExport.framework */,
 				C711E78641A8A43545148885 /* RETimeline-iOS.framework */,
 				EB82737643CD2BE53F03862A /* RETimeline.framework */,
+				FE49B8DE07A63647101E4BCE /* RETimelineTests.xctest */,
 				567AA8E1F991CCBBF88DA94E /* REUI-iOS.framework */,
 				433492D71088FF4C3B8BA465 /* REUI.framework */,
 				8055418BF6FCFC99B8147983 /* SilenceCut-iOS.app */,
@@ -627,6 +674,7 @@
 			children = (
 				5F0454D8E1996FF49E1CB231 /* REAudioAnalysisTests */,
 				28E764E9168FE9BE5794DD31 /* RECoreTests */,
+				B5983E930743B01AFDC5A05D /* RETimelineTests */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -648,6 +696,7 @@
 		5F0454D8E1996FF49E1CB231 /* REAudioAnalysisTests */ = {
 			isa = PBXGroup;
 			children = (
+				34B06132238B7B060AE777EC /* LoudnessTests.swift */,
 				3F8F83DF3CD75D6B4B706EE6 /* RMSCacheTests.swift */,
 				433417F55CEB51D23F21BD29 /* SilenceRegionTests.swift */,
 			);
@@ -660,6 +709,7 @@
 				FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */,
 				16BABFCA147DD5F237B860EE /* Project.swift */,
 				C0879AC88785B477EA4ADDD8 /* ProjectStore.swift */,
+				D81370ED6EB2B26A89A474CE /* RenderOptions.swift */,
 				A2C54CB65E77B0DB040CDD51 /* SubtitleEntry.swift */,
 				2DCA24D467FDD6FE62C1C114 /* SubtitleStyle.swift */,
 				D22634EE80EF00F6A0200C90 /* TimelineClip.swift */,
@@ -676,9 +726,19 @@
 			path = SilenceCutIOSApp;
 			sourceTree = "<group>";
 		};
+		B5983E930743B01AFDC5A05D /* RETimelineTests */ = {
+			isa = PBXGroup;
+			children = (
+				2D2F3E3C5A22389EBB13EFFF /* RenderTransformTests.swift */,
+			);
+			path = RETimelineTests;
+			sourceTree = "<group>";
+		};
 		BCB340EC20BE359DCC285B50 /* REUI */ = {
 			isa = PBXGroup;
 			children = (
+				6861562E1DD374AAB9CAE52C /* BatchQueue.swift */,
+				524CEE0492AABEDE093A58E6 /* BatchQueueView.swift */,
 				C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */,
 				CC4FE533556380FCB651AF5A /* MainEditorView.swift */,
 				A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */,
@@ -701,6 +761,26 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		2D369150E245787F49DD3E75 /* RETimelineTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8E032F74D71B78B418BCDF72 /* Build configuration list for PBXNativeTarget "RETimelineTests" */;
+			buildPhases = (
+				1CD5CF373BC71EBEC9B88D12 /* Sources */,
+				4A2BFCE66FA681AAB2F167C7 /* Frameworks */,
+				3EEC4A7DF3AB160A42820D8B /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0887B59CAE89A5BE6295045B /* PBXTargetDependency */,
+			);
+			name = RETimelineTests;
+			packageProductDependencies = (
+			);
+			productName = RETimelineTests;
+			productReference = FE49B8DE07A63647101E4BCE /* RETimelineTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		54C6992E3E766FA2B75891CF /* RETimeline */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 05E2461C942206780C96490E /* Build configuration list for PBXNativeTarget "RETimeline" */;
@@ -1031,6 +1111,7 @@
 				805B27799A57F723CCCE15BF /* REExport-iOS */,
 				54C6992E3E766FA2B75891CF /* RETimeline */,
 				595C5D6508E21839B333B9D9 /* RETimeline-iOS */,
+				2D369150E245787F49DD3E75 /* RETimelineTests */,
 				E4A2B8DEFE1E9E13EF100E97 /* REUI */,
 				9F166667EE85176E45650A24 /* REUI-iOS */,
 				DAD8BBD38BC9E2F2A5CC04DC /* SilenceCut */,
@@ -1066,9 +1147,18 @@
 				B018259E72569B1F7110F960 /* EditTimeline.swift in Sources */,
 				05A1C2A37AB1A063B8AE0C29 /* Project.swift in Sources */,
 				B6E39A58A15BC31C78CA077A /* ProjectStore.swift in Sources */,
+				AB67714A5F1678B7B42B70CD /* RenderOptions.swift in Sources */,
 				C13A3FBDB42200C782A20918 /* SubtitleEntry.swift in Sources */,
 				CABAB0B1A398DF849F363E87 /* SubtitleStyle.swift in Sources */,
 				46A173593CFD63ABC5F7A03D /* TimelineClip.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1CD5CF373BC71EBEC9B88D12 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9D68522E5A0E9C5355E709F3 /* RenderTransformTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1087,6 +1177,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0C296DE860B4498FCF7D681 /* BatchQueue.swift in Sources */,
+				7DD61C8C28A41D62FA516E6B /* BatchQueueView.swift in Sources */,
 				657E72E68B7236F2AFF2E467 /* EditorViewModel.swift in Sources */,
 				C85F0B01B59E79428D0CC726 /* MainEditorView.swift in Sources */,
 				CAEFCB06CC74ACF6D0154FD8 /* PreviewPlayerView.swift in Sources */,
@@ -1111,6 +1203,7 @@
 			files = (
 				726779CBBF822BC6B709A51F /* AudioAnalysis.swift in Sources */,
 				52F6F3D7104657CCE4D58C4E /* AudioSampleStream.swift in Sources */,
+				C815A72AA37EF25786C60166 /* LoudnessAnalyzer.swift in Sources */,
 				3FA66C1F131CEFE19CBDE670 /* ModelManager.swift in Sources */,
 				07E7E723D6C2FF3E1EF1566E /* ParakeetEngine.swift in Sources */,
 				7BAA36E3DC37BF4346CAFD80 /* REAudioAnalysis.swift in Sources */,
@@ -1126,6 +1219,7 @@
 			files = (
 				21A9D22B58BF48BE555ED3E4 /* AudioAnalysis.swift in Sources */,
 				E4936144E4339BC7BE9067DC /* AudioSampleStream.swift in Sources */,
+				F40AC023417AFE3DB38D4E7B /* LoudnessAnalyzer.swift in Sources */,
 				CCD6645C4F84C41B0587F7A7 /* ModelManager.swift in Sources */,
 				318409DD6419D96B756BA239 /* ParakeetEngine.swift in Sources */,
 				F8DD8A4C0D865B40681E42E2 /* REAudioAnalysis.swift in Sources */,
@@ -1158,6 +1252,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2BC5C312A6C7812B92B012FE /* BatchQueue.swift in Sources */,
+				6985A6161453F49443A9039D /* BatchQueueView.swift in Sources */,
 				4220AF0AF30BEA03F68F3DBF /* EditorViewModel.swift in Sources */,
 				DC4A05DEB5672EB489B633FD /* MainEditorView.swift in Sources */,
 				2EB5A1E61AD378452AB4FB79 /* PreviewPlayerView.swift in Sources */,
@@ -1184,6 +1280,7 @@
 				D60B61C8B6DC16CD1C3511AB /* EditTimeline.swift in Sources */,
 				4F9F596CC1BF2C7DA2C6D0F7 /* Project.swift in Sources */,
 				8068BD8621AE8B462FA83339 /* ProjectStore.swift in Sources */,
+				45017F175F80B715093FA1D4 /* RenderOptions.swift in Sources */,
 				DA24B61F22844A9A5C005F39 /* SubtitleEntry.swift in Sources */,
 				BDFB5A7FA89F762EFC667205 /* SubtitleStyle.swift in Sources */,
 				CB19976B440D2237D385396B /* TimelineClip.swift in Sources */,
@@ -1210,6 +1307,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				10835874261DD9195C7B6B4D /* LoudnessTests.swift in Sources */,
 				2AC4024DD693B192FADFB6EA /* RMSCacheTests.swift in Sources */,
 				E2AC0C173CF3C6FB21A16F03 /* SilenceRegionTests.swift in Sources */,
 			);
@@ -1222,6 +1320,11 @@
 			isa = PBXTargetDependency;
 			target = FA15AC306AF5978F1AD679CC /* REAudioAnalysis */;
 			targetProxy = E46263B0E4581455235D10E6 /* PBXContainerItemProxy */;
+		};
+		0887B59CAE89A5BE6295045B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 54C6992E3E766FA2B75891CF /* RETimeline */;
+			targetProxy = D9E5F491193068C47D01D490 /* PBXContainerItemProxy */;
 		};
 		0EA8DD3D8B85B18C91FDEC3F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1510,6 +1613,22 @@
 			};
 			name = Release;
 		};
+		287D217C580C9B01FB4F71D8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.RETimelineTests;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
 		3E9F0DBD30F40B193455D875 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1767,6 +1886,22 @@
 				PRODUCT_NAME = SilenceCut;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		8C6B1326D9BCC049B5D5E8BB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.RETimelineTests;
+				SDKROOT = macosx;
 			};
 			name = Release;
 		};
@@ -2219,6 +2354,15 @@
 			buildConfigurations = (
 				92607CF953F353D556070A23 /* Debug */,
 				EC36A1452C70F3B3551D213D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8E032F74D71B78B418BCDF72 /* Build configuration list for PBXNativeTarget "RETimelineTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				287D217C580C9B01FB4F71D8 /* Debug */,
+				8C6B1326D9BCC049B5D5E8BB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

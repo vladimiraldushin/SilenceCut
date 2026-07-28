@@ -12,8 +12,13 @@ public enum CompositionBuilder {
         public let audioMix: AVMutableAudioMix?
     }
 
-    /// Build composition from timeline — the core function
-    public static func build(from timeline: EditTimeline) async throws -> Result {
+    /// Build composition from timeline — the core function.
+    /// `options` drive framing (aspect crop), jump-cut zoom and audio gain;
+    /// preview and export both go through here, so what you see is what you get.
+    public static func build(
+        from timeline: EditTimeline,
+        options: RenderOptions = .default
+    ) async throws -> Result {
         let composition = AVMutableComposition()
 
         guard let videoTrack = composition.addMutableTrack(
@@ -21,7 +26,7 @@ public enum CompositionBuilder {
             preferredTrackID: kCMPersistentTrackID_Invalid
         ) else { throw BuildError.cannotCreateTrack }
 
-        let audioTrack = composition.addMutableTrack(
+        var audioTrack = composition.addMutableTrack(
             withMediaType: AVMediaType.audio,
             preferredTrackID: kCMPersistentTrackID_Invalid
         )
@@ -29,6 +34,10 @@ public enum CompositionBuilder {
         var insertionTime = CMTime.zero
         var sourceTransform: CGAffineTransform = .identity
         var sourceNaturalSize: CGSize = .zero
+        var nominalFrameRate: Float = 30
+
+        // Timeline offsets of every enabled clip — jump-cut zoom switches at these points
+        var clipStarts: [CMTime] = []
 
         for clip in timeline.clips where clip.isEnabled {
             let asset = AVURLAsset(url: clip.sourceURL)
@@ -42,6 +51,8 @@ public enum CompositionBuilder {
                 if sourceNaturalSize == .zero {
                     sourceNaturalSize = try await srcVideo.load(.naturalSize)
                     sourceTransform = try await srcVideo.load(.preferredTransform)
+                    let fps = try await srcVideo.load(.nominalFrameRate)
+                    if fps > 1 { nominalFrameRate = fps }
                 }
             }
 
@@ -52,56 +63,84 @@ public enum CompositionBuilder {
                 try dstAudio.insertTimeRange(clip.sourceRange, of: srcAudio, at: insertionTime)
             }
 
+            clipStarts.append(insertionTime)
             insertionTime = CMTimeAdd(insertionTime, clip.effectiveDuration)
         }
 
-        // Build video composition to apply correct orientation
+        // Источник без звука — пустая аудиодорожка ломает AVAssetReader при экспорте, убираем её.
+        // У незаполненной дорожки timeRange невалиден, поэтому сравнение с .zero тут не годится.
+        if let track = audioTrack {
+            let seconds = CMTimeGetSeconds(track.timeRange.duration)
+            if !seconds.isFinite || seconds <= 0 {
+                composition.removeTrack(track)
+                audioTrack = nil
+            }
+        }
+
+        // Build video composition: orientation + aspect crop + jump-cut zoom
         var videoComp: AVMutableVideoComposition? = nil
 
         if sourceNaturalSize != .zero {
-            // Calculate render size considering transform (portrait iPhone = rotated)
-            let renderSize = transformedSize(sourceNaturalSize, transform: sourceTransform)
+            let orientedSize = transformedSize(sourceNaturalSize, transform: sourceTransform)
+            let renderSize = options.outputAspect.renderSize ?? orientedSize
 
             let instruction = AVMutableVideoCompositionInstruction()
             instruction.timeRange = CMTimeRange(start: .zero, duration: insertionTime)
 
             let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
-            layerInstruction.setTransform(sourceTransform, at: .zero)
+            // One transform per clip — a step change at each cut, no interpolation
+            for (index, start) in clipStarts.enumerated() {
+                let transform = renderTransform(
+                    sourceTransform: sourceTransform,
+                    orientedSize: orientedSize,
+                    targetSize: renderSize,
+                    zoom: options.zoomScale(forClipIndex: index)
+                )
+                layerInstruction.setTransform(transform, at: start)
+            }
             instruction.layerInstructions = [layerInstruction]
 
             let vc = AVMutableVideoComposition()
             vc.renderSize = renderSize
-            vc.frameDuration = CMTime(value: 1, timescale: 30)
+            vc.frameDuration = CMTime(value: 1, timescale: CMTimeScale(max(24, min(60, Int(nominalFrameRate.rounded())))))
             vc.instructions = [instruction]
             videoComp = vc
         }
 
-        // Build audio crossfade (30ms ramps to eliminate clicks at cuts)
+        // Audio: 30ms ramps at cuts (kills clicks) + loudness normalization gain
         var audioMix: AVMutableAudioMix? = nil
-        if let dstAudio = audioTrack, timeline.enabledClipCount > 1 {
+        let gain = Float(max(0, options.audioGain))
+        let needsGain = abs(options.audioGain - 1.0) > 0.001
+
+        if let dstAudio = audioTrack, timeline.enabledClipCount > 1 || needsGain {
             let params = AVMutableAudioMixInputParameters(track: dstAudio)
             let fadeDuration = CMTime(seconds: 0.03, preferredTimescale: 600)
 
-            var segmentStart = CMTime.zero
-            for clip in timeline.clips where clip.isEnabled {
-                let segEnd = CMTimeAdd(segmentStart, clip.effectiveDuration)
+            if timeline.enabledClipCount > 1 {
+                var segmentStart = CMTime.zero
+                for clip in timeline.clips where clip.isEnabled {
+                    let segEnd = CMTimeAdd(segmentStart, clip.effectiveDuration)
 
-                // Fade in at start of each segment
-                params.setVolumeRamp(
-                    fromStartVolume: 0.0, toEndVolume: 1.0,
-                    timeRange: CMTimeRange(start: segmentStart, duration: fadeDuration)
-                )
-
-                // Fade out at end of each segment
-                let fadeOutStart = CMTimeSubtract(segEnd, fadeDuration)
-                if CMTimeCompare(fadeOutStart, segmentStart) > 0 {
+                    // Fade in at start of each segment
                     params.setVolumeRamp(
-                        fromStartVolume: 1.0, toEndVolume: 0.0,
-                        timeRange: CMTimeRange(start: fadeOutStart, duration: fadeDuration)
+                        fromStartVolume: 0.0, toEndVolume: gain,
+                        timeRange: CMTimeRange(start: segmentStart, duration: fadeDuration)
                     )
-                }
 
-                segmentStart = segEnd
+                    // Fade out at end of each segment
+                    let fadeOutStart = CMTimeSubtract(segEnd, fadeDuration)
+                    if CMTimeCompare(fadeOutStart, segmentStart) > 0 {
+                        params.setVolumeRamp(
+                            fromStartVolume: gain, toEndVolume: 0.0,
+                            timeRange: CMTimeRange(start: fadeOutStart, duration: fadeDuration)
+                        )
+                    }
+
+                    segmentStart = segEnd
+                }
+            } else {
+                // Single clip — gain only
+                params.setVolume(gain, at: .zero)
             }
 
             let mix = AVMutableAudioMix()
@@ -112,8 +151,33 @@ public enum CompositionBuilder {
         return Result(composition: composition, videoComposition: videoComp, audioMix: audioMix)
     }
 
+    // MARK: - Transform Math (pure, testable)
+
+    /// Transform placing an oriented source frame into the target frame:
+    /// source orientation → aspect-fill scale (center crop) → zoom about the center.
+    public static func renderTransform(
+        sourceTransform: CGAffineTransform,
+        orientedSize: CGSize,
+        targetSize: CGSize,
+        zoom: Double
+    ) -> CGAffineTransform {
+        guard orientedSize.width > 0, orientedSize.height > 0 else { return sourceTransform }
+
+        let fillScale = max(targetSize.width / orientedSize.width,
+                            targetSize.height / orientedSize.height)
+        let scale = fillScale * CGFloat(max(0.01, zoom))
+
+        // Center the scaled frame in the target — crops the overflow symmetrically
+        let tx = (targetSize.width - orientedSize.width * scale) / 2
+        let ty = (targetSize.height - orientedSize.height * scale) / 2
+
+        return sourceTransform
+            .concatenating(CGAffineTransform(scaleX: scale, y: scale))
+            .concatenating(CGAffineTransform(translationX: tx, y: ty))
+    }
+
     /// Calculate the output size after applying the transform
-    private static func transformedSize(_ size: CGSize, transform: CGAffineTransform) -> CGSize {
+    public static func transformedSize(_ size: CGSize, transform: CGAffineTransform) -> CGSize {
         let rect = CGRect(origin: .zero, size: size).applying(transform)
         return CGSize(width: abs(rect.width), height: abs(rect.height))
     }

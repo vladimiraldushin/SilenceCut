@@ -7,19 +7,23 @@ public struct ProjectSnapshot: Codable {
     public var subtitleEntries: [SubtitleEntry]
     public var subtitleStyle: SubtitleStyle
     public var savedAt: Date
+    /// Опционально — проекты, сохранённые до появления настроек рендера, читаются как nil
+    public var renderOptions: RenderOptions?
 
     public init(
         name: String,
         timeline: EditTimeline,
         subtitleEntries: [SubtitleEntry],
         subtitleStyle: SubtitleStyle,
-        savedAt: Date = Date()
+        savedAt: Date = Date(),
+        renderOptions: RenderOptions? = nil
     ) {
         self.name = name
         self.timeline = timeline
         self.subtitleEntries = subtitleEntries
         self.subtitleStyle = subtitleStyle
         self.savedAt = savedAt
+        self.renderOptions = renderOptions
     }
 }
 

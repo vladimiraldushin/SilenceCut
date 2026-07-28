@@ -10,11 +10,21 @@ import UIKit
 import PhotosUI
 #endif
 
+/// Разделы инспектора — вместо бесконечного скролла со всеми панелями сразу
+enum InspectorTab: String, CaseIterable, Identifiable {
+    case silence = "Паузы"
+    case subtitles = "Субтитры"
+    case render = "Формат"
+    var id: String { rawValue }
+}
+
 /// Main editor window — platform-adaptive layout
 public struct MainEditorView: View {
     @Bindable var viewModel: EditorViewModel
 
     @State private var showExportConfirmation = false
+    @State private var inspectorTab: InspectorTab = .silence
+    @State private var showBatchQueue = false
 
     #if os(iOS)
     @State private var showImportPicker = false
@@ -66,7 +76,7 @@ extension MainEditorView {
                     // Video Preview
                     VStack {
                         PreviewPlayerView(player: viewModel.player)
-                            .aspectRatio(viewModel.videoAspectRatio, contentMode: .fit)
+                            .aspectRatio(viewModel.displayAspectRatio, contentMode: .fit)
                             .overlay {
                                 GeometryReader { geo in
                                     let active = viewModel.activeSubtitle(at: viewModel.playheadPosition)
@@ -110,6 +120,18 @@ extension MainEditorView {
         .sheet(isPresented: $viewModel.showHotkeysHelp) {
             HotkeysHelpView()
         }
+        .sheet(isPresented: $showBatchQueue) {
+            VStack(spacing: 0) {
+                BatchQueueView(model: viewModel.batchQueue, modelManager: viewModel.modelManager)
+                Divider()
+                HStack {
+                    Spacer()
+                    Button("Закрыть") { showBatchQueue = false }
+                        .keyboardShortcut(.cancelAction)
+                }
+                .padding(12)
+            }
+        }
         // Space/Delete/JKL handled by the AppDelegate NSEvent monitor —
         // SwiftUI onKeyPress on an ancestor would swallow keys typed into text fields
     }
@@ -150,6 +172,11 @@ extension MainEditorView {
             .disabled(viewModel.timeline.clips.isEmpty)
             .keyboardShortcut("s", modifiers: [.command, .shift])
 
+            Button { showBatchQueue = true } label: {
+                Label("Пакет", systemImage: "square.stack.3d.down.right")
+            }
+            .help("Пакетная обработка нескольких файлов")
+
             Spacer()
 
             Button {
@@ -184,35 +211,50 @@ extension MainEditorView {
     }
 
     private var macOSInspector: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                SilenceDetectionPanel(viewModel: viewModel)
-                Divider()
-                SubtitlePanel(viewModel: viewModel)
-                Divider()
-                Text("Клипы").font(.headline).padding()
-                Divider()
+        VStack(spacing: 0) {
+            Picker("", selection: $inspectorTab) {
+                ForEach(InspectorTab.allCases) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(8)
 
-                if viewModel.timeline.clips.isEmpty {
-                    VStack {
-                        Spacer()
-                        Text("Нет клипов").foregroundStyle(.tertiary)
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 2) {
-                            ForEach(viewModel.timeline.clips) { clip in
-                                clipRow(clip)
-                            }
-                        }
-                        .padding(8)
-                    }
+            Divider()
+
+            ScrollView {
+                switch inspectorTab {
+                case .silence: SilenceDetectionPanel(viewModel: viewModel)
+                case .subtitles: SubtitlePanel(viewModel: viewModel)
+                case .render: RenderOptionsPanel(viewModel: viewModel)
                 }
             }
         }
         .background(.background)
+    }
+
+    /// Список клипов — оставлен для отладки, основная работа идёт на таймлайне
+    private var clipListSection: some View {
+        Group {
+            if viewModel.timeline.clips.isEmpty {
+                VStack {
+                    Spacer()
+                    Text("Нет клипов").foregroundStyle(.tertiary)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        ForEach(viewModel.timeline.clips) { clip in
+                            clipRow(clip)
+                        }
+                    }
+                    .padding(8)
+                }
+            }
+        }
     }
 
     private func openFileMacOS() {
@@ -342,7 +384,7 @@ extension MainEditorView {
                         // Video Preview — the inspector opens as a sheet with detents,
                         // so the preview keeps its size
                         PreviewPlayerView(player: viewModel.player)
-                            .aspectRatio(viewModel.videoAspectRatio, contentMode: .fit)
+                            .aspectRatio(viewModel.displayAspectRatio, contentMode: .fit)
                             .overlay {
                                 GeometryReader { geo in
                                     let active = viewModel.activeSubtitle(at: viewModel.playheadPosition)
@@ -562,12 +604,22 @@ extension MainEditorView {
             .padding(.vertical, 10)
             .background(.bar)
 
+            Picker("", selection: $inspectorTab) {
+                ForEach(InspectorTab.allCases) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+
             // Scrollable settings
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    SilenceDetectionPanel(viewModel: viewModel)
-                    Divider()
-                    SubtitlePanel(viewModel: viewModel)
+                switch inspectorTab {
+                case .silence: SilenceDetectionPanel(viewModel: viewModel)
+                case .subtitles: SubtitlePanel(viewModel: viewModel)
+                case .render: RenderOptionsPanel(viewModel: viewModel)
                 }
             }
         }
@@ -800,6 +852,109 @@ extension MainEditorView {
         .contentShape(Rectangle())
         .onTapGesture {
             viewModel.selectedClipId = clip.id
+        }
+    }
+}
+
+// MARK: - Render Options Panel
+
+/// Формат кадра, джамп-кат зум и нормализация громкости.
+/// Все настройки применяются и к превью, и к экспорту — одна точка в CompositionBuilder.
+struct RenderOptionsPanel: View {
+    @Bindable var viewModel: EditorViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Формат и звук")
+                .font(.headline)
+
+            // Кадр
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Кадр")
+                    .font(.subheadline)
+                Picker("", selection: $viewModel.renderOptions.outputAspect) {
+                    ForEach(OutputAspect.allCases) { aspect in
+                        Text(aspect.displayName).tag(aspect)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                Text(aspectHint)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider()
+
+            // Джамп-кат зум
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(isOn: $viewModel.renderOptions.jumpCutZoomEnabled) {
+                    Text("Джамп-кат зум")
+                }
+                Text("Чередует масштаб на соседних клипах — маскирует склейки после вырезания пауз")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                if viewModel.renderOptions.jumpCutZoomEnabled {
+                    HStack {
+                        Text("Сила")
+                            .font(.caption)
+                        Slider(value: $viewModel.renderOptions.jumpCutZoomAmount, in: 1.02...1.25, step: 0.01)
+                        Text(String(format: "%.0f%%", (viewModel.renderOptions.jumpCutZoomAmount - 1) * 100))
+                            .font(.caption)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 34, alignment: .trailing)
+                    }
+                }
+            }
+
+            Divider()
+
+            // Громкость
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(isOn: Binding(
+                    get: { viewModel.normalizeLoudness },
+                    set: { newValue in
+                        viewModel.normalizeLoudness = newValue
+                        viewModel.applyLoudnessNormalization()
+                    }
+                )) {
+                    Text("Нормализовать громкость")
+                }
+                Text("Приводит ролик к −14 LUFS — стандарту YouTube, Instagram и TikTok")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                if viewModel.isMeasuringLoudness {
+                    HStack(spacing: 8) {
+                        ProgressView(value: viewModel.loudnessProgress)
+                        Text("Замер...")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                } else if let measurement = viewModel.loudnessMeasurement, viewModel.normalizeLoudness {
+                    HStack(spacing: 12) {
+                        Label(String(format: "%.1f LUFS", measurement.integratedLUFS), systemImage: "waveform")
+                        Label(String(format: "%+.1f дБ", 20 * log10(max(viewModel.renderOptions.audioGain, 0.0001))),
+                              systemImage: "speaker.wave.2")
+                            .foregroundStyle(.green)
+                    }
+                    .font(.caption)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding()
+    }
+
+    private var aspectHint: String {
+        switch viewModel.renderOptions.outputAspect {
+        case .source: return "Как в исходнике, без обрезки"
+        case .vertical: return "1080×1920 — Reels, Shorts, TikTok. Кроп по центру"
+        case .square: return "1080×1080 — лента. Кроп по центру"
+        case .horizontal: return "1920×1080 — YouTube. Кроп по центру"
         }
     }
 }

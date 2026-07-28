@@ -61,6 +61,17 @@
                ReferencedContainer = "container:SilenceCut.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "2D369150E245787F49DD3E75"
+               BuildableName = "RETimelineTests.xctest"
+               BlueprintName = "RETimelineTests"
+               ReferencedContainer = "container:SilenceCut.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

@@ -89,13 +89,14 @@ public enum ExportService {
         preset: ExportPreset = .high,
         subtitleEntries: [SubtitleEntry] = [],
         subtitleStyle: SubtitleStyle = .classic,
+        renderOptions: RenderOptions = .default,
         cancellation: ExportCancellationToken? = nil,
         progress: @escaping (ExportProgress) -> Void
     ) async throws {
         guard timeline.enabledClipCount > 0 else { throw ExportError.noClips }
 
         let startTime = Date()
-        let result = try await CompositionBuilder.build(from: timeline)
+        let result = try await CompositionBuilder.build(from: timeline, options: renderOptions)
         try? FileManager.default.removeItem(at: outputURL)
 
         try await exportSinglePass(
@@ -264,7 +265,11 @@ public enum ExportService {
         vOutput.videoComposition = videoComposition
         reader.add(vOutput)
 
-        let audioTracks = try await composition.loadTracks(withMediaType: .audio)
+        // Пустые дорожки отбрасываем: аудио-выход на дорожке без сегментов роняет AVAssetReader
+        let audioTracks = try await composition.loadTracks(withMediaType: .audio).filter {
+            let seconds = CMTimeGetSeconds($0.timeRange.duration)
+            return seconds.isFinite && seconds > 0
+        }
         var aOutput: AVAssetReaderAudioMixOutput? = nil
         if !audioTracks.isEmpty {
             let ao = AVAssetReaderAudioMixOutput(audioTracks: audioTracks, audioSettings: nil)

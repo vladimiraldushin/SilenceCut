@@ -112,6 +112,7 @@ targets:
       testTargets:
         - RECoreTests
         - REAudioAnalysisTests
+        - RETimelineTests
 
   # ========================
   # Tests (macOS)
@@ -137,6 +138,17 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REAudioAnalysisTests
+        GENERATE_INFOPLIST_FILE: true
+
+  RETimelineTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/RETimelineTests]
+    dependencies:
+      - target: RETimeline
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.RETimelineTests
         GENERATE_INFOPLIST_FILE: true
 
   # ========================

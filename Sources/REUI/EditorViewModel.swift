@@ -51,6 +51,33 @@ public class EditorViewModel {
     // Video aspect ratio (9:16 for vertical, 16:9 for horizontal)
     public var videoAspectRatio: CGFloat = 9.0 / 16.0
 
+    // Render options — framing, jump-cut zoom, loudness gain (preview + export share these)
+    public var renderOptions: RenderOptions = .default {
+        didSet {
+            guard oldValue != renderOptions else { return }
+            scheduleAutosave()
+            // Aspect and zoom change the picture — rebuild so the preview matches the export
+            if oldValue.outputAspect != renderOptions.outputAspect
+                || oldValue.jumpCutZoomEnabled != renderOptions.jumpCutZoomEnabled
+                || oldValue.jumpCutZoomAmount != renderOptions.jumpCutZoomAmount
+                || oldValue.audioGain != renderOptions.audioGain {
+                Task { @MainActor in await rebuildPreview() }
+            }
+        }
+    }
+
+    /// Aspect ratio for the preview frame — follows the chosen output format
+    public var displayAspectRatio: CGFloat {
+        renderOptions.outputAspect.ratio ?? videoAspectRatio
+    }
+
+    // Loudness normalization (BS.1770 / EBU R128)
+    public var normalizeLoudness = false
+    public var targetLUFS: Double = -14
+    public var loudnessMeasurement: LoudnessMeasurement?
+    public var isMeasuringLoudness = false
+    public var loudnessProgress: Double = 0
+
     // Subtitles
     public var subtitleEntries: [SubtitleEntry] = []
     public var subtitleStyle: SubtitleStyle = .classic {
@@ -98,6 +125,9 @@ public class EditorViewModel {
     // ASR model manager (cached between transcriptions, shared lifecycle)
     public let modelManager = ModelManager()
 
+    /// Пакетная обработка — живёт рядом с редактором, состояние сохраняется между открытиями панели
+    public let batchQueue = BatchQueueModel()
+
     public init() {
         // Clean up leftover temp files from previous sessions (crashes, etc.)
         Self.cleanupTempFiles()
@@ -136,6 +166,9 @@ public class EditorViewModel {
         silenceReviewActive = false
         reviewZones = []
         audioRMSCache = nil
+        loudnessMeasurement = nil
+        normalizeLoudness = false
+        renderOptions = .default
         selectedClipId = nil
         playheadPosition = .zero
         isPlaying = false
@@ -176,6 +209,10 @@ public class EditorViewModel {
                     timeline = snapshot.timeline
                     subtitleEntries = snapshot.subtitleEntries
                     subtitleStyle = snapshot.subtitleStyle
+                    if let options = snapshot.renderOptions {
+                        renderOptions = options
+                        normalizeLoudness = abs(options.audioGain - 1.0) > 0.001
+                    }
                     statusMessage = "Проект восстановлен: \(snapshot.savedAt.formatted(date: .abbreviated, time: .shortened))"
                 } else {
                     statusMessage = "Загружено: \(url.lastPathComponent)"
@@ -224,7 +261,7 @@ public class EditorViewModel {
         }
 
         do {
-            let result = try await CompositionBuilder.build(from: timeline)
+            let result = try await CompositionBuilder.build(from: timeline, options: renderOptions)
             let playerItem = AVPlayerItem(asset: result.composition)
             if let videoComp = result.videoComposition {
                 playerItem.videoComposition = videoComp
@@ -541,7 +578,8 @@ public class EditorViewModel {
             name: project.name,
             timeline: timeline,
             subtitleEntries: subtitleEntries,
-            subtitleStyle: subtitleStyle
+            subtitleStyle: subtitleStyle,
+            renderOptions: renderOptions
         )
         do {
             try ProjectStore.save(snapshot, for: url)
@@ -714,6 +752,51 @@ public class EditorViewModel {
                 statusMessage = "Ошибка восстановления: \(error.localizedDescription)"
             }
         }
+    }
+
+    // MARK: - Loudness Normalization (BS.1770 / EBU R128)
+
+    /// Измеряет громкость исходника и выставляет гейн до целевой LUFS.
+    /// Замер идёт по исходному файлу: гейтинг BS.1770 и так игнорирует паузы,
+    /// поэтому вырезание тишины на результат практически не влияет.
+    public func applyLoudnessNormalization() {
+        guard normalizeLoudness else {
+            renderOptions.audioGain = 1.0
+            return
+        }
+        guard let url = project.sourceURL else { return }
+
+        // Уже измеряли этот файл — просто пересчитываем гейн под текущую цель
+        if let measurement = loudnessMeasurement {
+            setGain(from: measurement)
+            return
+        }
+
+        isMeasuringLoudness = true
+        loudnessProgress = 0
+        Task { @MainActor in
+            do {
+                let measurement = try await LoudnessAnalyzer.measure(url: url) { progress in
+                    Task { @MainActor in self.loudnessProgress = progress }
+                }
+                loudnessMeasurement = measurement
+                setGain(from: measurement)
+            } catch {
+                statusMessage = "Ошибка замера громкости: \(error.localizedDescription)"
+                normalizeLoudness = false
+            }
+            isMeasuringLoudness = false
+        }
+    }
+
+    private func setGain(from measurement: LoudnessMeasurement) {
+        let gain = LoudnessAnalyzer.gain(for: measurement, targetLUFS: targetLUFS)
+        renderOptions.audioGain = gain
+        let db = 20 * log10(max(gain, 0.0001))
+        statusMessage = String(
+            format: "Громкость: %.1f LUFS → %.0f LUFS (%+.1f дБ)",
+            measurement.integratedLUFS, targetLUFS, db
+        )
     }
 
     // MARK: - Transcription
@@ -949,6 +1032,7 @@ public class EditorViewModel {
                         preset: exportPreset,
                         subtitleEntries: subs,
                         subtitleStyle: style,
+                        renderOptions: renderOptions,
                         cancellation: token
                     ) { progress in
                         self.exportProgress = progress.fraction * 0.5
@@ -1003,6 +1087,7 @@ public class EditorViewModel {
                         preset: exportPreset,
                         subtitleEntries: subs,
                         subtitleStyle: style,
+                        renderOptions: renderOptions,
                         cancellation: token
                     ) { progress in
                         self.exportProgress = progress.fraction
@@ -1095,7 +1180,8 @@ public class EditorViewModel {
                     to: previewURL,
                     preset: .medium,
                     subtitleEntries: shiftedSubs,
-                    subtitleStyle: style
+                    subtitleStyle: style,
+                    renderOptions: renderOptions
                 ) { _ in }
                 statusMessage = "Тест стиля готов"
                 #if os(macOS)
