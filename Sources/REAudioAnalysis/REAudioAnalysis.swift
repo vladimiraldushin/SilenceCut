@@ -18,71 +18,50 @@ public struct WaveformData {
 
 public enum WaveformGenerator {
 
-    /// Generate waveform data from a video/audio file
+    /// Generate waveform data from a video/audio file.
+    /// Streams the audio — peak magnitude per chunk, constant memory.
     public static func generate(from url: URL, samplesPerSecond: Int = 100) async throws -> WaveformData {
-        let asset = AVURLAsset(url: url)
-        guard let audioTrack = try await asset.loadTracks(withMediaType: .audio).first else {
-            throw WaveformError.noAudioTrack
-        }
-
-        let duration = try await asset.load(.duration)
-        let audioDuration = CMTimeGetSeconds(duration)
-
-        // Configure reader for PCM output
-        let reader = try AVAssetReader(asset: asset)
-        let outputSettings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVLinearPCMBitDepthKey: 32,
-            AVLinearPCMIsFloatKey: true,
-            AVLinearPCMIsNonInterleaved: false,
-            AVSampleRateKey: 44100,
-            AVNumberOfChannelsKey: 1,
-        ]
-        let trackOutput = AVAssetReaderTrackOutput(track: audioTrack, outputSettings: outputSettings)
-        trackOutput.alwaysCopiesSampleData = false
-        reader.add(trackOutput)
-
-        guard reader.startReading() else {
-            throw WaveformError.cannotRead
-        }
-
-        // Read all samples
         let sampleRate = 44100
-        var allSamples: [Float] = []
-        allSamples.reserveCapacity(Int(audioDuration * Double(sampleRate)))
+        let rawSamplesPerPeak = sampleRate / samplesPerSecond
 
-        while let buffer = trackOutput.copyNextSampleBuffer() {
-            guard let blockBuffer = CMSampleBufferGetDataBuffer(buffer) else { continue }
-            let length = CMBlockBufferGetDataLength(blockBuffer)
-            var data = Data(count: length)
-            data.withUnsafeMutableBytes { rawBuffer in
-                guard let base = rawBuffer.baseAddress else { return }
-                CMBlockBufferCopyDataBytes(blockBuffer, atOffset: 0, dataLength: length, destination: base)
+        var carry: [Float] = []
+        var peaks: [Float] = []
+        let sampleCount: Int
+        do {
+            let result = try await AudioSampleStream.read(from: url, sampleRate: sampleRate) { chunk, _ in
+                carry.append(contentsOf: chunk)
+                var start = 0
+                while carry.count - start >= rawSamplesPerPeak {
+                    let peak = carry.withUnsafeBufferPointer { buf -> Float in
+                        var value: Float = 0
+                        if let base = buf.baseAddress {
+                            vDSP_maxmgv(base + start, 1, &value, vDSP_Length(rawSamplesPerPeak))
+                        }
+                        return value
+                    }
+                    peaks.append(peak)
+                    start += rawSamplesPerPeak
+                }
+                if start > 0 { carry.removeFirst(start) }
             }
-            let floatCount = length / MemoryLayout<Float>.size
-            data.withUnsafeBytes { rawBuffer in
-                guard let floats = rawBuffer.baseAddress?.assumingMemoryBound(to: Float.self) else { return }
-                let buf = UnsafeBufferPointer(start: floats, count: floatCount)
-                allSamples.append(contentsOf: buf)
+            sampleCount = result.sampleCount
+        } catch let error as AudioSampleStream.StreamError {
+            switch error {
+            case .noAudioTrack: throw WaveformError.noAudioTrack
+            case .cannotRead: throw WaveformError.cannotRead
             }
         }
 
-        // Downsample: peak absolute value per chunk
-        let rawSamplesPerPeak = sampleRate / samplesPerSecond
-        let totalPeaks = Int(audioDuration * Double(samplesPerSecond))
-        var peaks = [Float](repeating: 0, count: totalPeaks)
-
-        for i in 0..<totalPeaks {
-            let start = i * rawSamplesPerPeak
-            let count = min(rawSamplesPerPeak, allSamples.count - start)
-            guard count > 0 && start < allSamples.count else { break }
-
-            var absValues = [Float](repeating: 0, count: count)
-            vDSP_vabs(Array(allSamples[start..<start+count]), 1, &absValues, 1, vDSP_Length(count))
-
-            var peak: Float = 0
-            vDSP_maxv(absValues, 1, &peak, vDSP_Length(count))
-            peaks[i] = peak
+        // Tail shorter than a full chunk
+        if !carry.isEmpty {
+            let peak = carry.withUnsafeBufferPointer { buf -> Float in
+                var value: Float = 0
+                if let base = buf.baseAddress {
+                    vDSP_maxmgv(base, 1, &value, vDSP_Length(buf.count))
+                }
+                return value
+            }
+            peaks.append(peak)
         }
 
         // Normalize to 0-1
@@ -93,7 +72,8 @@ public enum WaveformGenerator {
             vDSP_vsmul(peaks, 1, &scale, &peaks, 1, vDSP_Length(peaks.count))
         }
 
-        return WaveformData(peaks: peaks, duration: audioDuration, samplesPerSecond: samplesPerSecond)
+        let duration = Double(sampleCount) / Double(sampleRate)
+        return WaveformData(peaks: peaks, duration: duration, samplesPerSecond: samplesPerSecond)
     }
 
     public enum WaveformError: Error {

@@ -2,6 +2,7 @@ import SwiftUI
 import AVFoundation
 import CoreMedia
 import RECore
+import REExport
 #if os(macOS)
 import AppKit
 #elseif os(iOS)
@@ -68,12 +69,12 @@ extension MainEditorView {
                             .aspectRatio(viewModel.videoAspectRatio, contentMode: .fit)
                             .overlay {
                                 GeometryReader { geo in
+                                    let active = viewModel.activeSubtitle(at: viewModel.playheadPosition)
                                     SubtitleOverlayView(
-                                        entry: viewModel.activeSubtitle(at: viewModel.playheadPosition),
-                                        activeWordIndex: {
-                                            guard let sub = viewModel.activeSubtitle(at: viewModel.playheadPosition) else { return nil }
-                                            return viewModel.activeWordIndex(in: sub, at: viewModel.playheadPosition)
-                                        }(),
+                                        entry: active,
+                                        activeWordIndex: active.flatMap {
+                                            viewModel.activeWordIndex(in: $0, at: viewModel.playheadPosition)
+                                        },
                                         style: viewModel.subtitleStyle,
                                         videoFrame: geo.size,
                                         showSafeZones: viewModel.showSafeZones
@@ -96,6 +97,8 @@ extension MainEditorView {
 
                 timelineSection
                     .frame(height: 130)
+
+                statusBar
             } else {
                 dropZone
             }
@@ -104,15 +107,35 @@ extension MainEditorView {
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             handleDropMacOS(providers)
         }
-        .onKeyPress(.space) {
-            viewModel.togglePlayback()
-            return .handled
+        .sheet(isPresented: $viewModel.showHotkeysHelp) {
+            HotkeysHelpView()
         }
-        .onKeyPress(.delete) {
-            viewModel.deleteSelectedClip()
-            return .handled
+        // Space/Delete/JKL handled by the AppDelegate NSEvent monitor —
+        // SwiftUI onKeyPress on an ancestor would swallow keys typed into text fields
+    }
+
+    /// Тонкий статус-бар: сообщения, автосейв, счётчики
+    private var statusBar: some View {
+        HStack(spacing: 12) {
+            Text(viewModel.statusMessage)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer()
+            if let saved = viewModel.lastAutosaveAt {
+                Label(saved.formatted(date: .omitted, time: .shortened), systemImage: "checkmark.circle")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .help("Проект автосохранён")
+            }
+            Text("\(viewModel.timeline.enabledClipCount) клипов")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
         }
-        .focusable()
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .background(.bar)
     }
 
     private var macOSToolbar: some View {
@@ -127,50 +150,14 @@ extension MainEditorView {
             .disabled(viewModel.timeline.clips.isEmpty)
             .keyboardShortcut("s", modifiers: [.command, .shift])
 
-            Button { viewModel.detectSilence() } label: {
-                Label("Найти паузы", systemImage: "waveform.badge.minus")
-            }
-            .disabled(viewModel.project.sourceURL == nil || viewModel.isDetectingSilence)
-
-            Button { viewModel.transcribe() } label: {
-                Label("Субтитры", systemImage: "text.word.spacing")
-            }
-            .disabled(viewModel.project.sourceURL == nil || viewModel.isTranscribing)
-
-            Divider().frame(height: 20)
-
-            Button { viewModel.undo() } label: {
-                Label("Назад", systemImage: "arrow.uturn.backward")
-            }
-            .disabled(!viewModel.canUndo)
-
-            Button { viewModel.redo() } label: {
-                Label("Вперёд", systemImage: "arrow.uturn.forward")
-            }
-            .disabled(!viewModel.canRedo)
-
             Spacer()
 
-            if !viewModel.statusMessage.isEmpty {
-                Text(viewModel.statusMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Button {
+                viewModel.showHotkeysHelp.toggle()
+            } label: {
+                Image(systemName: "questionmark.circle")
             }
-
-            Spacer()
-
-            Toggle("Нарезка", isOn: $viewModel.autoSplitEnabled)
-                .toggleStyle(.checkbox)
-                .font(.caption)
-            if viewModel.autoSplitEnabled {
-                Picker("", selection: $viewModel.autoSplitDuration) {
-                    Text("30с").tag(30.0)
-                    Text("60с").tag(60.0)
-                    Text("90с").tag(90.0)
-                    Text("120с").tag(120.0)
-                }
-                .frame(width: 70)
-            }
+            .help("Горячие клавиши (?)")
 
             if viewModel.isExporting {
                 ProgressView(value: viewModel.exportProgress)
@@ -178,20 +165,20 @@ extension MainEditorView {
                 Text("\(Int(viewModel.exportProgress * 100))%")
                     .font(.caption)
                     .monospacedDigit()
+                if !viewModel.exportRemainingText.isEmpty {
+                    Text(viewModel.exportRemainingText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                Button("Отменить") { viewModel.cancelExport() }
             } else {
-                Button { showExportConfirmation = true } label: {
+                // Настройки экспорта (пресет, нарезка, субтитры) — в диалоге сохранения
+                Button { viewModel.exportVideo() } label: {
                     Label("Экспорт", systemImage: "square.and.arrow.up")
                 }
                 .disabled(viewModel.timeline.clips.isEmpty)
-                .confirmationDialog("Экспортировать видео?", isPresented: $showExportConfirmation, titleVisibility: .visible) {
-                    Button("Экспорт") { viewModel.exportVideo() }
-                    Button("Отмена", role: .cancel) {}
-                }
             }
-
-            Text("\(viewModel.timeline.enabledClipCount) клипов")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .buttonStyle(.bordered)
     }
@@ -247,6 +234,101 @@ extension MainEditorView {
         return true
     }
 }
+
+/// Настройки экспорта — accessory view в NSSavePanel
+public struct ExportOptionsView: View {
+    @Bindable var viewModel: EditorViewModel
+
+    public init(viewModel: EditorViewModel) {
+        self.viewModel = viewModel
+    }
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Качество:")
+                Picker("", selection: $viewModel.exportPreset) {
+                    ForEach(ExportPreset.allCases) { preset in
+                        Text(preset.description).tag(preset)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 200)
+            }
+
+            Toggle("Вжигать субтитры (\(viewModel.subtitleEntries.count))", isOn: $viewModel.showSubtitles)
+                .disabled(viewModel.subtitleEntries.isEmpty)
+
+            HStack {
+                Toggle("Нарезка на части", isOn: $viewModel.autoSplitEnabled)
+                if viewModel.autoSplitEnabled {
+                    Picker("", selection: $viewModel.autoSplitDuration) {
+                        Text("30 с").tag(30.0)
+                        Text("60 с").tag(60.0)
+                        Text("90 с").tag(90.0)
+                        Text("120 с").tag(120.0)
+                    }
+                    .labelsHidden()
+                    .frame(width: 80)
+                }
+            }
+
+            Text("Рядом с видео сохранятся .md и .srt с субтитрами")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(width: 380)
+    }
+}
+
+/// Шпаргалка горячих клавиш (открывается по «?»)
+struct HotkeysHelpView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    private let keys: [(String, String)] = [
+        ("Пробел", "Воспроизведение / пауза"),
+        ("J / L", "Секунда назад / вперёд"),
+        ("K", "Пауза"),
+        ("← / →", "Кадр назад / вперёд"),
+        ("[ / ]", "Предыдущая / следующая склейка"),
+        ("I", "Обрезать начало клипа до плейхеда"),
+        ("O", "Обрезать конец клипа от плейхеда"),
+        ("⌘⇧S", "Разрезать клип"),
+        ("Delete", "Удалить выбранный клип"),
+        ("⌘Z / ⌘⇧Z", "Отменить / повторить"),
+        ("⌘S", "Сохранить проект"),
+        ("⌘O / ⌘⇧O", "Открыть видео / проект"),
+        ("?", "Эта шпаргалка"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Горячие клавиши")
+                .font(.headline)
+                .padding(.bottom, 12)
+            Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 6) {
+                ForEach(keys, id: \.0) { key, action in
+                    GridRow {
+                        Text(key)
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(.primary)
+                        Text(action)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Закрыть") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.top, 16)
+        }
+        .padding(24)
+        .frame(width: 420)
+    }
+}
 #endif
 
 // MARK: - iOS Layout
@@ -257,17 +339,18 @@ extension MainEditorView {
             GeometryReader { geometry in
                 VStack(spacing: 0) {
                     if viewModel.project.sourceURL != nil {
-                        // Video Preview — shrinks when inspector is open
+                        // Video Preview — the inspector opens as a sheet with detents,
+                        // so the preview keeps its size
                         PreviewPlayerView(player: viewModel.player)
                             .aspectRatio(viewModel.videoAspectRatio, contentMode: .fit)
                             .overlay {
                                 GeometryReader { geo in
+                                    let active = viewModel.activeSubtitle(at: viewModel.playheadPosition)
                                     SubtitleOverlayView(
-                                        entry: viewModel.activeSubtitle(at: viewModel.playheadPosition),
-                                        activeWordIndex: {
-                                            guard let sub = viewModel.activeSubtitle(at: viewModel.playheadPosition) else { return nil }
-                                            return viewModel.activeWordIndex(in: sub, at: viewModel.playheadPosition)
-                                        }(),
+                                        entry: active,
+                                        activeWordIndex: active.flatMap {
+                                            viewModel.activeWordIndex(in: $0, at: viewModel.playheadPosition)
+                                        },
                                         style: viewModel.subtitleStyle,
                                         videoFrame: geo.size,
                                         showSafeZones: viewModel.showSafeZones
@@ -276,7 +359,7 @@ extension MainEditorView {
                             }
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                             .padding(.horizontal, 8)
-                            .frame(maxHeight: showInspectorSheet ? geometry.size.height * 0.35 : .infinity)
+                            .frame(maxHeight: .infinity)
                             .onTapGesture {
                                 viewModel.togglePlayback()
                             }
@@ -285,25 +368,17 @@ extension MainEditorView {
                         transportControls
                             .padding(.vertical, 4)
 
-                        if showInspectorSheet {
-                            // Inspector inline — settings below the shrunken preview
-                            Divider()
-                            iOSInlineInspector
-                        } else {
-                            // Normal — timeline + toolbar
-                            timelineSection
-                                .frame(height: 120)
+                        timelineSection
+                            .frame(height: 120)
 
-                            iOSBottomToolbar
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(.bar)
-                        }
+                        iOSBottomToolbar
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(.bar)
                     } else {
                         iOSDropZone
                     }
                 }
-                .animation(.easeInOut(duration: 0.3), value: showInspectorSheet)
             }
             .overlay {
                 if viewModel.isImporting {
@@ -335,16 +410,22 @@ extension MainEditorView {
                     HStack(spacing: 12) {
                         if viewModel.project.sourceURL != nil {
                             Button {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    showInspectorSheet.toggle()
-                                }
+                                showInspectorSheet.toggle()
                             } label: {
-                                Image(systemName: showInspectorSheet ? "xmark.circle.fill" : "slider.horizontal.3")
+                                Image(systemName: "slider.horizontal.3")
+                            }
+                        }
+                        if viewModel.lastExportedURL != nil && !viewModel.isExporting {
+                            Button { viewModel.saveExportToPhotos() } label: {
+                                Image(systemName: "photo.badge.plus")
                             }
                         }
                         if viewModel.isExporting {
                             ProgressView(value: viewModel.exportProgress)
                                 .frame(width: 60)
+                            Button { viewModel.cancelExport() } label: {
+                                Image(systemName: "xmark.circle")
+                            }
                         } else {
                             Button { showExportConfirmation = true } label: {
                                 Image(systemName: "square.and.arrow.up")
@@ -354,27 +435,69 @@ extension MainEditorView {
                     }
                 }
             }
-            .confirmationDialog("Экспортировать видео?", isPresented: $showExportConfirmation, titleVisibility: .visible) {
-                Button("Экспорт") { viewModel.exportVideo() }
-                Button("Отмена", role: .cancel) {}
+            .sheet(isPresented: $showExportConfirmation) {
+                iOSExportOptions
+                    .presentationDetents([.medium])
+            }
+            .sheet(isPresented: $showInspectorSheet) {
+                iOSInlineInspector
+                    .presentationDetents([.medium, .large])
+                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             }
             .sheet(isPresented: $showImportPicker) {
                 IOSVideoPicker(viewModel: viewModel)
             }
             .sheet(isPresented: $viewModel.showShareSheet) {
-                if let url = viewModel.lastExportedURL {
-                    ShareSheet(activityItems: [url])
-                }
+                ShareSheet(activityItems: viewModel.exportedShareItems)
             }
             .onKeyPress(.space) {
+                guard !viewModel.isTextEditingActive else { return .ignored }
                 viewModel.togglePlayback()
                 return .handled
             }
             .onKeyPress(.delete) {
+                guard !viewModel.isTextEditingActive else { return .ignored }
                 viewModel.deleteSelectedClip()
                 return .handled
             }
             .focusable()
+        }
+    }
+
+    /// Настройки экспорта перед запуском (iOS)
+    private var iOSExportOptions: some View {
+        NavigationStack {
+            Form {
+                Picker("Качество", selection: $viewModel.exportPreset) {
+                    ForEach(ExportPreset.allCases) { preset in
+                        Text(preset.description).tag(preset)
+                    }
+                }
+                Toggle("Вжигать субтитры (\(viewModel.subtitleEntries.count))", isOn: $viewModel.showSubtitles)
+                    .disabled(viewModel.subtitleEntries.isEmpty)
+                Toggle("Нарезка на части", isOn: $viewModel.autoSplitEnabled)
+                if viewModel.autoSplitEnabled {
+                    Picker("Длительность части", selection: $viewModel.autoSplitDuration) {
+                        Text("30 с").tag(30.0)
+                        Text("60 с").tag(60.0)
+                        Text("90 с").tag(90.0)
+                        Text("120 с").tag(120.0)
+                    }
+                }
+                Section {
+                    Button {
+                        showExportConfirmation = false
+                        viewModel.exportVideo()
+                    } label: {
+                        Label("Экспортировать", systemImage: "square.and.arrow.up")
+                            .frame(maxWidth: .infinity)
+                    }
+                } footer: {
+                    Text("Вместе с видео будут подготовлены .md и .srt с субтитрами")
+                }
+            }
+            .navigationTitle("Экспорт")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 
@@ -545,14 +668,33 @@ struct ShareSheet: UIViewControllerRepresentable {
 
 extension MainEditorView {
     var transportControls: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 14) {
             Button { viewModel.seekSmoothly(to: .zero) } label: {
                 Image(systemName: "backward.end.fill")
             }
+            .help("В начало")
+            Button { viewModel.jumpToPreviousCut() } label: {
+                Image(systemName: "chevron.backward.2")
+            }
+            .help("Предыдущая склейка [")
+            Button { viewModel.nudgePlayhead(by: -1.0 / viewModel.videoFPS) } label: {
+                Image(systemName: "backward.frame.fill")
+            }
+            .help("Кадр назад ←")
             Button { viewModel.togglePlayback() } label: {
                 Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title2)
             }
+            .help("Пробел")
+            Button { viewModel.nudgePlayhead(by: 1.0 / viewModel.videoFPS) } label: {
+                Image(systemName: "forward.frame.fill")
+            }
+            .help("Кадр вперёд →")
+            Button { viewModel.jumpToNextCut() } label: {
+                Image(systemName: "chevron.forward.2")
+            }
+            .help("Следующая склейка ]")
+
             Text(formatTime(viewModel.playheadPosition))
                 .font(.system(.body, design: .monospaced))
             Text("/ \(formatTime(viewModel.timeline.duration))")
@@ -591,7 +733,9 @@ extension MainEditorView {
                 onSeek: { time in viewModel.seekSmoothly(to: time) },
                 onTrimClip: { id, range in viewModel.trimClip(id: id, newSourceRange: range) },
                 onTrimEnd: { viewModel.trimEnded() },
-                onSelectClip: { id in viewModel.selectedClipId = id }
+                onSelectClip: { id in viewModel.selectedClipId = id },
+                silenceZones: viewModel.displayZones,
+                onToggleZone: { id in viewModel.toggleReviewZone(id: id) }
             )
         }
     }

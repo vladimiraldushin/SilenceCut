@@ -149,7 +149,7 @@ public final class ModelManager {
     // MARK: Init
 
     public init() {
-        self.selectedModelId = UserDefaults.standard.string(forKey: "silencecut.selectedModel") ?? "whisper-large-v3"
+        self.selectedModelId = UserDefaults.standard.string(forKey: "silencecut.selectedModel") ?? "parakeet-v3"
         self.selectedLanguage = UserDefaults.standard.string(forKey: "silencecut.selectedLanguage") ?? "ru"
         // Initialize per-model states
         for model in modelCatalog {
@@ -396,13 +396,13 @@ public final class ModelManager {
             print("[ModelManager] Cleared CoreML compiled cache")
         }
 
-        // 2. Temp directory — remove ALL mp4 files and silencecut_ files
+        // 2. Temp directory — remove only OUR files (tmp is shared on macOS without sandbox)
         let tmpDir = fm.temporaryDirectory
         if let contents = try? fm.contentsOfDirectory(at: tmpDir, includingPropertiesForKeys: [.fileSizeKey]) {
             var cleaned: Int64 = 0
             for file in contents {
                 let name = file.lastPathComponent
-                let isOurs = name.hasPrefix("silencecut_") || name.hasSuffix("_edited.mp4") || name.hasSuffix(".mp4")
+                let isOurs = name.hasPrefix("silencecut_") || name.hasSuffix("_edited.mp4")
                 if isOurs {
                     let size = (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
                     cleaned += Int64(size)

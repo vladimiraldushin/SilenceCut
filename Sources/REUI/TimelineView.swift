@@ -3,6 +3,22 @@ import CoreMedia
 import RECore
 import REAudioAnalysis
 
+// MARK: - Silence Zone (pause review overlay)
+
+public struct TimelineSilenceZone: Identifiable, Equatable {
+    public let id: UUID
+    public let startSeconds: Double   // таймлайн-время, сек
+    public let endSeconds: Double
+    public let willCut: Bool          // true = будет вырезана
+
+    public init(id: UUID, startSeconds: Double, endSeconds: Double, willCut: Bool) {
+        self.id = id
+        self.startSeconds = startSeconds
+        self.endSeconds = endSeconds
+        self.willCut = willCut
+    }
+}
+
 #if os(macOS)
 import AppKit
 
@@ -17,6 +33,8 @@ public struct TimelineViewWrapper: NSViewRepresentable {
     let onTrimClip: (UUID, CMTimeRange) -> Void
     let onTrimEnd: () -> Void
     let onSelectClip: (UUID?) -> Void
+    let silenceZones: [TimelineSilenceZone]
+    let onToggleZone: ((UUID) -> Void)?
 
     public init(
         clips: [TimelineClip],
@@ -26,7 +44,9 @@ public struct TimelineViewWrapper: NSViewRepresentable {
         onSeek: @escaping (CMTime) -> Void,
         onTrimClip: @escaping (UUID, CMTimeRange) -> Void,
         onTrimEnd: @escaping () -> Void = {},
-        onSelectClip: @escaping (UUID?) -> Void
+        onSelectClip: @escaping (UUID?) -> Void,
+        silenceZones: [TimelineSilenceZone] = [],
+        onToggleZone: ((UUID) -> Void)? = nil
     ) {
         self.clips = clips
         self.playheadPosition = playheadPosition
@@ -36,6 +56,8 @@ public struct TimelineViewWrapper: NSViewRepresentable {
         self.onTrimClip = onTrimClip
         self.onTrimEnd = onTrimEnd
         self.onSelectClip = onSelectClip
+        self.silenceZones = silenceZones
+        self.onToggleZone = onToggleZone
     }
 
     public func makeNSView(context: Context) -> NSScrollView {
@@ -50,6 +72,7 @@ public struct TimelineViewWrapper: NSViewRepresentable {
         timeline.onTrimClip = onTrimClip
         timeline.onTrimEnd = onTrimEnd
         timeline.onSelectClip = onSelectClip
+        timeline.onToggleZone = onToggleZone
         scrollView.documentView = timeline
 
         context.coordinator.timelineView = timeline
@@ -62,7 +85,8 @@ public struct TimelineViewWrapper: NSViewRepresentable {
         timeline.onTrimClip = onTrimClip
         timeline.onTrimEnd = onTrimEnd
         timeline.onSelectClip = onSelectClip
-        timeline.updateTimeline(clips: clips, playheadPosition: playheadPosition, pixelsPerSecond: pixelsPerSecond, waveformData: waveformData)
+        timeline.onToggleZone = onToggleZone
+        timeline.updateTimeline(clips: clips, playheadPosition: playheadPosition, pixelsPerSecond: pixelsPerSecond, waveformData: waveformData, silenceZones: silenceZones)
     }
 
     public func makeCoordinator() -> Coordinator { Coordinator() }
@@ -81,17 +105,20 @@ public class TimelineNSView: NSView {
     var onTrimClip: ((UUID, CMTimeRange) -> Void)?
     var onTrimEnd: (() -> Void)?
     var onSelectClip: ((UUID?) -> Void)?
+    var onToggleZone: ((UUID) -> Void)?
 
     // State
     private var clips: [TimelineClip] = []
     private var pixelsPerSecond: Double = 100
     private var selectedClipId: UUID?
     private var waveformData: WaveformData?
+    private var silenceZones: [TimelineSilenceZone] = []
 
     // Layers
     private let trackLayer = CALayer()
     private let playheadLayer = CALayer()
     private var clipLayers: [UUID: CALayer] = [:]
+    private var zoneLayers: [UUID: CAShapeLayer] = [:]
 
     // Trim state
     private enum TrimEdge { case left, right }
@@ -129,10 +156,11 @@ public class TimelineNSView: NSView {
 
     // MARK: - Update
 
-    func updateTimeline(clips: [TimelineClip], playheadPosition: CMTime, pixelsPerSecond: Double, waveformData: WaveformData? = nil) {
+    func updateTimeline(clips: [TimelineClip], playheadPosition: CMTime, pixelsPerSecond: Double, waveformData: WaveformData? = nil, silenceZones: [TimelineSilenceZone]? = nil) {
         self.clips = clips
         self.pixelsPerSecond = pixelsPerSecond
         if let wd = waveformData { self.waveformData = wd }
+        if let zones = silenceZones { self.silenceZones = zones }
 
         let enabledClips = clips.filter(\.isEnabled)
         let totalDuration = enabledClips.reduce(0.0) { $0 + CMTimeGetSeconds($1.effectiveDuration) }
@@ -233,6 +261,47 @@ public class TimelineNSView: NSView {
             clipLayers.removeValue(forKey: id)
         }
 
+        // Silence zones — drawn over clips/waveform (zPosition above clip layers),
+        // still below playheadLayer (zPosition 100, a sibling of trackLayer).
+        var activeZoneIds = Set<UUID>()
+        for zone in self.silenceZones {
+            activeZoneIds.insert(zone.id)
+            let zx = CGFloat(zone.startSeconds * pixelsPerSecond)
+            let zw = max(CGFloat((zone.endSeconds - zone.startSeconds) * pixelsPerSecond), 2)
+
+            let zoneLayer: CAShapeLayer
+            if let existing = zoneLayers[zone.id] {
+                zoneLayer = existing
+            } else {
+                zoneLayer = CAShapeLayer()
+                zoneLayer.zPosition = 10
+                trackLayer.addSublayer(zoneLayer)
+                zoneLayers[zone.id] = zoneLayer
+            }
+
+            zoneLayer.frame = CGRect(x: zx, y: 0, width: zw, height: trackHeight)
+            let zonePath = CGMutablePath()
+            zonePath.addRect(CGRect(x: 0, y: 0, width: zw, height: trackHeight))
+            zoneLayer.path = zonePath
+
+            if zone.willCut {
+                zoneLayer.fillColor = NSColor.systemRed.withAlphaComponent(0.28).cgColor
+                zoneLayer.strokeColor = NSColor.systemRed.withAlphaComponent(0.6).cgColor
+                zoneLayer.lineWidth = 1
+                zoneLayer.lineDashPattern = nil
+            } else {
+                zoneLayer.fillColor = NSColor.systemGray.withAlphaComponent(0.15).cgColor
+                zoneLayer.strokeColor = NSColor.systemGray.withAlphaComponent(0.6).cgColor
+                zoneLayer.lineWidth = 1
+                zoneLayer.lineDashPattern = [4, 3]
+            }
+        }
+
+        for (id, layer) in zoneLayers where !activeZoneIds.contains(id) {
+            layer.removeFromSuperlayer()
+            zoneLayers.removeValue(forKey: id)
+        }
+
         let phx = CGFloat(CMTimeGetSeconds(playheadPosition) * pixelsPerSecond)
         playheadLayer.frame = CGRect(x: phx - 1, y: 0, width: 2, height: height)
 
@@ -249,6 +318,16 @@ public class TimelineNSView: NSView {
         }
 
         CATransaction.commit()
+    }
+
+    // Hit test: silence zone at a given X (track-local), checked across full track height.
+    private func zone(at x: CGFloat) -> TimelineSilenceZone? {
+        for zone in silenceZones {
+            let zx = CGFloat(zone.startSeconds * pixelsPerSecond)
+            let zw = max(CGFloat((zone.endSeconds - zone.startSeconds) * pixelsPerSecond), 2)
+            if x >= zx && x <= zx + zw { return zone }
+        }
+        return nil
     }
 
     private func makeClipLayer() -> CALayer {
@@ -277,6 +356,11 @@ public class TimelineNSView: NSView {
     @objc private func handleClick(_ gesture: NSClickGestureRecognizer) {
         let point = gesture.location(in: self)
         let trackPoint = CGPoint(x: point.x, y: point.y - 10)
+
+        if !silenceZones.isEmpty, let zone = zone(at: point.x) {
+            onToggleZone?(zone.id)
+            return
+        }
 
         var clickedClip: UUID? = nil
         for (id, layer) in clipLayers {
@@ -415,6 +499,8 @@ public class TimelineNSView: NSView {
         NSCursor.current.set()
         if onHandle {
             NSCursor.resizeLeftRight.set()
+        } else if !silenceZones.isEmpty && zone(at: point.x) != nil {
+            NSCursor.pointingHand.set()
         } else {
             NSCursor.arrow.set()
         }
@@ -441,6 +527,8 @@ public struct TimelineViewWrapper: UIViewRepresentable {
     let onTrimClip: (UUID, CMTimeRange) -> Void
     let onTrimEnd: () -> Void
     let onSelectClip: (UUID?) -> Void
+    let silenceZones: [TimelineSilenceZone]
+    let onToggleZone: ((UUID) -> Void)?
 
     public init(
         clips: [TimelineClip],
@@ -450,7 +538,9 @@ public struct TimelineViewWrapper: UIViewRepresentable {
         onSeek: @escaping (CMTime) -> Void,
         onTrimClip: @escaping (UUID, CMTimeRange) -> Void,
         onTrimEnd: @escaping () -> Void = {},
-        onSelectClip: @escaping (UUID?) -> Void
+        onSelectClip: @escaping (UUID?) -> Void,
+        silenceZones: [TimelineSilenceZone] = [],
+        onToggleZone: ((UUID) -> Void)? = nil
     ) {
         self.clips = clips
         self.playheadPosition = playheadPosition
@@ -460,6 +550,8 @@ public struct TimelineViewWrapper: UIViewRepresentable {
         self.onTrimClip = onTrimClip
         self.onTrimEnd = onTrimEnd
         self.onSelectClip = onSelectClip
+        self.silenceZones = silenceZones
+        self.onToggleZone = onToggleZone
     }
 
     public func makeUIView(context: Context) -> UIScrollView {
@@ -478,6 +570,7 @@ public struct TimelineViewWrapper: UIViewRepresentable {
         timeline.onTrimClip = onTrimClip
         timeline.onTrimEnd = onTrimEnd
         timeline.onSelectClip = onSelectClip
+        timeline.onToggleZone = onToggleZone
         scrollView.addSubview(timeline)
 
         // Tap doesn't conflict with scroll — UIScrollView handles pan, tap fires independently
@@ -496,11 +589,13 @@ public struct TimelineViewWrapper: UIViewRepresentable {
         timeline.onTrimClip = onTrimClip
         timeline.onTrimEnd = onTrimEnd
         timeline.onSelectClip = onSelectClip
+        timeline.onToggleZone = onToggleZone
         timeline.updateTimeline(
             clips: clips,
             playheadPosition: playheadPosition,
             pixelsPerSecond: pixelsPerSecond,
             waveformData: waveformData,
+            silenceZones: silenceZones,
             scrollViewWidth: scrollView.bounds.width
         )
         // Only set horizontal content size — lock vertical to scrollView height to prevent vertical bounce
@@ -523,15 +618,18 @@ public class TimelineUIView: UIView, UIGestureRecognizerDelegate {
     var onTrimClip: ((UUID, CMTimeRange) -> Void)?
     var onTrimEnd: (() -> Void)?
     var onSelectClip: ((UUID?) -> Void)?
+    var onToggleZone: ((UUID) -> Void)?
 
     private var clips: [TimelineClip] = []
     private var pixelsPerSecond: Double = 100
     private var selectedClipId: UUID?
     private var waveformData: WaveformData?
+    private var silenceZones: [TimelineSilenceZone] = []
 
     private let trackLayer = CALayer()
     private let playheadLayer = CALayer()
     private var clipLayers: [UUID: CALayer] = [:]
+    private var zoneLayers: [UUID: CAShapeLayer] = [:]
 
     private enum TrimEdge { case left, right }
     private var trimming: (clipId: UUID, edge: TrimEdge, initialRange: CMTimeRange)?
@@ -611,10 +709,11 @@ public class TimelineUIView: UIView, UIGestureRecognizerDelegate {
         onSeek?(time)
     }
 
-    func updateTimeline(clips: [TimelineClip], playheadPosition: CMTime, pixelsPerSecond: Double, waveformData: WaveformData? = nil, scrollViewWidth: CGFloat = 400) {
+    func updateTimeline(clips: [TimelineClip], playheadPosition: CMTime, pixelsPerSecond: Double, waveformData: WaveformData? = nil, silenceZones: [TimelineSilenceZone]? = nil, scrollViewWidth: CGFloat = 400) {
         self.clips = clips
         self.pixelsPerSecond = pixelsPerSecond
         if let wd = waveformData { self.waveformData = wd }
+        if let zones = silenceZones { self.silenceZones = zones }
 
         let enabledClips = clips.filter(\.isEnabled)
         let totalDuration = enabledClips.reduce(0.0) { $0 + CMTimeGetSeconds($1.effectiveDuration) }
@@ -715,6 +814,47 @@ public class TimelineUIView: UIView, UIGestureRecognizerDelegate {
             clipLayers.removeValue(forKey: id)
         }
 
+        // Silence zones — drawn over clips/waveform (zPosition above clip layers),
+        // still below playheadLayer (zPosition 100, a sibling of trackLayer).
+        var activeZoneIds = Set<UUID>()
+        for zone in self.silenceZones {
+            activeZoneIds.insert(zone.id)
+            let zx = CGFloat(zone.startSeconds * pixelsPerSecond)
+            let zw = max(CGFloat((zone.endSeconds - zone.startSeconds) * pixelsPerSecond), 2)
+
+            let zoneLayer: CAShapeLayer
+            if let existing = zoneLayers[zone.id] {
+                zoneLayer = existing
+            } else {
+                zoneLayer = CAShapeLayer()
+                zoneLayer.zPosition = 10
+                trackLayer.addSublayer(zoneLayer)
+                zoneLayers[zone.id] = zoneLayer
+            }
+
+            zoneLayer.frame = CGRect(x: zx, y: 0, width: zw, height: trackHeight)
+            let zonePath = CGMutablePath()
+            zonePath.addRect(CGRect(x: 0, y: 0, width: zw, height: trackHeight))
+            zoneLayer.path = zonePath
+
+            if zone.willCut {
+                zoneLayer.fillColor = UIColor.systemRed.withAlphaComponent(0.28).cgColor
+                zoneLayer.strokeColor = UIColor.systemRed.withAlphaComponent(0.6).cgColor
+                zoneLayer.lineWidth = 1
+                zoneLayer.lineDashPattern = nil
+            } else {
+                zoneLayer.fillColor = UIColor.systemGray.withAlphaComponent(0.15).cgColor
+                zoneLayer.strokeColor = UIColor.systemGray.withAlphaComponent(0.6).cgColor
+                zoneLayer.lineWidth = 1
+                zoneLayer.lineDashPattern = [4, 3]
+            }
+        }
+
+        for (id, layer) in zoneLayers where !activeZoneIds.contains(id) {
+            layer.removeFromSuperlayer()
+            zoneLayers.removeValue(forKey: id)
+        }
+
         let phx = CGFloat(CMTimeGetSeconds(playheadPosition) * pixelsPerSecond)
         currentPlayheadX = phx  // for scrub hit testing
         playheadLayer.frame = CGRect(x: phx - 1, y: 0, width: 2, height: height)
@@ -732,6 +872,16 @@ public class TimelineUIView: UIView, UIGestureRecognizerDelegate {
         }
 
         CATransaction.commit()
+    }
+
+    // Hit test: silence zone at a given X (track-local), checked across full track height.
+    private func zone(at x: CGFloat) -> TimelineSilenceZone? {
+        for zone in silenceZones {
+            let zx = CGFloat(zone.startSeconds * pixelsPerSecond)
+            let zw = max(CGFloat((zone.endSeconds - zone.startSeconds) * pixelsPerSecond), 2)
+            if x >= zx && x <= zx + zw { return zone }
+        }
+        return nil
     }
 
     private func makeClipLayer() -> CALayer {
@@ -760,6 +910,12 @@ public class TimelineUIView: UIView, UIGestureRecognizerDelegate {
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
         let point = gesture.location(in: self)
         let trackPoint = CGPoint(x: point.x, y: point.y - 10)
+
+        if !silenceZones.isEmpty, let zone = zone(at: point.x) {
+            onToggleZone?(zone.id)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            return
+        }
 
         // Always seek to tap position (move playhead)
         let time = CMTime(seconds: max(0, Double(point.x) / pixelsPerSecond), preferredTimescale: 600)

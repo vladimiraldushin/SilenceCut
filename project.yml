@@ -23,6 +23,9 @@ settings:
     CODE_SIGNING_REQUIRED: false
     CODE_SIGNING_ALLOWED: false
     GENERATE_INFOPLIST_FILE: true
+  configs:
+    Debug:
+      ENABLE_TESTABILITY: YES
 
 targets:
   # ========================
@@ -96,6 +99,7 @@ targets:
       - target: RECore
       - target: RETimeline
       - target: REAudioAnalysis
+      - target: REExport
       - target: REUI
     info:
       path: Sources/SilenceCutApp/Resources/Info.plist
@@ -104,6 +108,36 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.SilenceCut
         PRODUCT_NAME: SilenceCut
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    scheme:
+      testTargets:
+        - RECoreTests
+        - REAudioAnalysisTests
+
+  # ========================
+  # Tests (macOS)
+  # ========================
+
+  RECoreTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/RECoreTests]
+    dependencies:
+      - target: RECore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.RECoreTests
+        GENERATE_INFOPLIST_FILE: true
+
+  REAudioAnalysisTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/REAudioAnalysisTests]
+    dependencies:
+      - target: REAudioAnalysis
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REAudioAnalysisTests
+        GENERATE_INFOPLIST_FILE: true
 
   # ========================
   # iOS Targets

@@ -3,21 +3,27 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		05A1C2A37AB1A063B8AE0C29 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BABFCA147DD5F237B860EE /* Project.swift */; };
 		07E7E723D6C2FF3E1EF1566E /* ParakeetEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0732023B9A65CE7DA935948E /* ParakeetEngine.swift */; };
 		08B467E82F55CE12002416EF /* REAudioAnalysis.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; };
+		0CE2E92AA0FBF684C6C07AEA /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
+		1396EAF72E003EF409D7E6DD /* SubtitleMarkdownExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BE4B5F28EA4351021536B73 /* SubtitleMarkdownExporter.swift */; };
 		1613417A9581F131014A3F37 /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
 		19A16C74062B0C57D698F6D2 /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
 		1EBF4D57085D10CF21453000 /* REUI-iOS.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 567AA8E1F991CCBBF88DA94E /* REUI-iOS.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1F0E18D3CFAC3A7436BC778A /* REExport-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2162F30D3452D058FB07F955 /* REExport-iOS.framework */; };
+		21A9D22B58BF48BE555ED3E4 /* AudioAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 455465CE544F566169C452E9 /* AudioAnalysis.swift */; };
 		2276EF16D328935D14AC7785 /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
+		2639D9B37F21CE06BA44EAB7 /* TimelineClipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867B6544F63DCE6289770469 /* TimelineClipTests.swift */; };
+		2AC4024DD693B192FADFB6EA /* RMSCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F83DF3CD75D6B4B706EE6 /* RMSCacheTests.swift */; };
 		2C19A9BEC214756BC0ED0FB7 /* SilenceDetectionPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */; };
 		2DEDE8192F641A4B420FFD14 /* REExport-iOS.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2162F30D3452D058FB07F955 /* REExport-iOS.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		2EB5A1E61AD378452AB4FB79 /* PreviewPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */; };
+		31136B121E1D9F03239D967D /* REAudioAnalysis.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; };
 		314EEE56CDA34EAF22ECADB4 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 54AE188C0B57DC9F5C9D2FDC /* FluidAudio */; };
 		318409DD6419D96B756BA239 /* ParakeetEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0732023B9A65CE7DA935948E /* ParakeetEngine.swift */; };
 		330B4E5F5DDD0BA26F724E38 /* REAudioAnalysis-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E9EE611B9409EF67024B133 /* REAudioAnalysis-iOS.framework */; };
@@ -31,20 +37,25 @@
 		46A173593CFD63ABC5F7A03D /* TimelineClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = D22634EE80EF00F6A0200C90 /* TimelineClip.swift */; };
 		4CF55A7D7648DD1DCF99CA2A /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C38F6599CFE96AB9F4C0579C /* ExportService.swift */; };
 		4F9F596CC1BF2C7DA2C6D0F7 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BABFCA147DD5F237B860EE /* Project.swift */; };
+		52F6F3D7104657CCE4D58C4E /* AudioSampleStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE714EC6E75209AEF60D68D /* AudioSampleStream.swift */; };
 		53C88215FF1E1B851DAA0EDA /* SubtitleOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC91C0AC5BACD28407E0713 /* SubtitleOverlayView.swift */; };
 		57E99D260C9F47F120C3FF3E /* SilenceDetectionPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */; };
 		5F978D6E4AE4B2C2A52719C7 /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BAA5E9E0908542D21B7016D /* TranscriptionService.swift */; };
 		657E72E68B7236F2AFF2E467 /* EditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */; };
 		665D72E21155118E3C09371B /* REAudioAnalysis.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; };
 		7152B11990A52552CFA4401D /* RETimeline-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C711E78641A8A43545148885 /* RETimeline-iOS.framework */; };
+		726779CBBF822BC6B709A51F /* AudioAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 455465CE544F566169C452E9 /* AudioAnalysis.swift */; };
 		7928D15D820E86B6F17E9D07 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3E3A312256F29CA0F4DD8B70 /* WhisperKit */; };
 		79963385730F18B52AED0930 /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
 		7BAA36E3DC37BF4346CAFD80 /* REAudioAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */; };
 		7C3E08B5902FFECBC1BD1D0E /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
+		8068BD8621AE8B462FA83339 /* ProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0879AC88785B477EA4ADDD8 /* ProjectStore.swift */; };
 		8532292AE5FDC45CD3425BE9 /* SubtitlePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D5E4DCAFBA4616C0B876D5 /* SubtitlePanel.swift */; };
 		8F08823AA9C4F61DB361B780 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = E44C7F4282B7292609D8C05E /* WhisperKit */; };
 		913F0F7CDD9FA93ED8F9EF0C /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
+		9C868DEE3CE1722D334604DB /* SubtitleSRTExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90A22F7AA74002BCBC5A7BEF /* SubtitleSRTExporter.swift */; };
 		A18DBD20B692598B6B187AA8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D1306E8BF62643FFD64DB522 /* Assets.xcassets */; };
+		A2D375DDFFE3B2C378F03557 /* RECore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A6993C35B4AAC9B06ABDE027 /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
 		AA0AC4E79E1DFE25980A0B50 /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
 		AC0F5A4F77D95F6452431A13 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C38F6599CFE96AB9F4C0579C /* ExportService.swift */; };
@@ -52,6 +63,7 @@
 		B34B009D8EE7C0AB62E05D3A /* RECore-iOS.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		B4C5F94D3AD3BE80D2DA5592 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 121E8F5081F63ACC5C149E6E /* Assets.xcassets */; };
 		B5E53A0D834F6B57C79E7237 /* REExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30B341310F52289E17CF1B20 /* REExport.swift */; };
+		B6E39A58A15BC31C78CA077A /* ProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0879AC88785B477EA4ADDD8 /* ProjectStore.swift */; };
 		B890E6D7ADB5DB98DA2C65BD /* WhisperKitEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E04FB449DA00ABD909A7A58 /* WhisperKitEngine.swift */; };
 		B8B103F42FA49AB4BB2739D9 /* WhisperKitEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E04FB449DA00ABD909A7A58 /* WhisperKitEngine.swift */; };
 		BC484A0AB8D8017254F6B7A9 /* SubtitleOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC91C0AC5BACD28407E0713 /* SubtitleOverlayView.swift */; };
@@ -68,6 +80,7 @@
 		CCD6645C4F84C41B0587F7A7 /* ModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4E2740A4D99AF07019E6FB /* ModelManager.swift */; };
 		CD5EC822C617DEFBF1E34D90 /* SilenceCutApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */; };
 		CE350A0F8F5C3F54427CB6A2 /* REUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 433492D71088FF4C3B8BA465 /* REUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEBD6FB81A73C1163C2C0C8C /* SubtitleMarkdownExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BE4B5F28EA4351021536B73 /* SubtitleMarkdownExporter.swift */; };
 		CFAEF41566E8580A5E862C5C /* SilenceDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7438A77723E8F226465D2E3C /* SilenceDetector.swift */; };
 		D334D41C680E2F57967F1498 /* REAudioAnalysis-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E9EE611B9409EF67024B133 /* REAudioAnalysis-iOS.framework */; };
 		D55756F4338B80CEDC7359F6 /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BAA5E9E0908542D21B7016D /* TranscriptionService.swift */; };
@@ -75,16 +88,23 @@
 		D73E184BFD3AA566DC911375 /* CompositionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B393CEBEB6454425D206940 /* CompositionBuilder.swift */; };
 		D7E316E70D864713A40F1659 /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
 		D7F773E0EE844005E673B354 /* SilenceDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7438A77723E8F226465D2E3C /* SilenceDetector.swift */; };
+		D9FE4F1D515F91F546CD8A04 /* REAudioAnalysis.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		DA24B61F22844A9A5C005F39 /* SubtitleEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C54CB65E77B0DB040CDD51 /* SubtitleEntry.swift */; };
 		DC4A05DEB5672EB489B633FD /* MainEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC4FE533556380FCB651AF5A /* MainEditorView.swift */; };
 		DC5874A8E0B50897C648A708 /* REAudioAnalysis.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		DE7B1D39315310074CFEECD1 /* REExport-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2162F30D3452D058FB07F955 /* REExport-iOS.framework */; };
 		DF7C38CE4C643850FF0A8FCB /* REExport.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AFB408B69327330EBAFC712 /* REExport.framework */; };
+		E26B4EC1EA86EF101F06BDBB /* ProjectStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25E767F05369E7F15FB1555B /* ProjectStoreTests.swift */; };
+		E2AC0C173CF3C6FB21A16F03 /* SilenceRegionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 433417F55CEB51D23F21BD29 /* SilenceRegionTests.swift */; };
 		E3B85E06E78798EF22D9774E /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
 		E4521790832C279F659B919F /* RETimeline.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E4936144E4339BC7BE9067DC /* AudioSampleStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE714EC6E75209AEF60D68D /* AudioSampleStream.swift */; };
 		EAAC209A2EF7438B62D01017 /* REAudioAnalysis-iOS.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4E9EE611B9409EF67024B133 /* REAudioAnalysis-iOS.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		EB0CCABCB78D810F60ECE486 /* REExport.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9AFB408B69327330EBAFC712 /* REExport.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		ECC99C48A29B32E4E9EB87AC /* REUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 433492D71088FF4C3B8BA465 /* REUI.framework */; };
 		ED3417F5C5C2836B5779CB2A /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
+		EE1E86A375B3975AEBF90B66 /* SubtitleSRTExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90A22F7AA74002BCBC5A7BEF /* SubtitleSRTExporter.swift */; };
+		EF577B63369385D0BC7B2234 /* REExport.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AFB408B69327330EBAFC712 /* REExport.framework */; };
 		F036E12BA3D9A7249E56786D /* SubtitlePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D5E4DCAFBA4616C0B876D5 /* SubtitlePanel.swift */; };
 		F1B55D70DC264FBBC0FFE546 /* RECore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F76B46BCA2D1F9099CBCEC24 /* RECore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; };
@@ -199,6 +219,13 @@
 			remoteGlobalIDString = 97E931C3A6EB696A863A3309;
 			remoteInfo = RECore;
 		};
+		A0D88FA56609BFDCADF11FF2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A08C61DD83950F830CEC669;
+			remoteInfo = REExport;
+		};
 		A8B0264773071E46ABF94729 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
@@ -235,6 +262,20 @@
 			remoteInfo = "REExport-iOS";
 		};
 		DCB55B9690617BD85EE169EA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 97E931C3A6EB696A863A3309;
+			remoteInfo = RECore;
+		};
+		E46263B0E4581455235D10E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FA15AC306AF5978F1AD679CC;
+			remoteInfo = REAudioAnalysis;
+		};
+		EBF18694ACAD0065F37CD72B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = F54EBB103CBDAE8984DB4051 /* Project object */;
 			proxyType = 1;
@@ -296,7 +337,30 @@
 				F1B55D70DC264FBBC0FFE546 /* RECore.framework in Embed Frameworks */,
 				E4521790832C279F659B919F /* RETimeline.framework in Embed Frameworks */,
 				DC5874A8E0B50897C648A708 /* REAudioAnalysis.framework in Embed Frameworks */,
+				EB0CCABCB78D810F60ECE486 /* REExport.framework in Embed Frameworks */,
 				CE350A0F8F5C3F54427CB6A2 /* REUI.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		528A467DB6EC3A6FA2D10614 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				D9FE4F1D515F91F546CD8A04 /* REAudioAnalysis.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E27A2483FD1584C1726296A3 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				A2D375DDFFE3B2C378F03557 /* RECore.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -312,27 +376,38 @@
 		16BABFCA147DD5F237B860EE /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
 		17D5E4DCAFBA4616C0B876D5 /* SubtitlePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitlePanel.swift; sourceTree = "<group>"; };
 		1E04FB449DA00ABD909A7A58 /* WhisperKitEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperKitEngine.swift; sourceTree = "<group>"; };
-		2162F30D3452D058FB07F955 /* REExport-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "REExport-iOS.framework"; path = REExport.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		2162F30D3452D058FB07F955 /* REExport-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "REExport-iOS.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		25E767F05369E7F15FB1555B /* ProjectStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectStoreTests.swift; sourceTree = "<group>"; };
+		2CBE6D71D27E42DF5BA25557 /* REAudioAnalysisTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = REAudioAnalysisTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2DCA24D467FDD6FE62C1C114 /* SubtitleStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleStyle.swift; sourceTree = "<group>"; };
 		30B341310F52289E17CF1B20 /* REExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = REExport.swift; sourceTree = "<group>"; };
 		3558AEAE76CD06B8D030642A /* RECore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RECore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		36F19C0B65C1CF9DA62657AF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		39807AED0599A68F3B7161DB /* RECoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RECoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3BE9D02562CF3F974345BB56 /* SilenceCutApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceCutApp.swift; sourceTree = "<group>"; };
+		3CE714EC6E75209AEF60D68D /* AudioSampleStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSampleStream.swift; sourceTree = "<group>"; };
+		3F8F83DF3CD75D6B4B706EE6 /* RMSCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RMSCacheTests.swift; sourceTree = "<group>"; };
+		433417F55CEB51D23F21BD29 /* SilenceRegionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceRegionTests.swift; sourceTree = "<group>"; };
 		433492D71088FF4C3B8BA465 /* REUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = REUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		4E9EE611B9409EF67024B133 /* REAudioAnalysis-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "REAudioAnalysis-iOS.framework"; path = REAudioAnalysis.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		567AA8E1F991CCBBF88DA94E /* REUI-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "REUI-iOS.framework"; path = REUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "RECore-iOS.framework"; path = RECore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		455465CE544F566169C452E9 /* AudioAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioAnalysis.swift; sourceTree = "<group>"; };
+		4E9EE611B9409EF67024B133 /* REAudioAnalysis-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "REAudioAnalysis-iOS.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		567AA8E1F991CCBBF88DA94E /* REUI-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "REUI-iOS.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "RECore-iOS.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 		604BC86BBDAB2709C403C1FA /* SilenceCutIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceCutIOSApp.swift; sourceTree = "<group>"; };
+		6BE4B5F28EA4351021536B73 /* SubtitleMarkdownExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleMarkdownExporter.swift; sourceTree = "<group>"; };
 		7438A77723E8F226465D2E3C /* SilenceDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceDetector.swift; sourceTree = "<group>"; };
 		7CC91C0AC5BACD28407E0713 /* SubtitleOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleOverlayView.swift; sourceTree = "<group>"; };
-		8055418BF6FCFC99B8147983 /* SilenceCut.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SilenceCut.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8055418BF6FCFC99B8147983 /* SilenceCut-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "SilenceCut-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		867B6544F63DCE6289770469 /* TimelineClipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineClipTests.swift; sourceTree = "<group>"; };
 		8BAA5E9E0908542D21B7016D /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
+		90A22F7AA74002BCBC5A7BEF /* SubtitleSRTExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleSRTExporter.swift; sourceTree = "<group>"; };
 		9AFB408B69327330EBAFC712 /* REExport.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = REExport.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPlayerView.swift; sourceTree = "<group>"; };
 		A2C54CB65E77B0DB040CDD51 /* SubtitleEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleEntry.swift; sourceTree = "<group>"; };
+		C0879AC88785B477EA4ADDD8 /* ProjectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectStore.swift; sourceTree = "<group>"; };
 		C38F6599CFE96AB9F4C0579C /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
 		C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = REAudioAnalysis.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		C711E78641A8A43545148885 /* RETimeline-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "RETimeline-iOS.framework"; path = RETimeline.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		C711E78641A8A43545148885 /* RETimeline-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "RETimeline-iOS.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorViewModel.swift; sourceTree = "<group>"; };
 		CC4FE533556380FCB651AF5A /* MainEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainEditorView.swift; sourceTree = "<group>"; };
 		D1306E8BF62643FFD64DB522 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -391,6 +466,7 @@
 				2276EF16D328935D14AC7785 /* RECore.framework in Frameworks */,
 				79963385730F18B52AED0930 /* RETimeline.framework in Frameworks */,
 				08B467E82F55CE12002416EF /* REAudioAnalysis.framework in Frameworks */,
+				EF577B63369385D0BC7B2234 /* REExport.framework in Frameworks */,
 				ECC99C48A29B32E4E9EB87AC /* REUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -423,6 +499,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C9092899BB303B54396C9D3C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				31136B121E1D9F03239D967D /* REAudioAnalysis.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CCE077DE692C94589D81D869 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -431,6 +515,14 @@
 				19A16C74062B0C57D698F6D2 /* RETimeline.framework in Frameworks */,
 				665D72E21155118E3C09371B /* REAudioAnalysis.framework in Frameworks */,
 				DF7C38CE4C643850FF0A8FCB /* REExport.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EC6085B3ED8DA26B16B5C408 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0CE2E92AA0FBF684C6C07AEA /* RECore.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -458,6 +550,8 @@
 		0D6E644A6E9CA3C33602D8E0 /* REAudioAnalysis */ = {
 			isa = PBXGroup;
 			children = (
+				455465CE544F566169C452E9 /* AudioAnalysis.swift */,
+				3CE714EC6E75209AEF60D68D /* AudioSampleStream.swift */,
 				ED4E2740A4D99AF07019E6FB /* ModelManager.swift */,
 				0732023B9A65CE7DA935948E /* ParakeetEngine.swift */,
 				127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */,
@@ -472,8 +566,18 @@
 			isa = PBXGroup;
 			children = (
 				55F5A240E59C2C8306ADE25A /* Sources */,
+				5167B27BB7EEAF647DC2E000 /* Tests */,
 				4E2BF2D5086838381E9DC5BB /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		28E764E9168FE9BE5794DD31 /* RECoreTests */ = {
+			isa = PBXGroup;
+			children = (
+				25E767F05369E7F15FB1555B /* ProjectStoreTests.swift */,
+				867B6544F63DCE6289770469 /* TimelineClipTests.swift */,
+			);
+			path = RECoreTests;
 			sourceTree = "<group>";
 		};
 		2AECFADAEBED0E68B9E69EEC /* SilenceCutApp */ = {
@@ -491,6 +595,8 @@
 			children = (
 				C38F6599CFE96AB9F4C0579C /* ExportService.swift */,
 				30B341310F52289E17CF1B20 /* REExport.swift */,
+				6BE4B5F28EA4351021536B73 /* SubtitleMarkdownExporter.swift */,
+				90A22F7AA74002BCBC5A7BEF /* SubtitleSRTExporter.swift */,
 			);
 			path = REExport;
 			sourceTree = "<group>";
@@ -500,18 +606,29 @@
 			children = (
 				4E9EE611B9409EF67024B133 /* REAudioAnalysis-iOS.framework */,
 				C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */,
+				2CBE6D71D27E42DF5BA25557 /* REAudioAnalysisTests.xctest */,
 				56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */,
 				3558AEAE76CD06B8D030642A /* RECore.framework */,
+				39807AED0599A68F3B7161DB /* RECoreTests.xctest */,
 				2162F30D3452D058FB07F955 /* REExport-iOS.framework */,
 				9AFB408B69327330EBAFC712 /* REExport.framework */,
 				C711E78641A8A43545148885 /* RETimeline-iOS.framework */,
 				EB82737643CD2BE53F03862A /* RETimeline.framework */,
 				567AA8E1F991CCBBF88DA94E /* REUI-iOS.framework */,
 				433492D71088FF4C3B8BA465 /* REUI.framework */,
-				8055418BF6FCFC99B8147983 /* SilenceCut.app */,
+				8055418BF6FCFC99B8147983 /* SilenceCut-iOS.app */,
 				134FE371429BBCD27437CB9A /* SilenceCut.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		5167B27BB7EEAF647DC2E000 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				5F0454D8E1996FF49E1CB231 /* REAudioAnalysisTests */,
+				28E764E9168FE9BE5794DD31 /* RECoreTests */,
+			);
+			path = Tests;
 			sourceTree = "<group>";
 		};
 		55F5A240E59C2C8306ADE25A /* Sources */ = {
@@ -528,11 +645,21 @@
 			path = Sources;
 			sourceTree = "<group>";
 		};
+		5F0454D8E1996FF49E1CB231 /* REAudioAnalysisTests */ = {
+			isa = PBXGroup;
+			children = (
+				3F8F83DF3CD75D6B4B706EE6 /* RMSCacheTests.swift */,
+				433417F55CEB51D23F21BD29 /* SilenceRegionTests.swift */,
+			);
+			path = REAudioAnalysisTests;
+			sourceTree = "<group>";
+		};
 		75E77C6E78459C3C9BCC697A /* RECore */ = {
 			isa = PBXGroup;
 			children = (
 				FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */,
 				16BABFCA147DD5F237B860EE /* Project.swift */,
+				C0879AC88785B477EA4ADDD8 /* ProjectStore.swift */,
 				A2C54CB65E77B0DB040CDD51 /* SubtitleEntry.swift */,
 				2DCA24D467FDD6FE62C1C114 /* SubtitleStyle.swift */,
 				D22634EE80EF00F6A0200C90 /* TimelineClip.swift */,
@@ -615,7 +742,7 @@
 			packageProductDependencies = (
 			);
 			productName = "SilenceCut-iOS";
-			productReference = 8055418BF6FCFC99B8147983 /* SilenceCut.app */;
+			productReference = 8055418BF6FCFC99B8147983 /* SilenceCut-iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 		595C5D6508E21839B333B9D9 /* RETimeline-iOS */ = {
@@ -673,6 +800,26 @@
 			productName = "RECore-iOS";
 			productReference = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */;
 			productType = "com.apple.product-type.framework";
+		};
+		7176F6E9E3E61E2B3CD9FEBE /* RECoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 253F5425567FF69C61E02F28 /* Build configuration list for PBXNativeTarget "RECoreTests" */;
+			buildPhases = (
+				95F2E78A5701EB43FA15A522 /* Sources */,
+				EC6085B3ED8DA26B16B5C408 /* Frameworks */,
+				E27A2483FD1584C1726296A3 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C269E192A2F0F20881CB909B /* PBXTargetDependency */,
+			);
+			name = RECoreTests;
+			packageProductDependencies = (
+			);
+			productName = RECoreTests;
+			productReference = 39807AED0599A68F3B7161DB /* RECoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		805B27799A57F723CCCE15BF /* REExport-iOS */ = {
 			isa = PBXNativeTarget;
@@ -754,6 +901,26 @@
 			productReference = 4E9EE611B9409EF67024B133 /* REAudioAnalysis-iOS.framework */;
 			productType = "com.apple.product-type.framework";
 		};
+		BB629FC7EDCC095BAA909AF5 /* REAudioAnalysisTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5BE9F104C41A288BD3AB30BD /* Build configuration list for PBXNativeTarget "REAudioAnalysisTests" */;
+			buildPhases = (
+				FBD5BDB49A06D613D68B624B /* Sources */,
+				C9092899BB303B54396C9D3C /* Frameworks */,
+				528A467DB6EC3A6FA2D10614 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0511A5DA6FA945299FEA5ECF /* PBXTargetDependency */,
+			);
+			name = REAudioAnalysisTests;
+			packageProductDependencies = (
+			);
+			productName = REAudioAnalysisTests;
+			productReference = 2CBE6D71D27E42DF5BA25557 /* REAudioAnalysisTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		DAD8BBD38BC9E2F2A5CC04DC /* SilenceCut */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 9D7B4E982D3A20FE6BE5696F /* Build configuration list for PBXNativeTarget "SilenceCut" */;
@@ -769,6 +936,7 @@
 				7E962910AAEEE4642E8DCB2C /* PBXTargetDependency */,
 				E2A8A0093FDB2378136A9FC1 /* PBXTargetDependency */,
 				88AFA5157D90843BB81CF1CF /* PBXTargetDependency */,
+				94212F37C1D928ACA797D02C /* PBXTargetDependency */,
 				3909DB5E4E1C9CB9E199D4D7 /* PBXTargetDependency */,
 			);
 			name = SilenceCut;
@@ -829,9 +997,13 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					57FBE0F83CBF29775CBD20B5 = {
+						DevelopmentTeam = "";
+					};
+				};
 			};
 			buildConfigurationList = 3A9AB0C86E1CC17F63BC22EE /* Build configuration list for PBXProject "SilenceCut" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -844,13 +1016,17 @@
 				4A9E6E3F35BC2D9737049DAF /* XCRemoteSwiftPackageReference "FluidAudio" */,
 				638E8A9725FE6E0365EF2344 /* XCRemoteSwiftPackageReference "WhisperKit" */,
 			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 4E2BF2D5086838381E9DC5BB /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				FA15AC306AF5978F1AD679CC /* REAudioAnalysis */,
 				B964F114EB91FCF82F9C57A7 /* REAudioAnalysis-iOS */,
+				BB629FC7EDCC095BAA909AF5 /* REAudioAnalysisTests */,
 				97E931C3A6EB696A863A3309 /* RECore */,
 				65F345A44E7BCA755FD5DF01 /* RECore-iOS */,
+				7176F6E9E3E61E2B3CD9FEBE /* RECoreTests */,
 				5A08C61DD83950F830CEC669 /* REExport */,
 				805B27799A57F723CCCE15BF /* REExport-iOS */,
 				54C6992E3E766FA2B75891CF /* RETimeline */,
@@ -889,6 +1065,7 @@
 			files = (
 				B018259E72569B1F7110F960 /* EditTimeline.swift in Sources */,
 				05A1C2A37AB1A063B8AE0C29 /* Project.swift in Sources */,
+				B6E39A58A15BC31C78CA077A /* ProjectStore.swift in Sources */,
 				C13A3FBDB42200C782A20918 /* SubtitleEntry.swift in Sources */,
 				CABAB0B1A398DF849F363E87 /* SubtitleStyle.swift in Sources */,
 				46A173593CFD63ABC5F7A03D /* TimelineClip.swift in Sources */,
@@ -901,6 +1078,8 @@
 			files = (
 				AC0F5A4F77D95F6452431A13 /* ExportService.swift in Sources */,
 				43DBDEEB6F3F2509C0E6BD36 /* REExport.swift in Sources */,
+				CEBD6FB81A73C1163C2C0C8C /* SubtitleMarkdownExporter.swift in Sources */,
+				EE1E86A375B3975AEBF90B66 /* SubtitleSRTExporter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -930,6 +1109,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				726779CBBF822BC6B709A51F /* AudioAnalysis.swift in Sources */,
+				52F6F3D7104657CCE4D58C4E /* AudioSampleStream.swift in Sources */,
 				3FA66C1F131CEFE19CBDE670 /* ModelManager.swift in Sources */,
 				07E7E723D6C2FF3E1EF1566E /* ParakeetEngine.swift in Sources */,
 				7BAA36E3DC37BF4346CAFD80 /* REAudioAnalysis.swift in Sources */,
@@ -943,6 +1124,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				21A9D22B58BF48BE555ED3E4 /* AudioAnalysis.swift in Sources */,
+				E4936144E4339BC7BE9067DC /* AudioSampleStream.swift in Sources */,
 				CCD6645C4F84C41B0587F7A7 /* ModelManager.swift in Sources */,
 				318409DD6419D96B756BA239 /* ParakeetEngine.swift in Sources */,
 				F8DD8A4C0D865B40681E42E2 /* REAudioAnalysis.swift in Sources */,
@@ -958,6 +1141,8 @@
 			files = (
 				4CF55A7D7648DD1DCF99CA2A /* ExportService.swift in Sources */,
 				B5E53A0D834F6B57C79E7237 /* REExport.swift in Sources */,
+				1396EAF72E003EF409D7E6DD /* SubtitleMarkdownExporter.swift in Sources */,
+				9C868DEE3CE1722D334604DB /* SubtitleSRTExporter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -983,12 +1168,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		95F2E78A5701EB43FA15A522 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E26B4EC1EA86EF101F06BDBB /* ProjectStoreTests.swift in Sources */,
+				2639D9B37F21CE06BA44EAB7 /* TimelineClipTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B70A42BFB6288A7A1E143E3E /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				D60B61C8B6DC16CD1C3511AB /* EditTimeline.swift in Sources */,
 				4F9F596CC1BF2C7DA2C6D0F7 /* Project.swift in Sources */,
+				8068BD8621AE8B462FA83339 /* ProjectStore.swift in Sources */,
 				DA24B61F22844A9A5C005F39 /* SubtitleEntry.swift in Sources */,
 				BDFB5A7FA89F762EFC667205 /* SubtitleStyle.swift in Sources */,
 				CB19976B440D2237D385396B /* TimelineClip.swift in Sources */,
@@ -1011,9 +1206,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FBD5BDB49A06D613D68B624B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2AC4024DD693B192FADFB6EA /* RMSCacheTests.swift in Sources */,
+				E2AC0C173CF3C6FB21A16F03 /* SilenceRegionTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		0511A5DA6FA945299FEA5ECF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FA15AC306AF5978F1AD679CC /* REAudioAnalysis */;
+			targetProxy = E46263B0E4581455235D10E6 /* PBXContainerItemProxy */;
+		};
 		0EA8DD3D8B85B18C91FDEC3F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 65F345A44E7BCA755FD5DF01 /* RECore-iOS */;
@@ -1089,6 +1298,11 @@
 			target = 97E931C3A6EB696A863A3309 /* RECore */;
 			targetProxy = F99EDF0D37CC1F3597E753ED /* PBXContainerItemProxy */;
 		};
+		94212F37C1D928ACA797D02C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A08C61DD83950F830CEC669 /* REExport */;
+			targetProxy = A0D88FA56609BFDCADF11FF2 /* PBXContainerItemProxy */;
+		};
 		9A7A6E9127754A5FF415BEFF /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 97E931C3A6EB696A863A3309 /* RECore */;
@@ -1103,6 +1317,11 @@
 			isa = PBXTargetDependency;
 			target = 595C5D6508E21839B333B9D9 /* RETimeline-iOS */;
 			targetProxy = 093D92B163B2F71ABCF4210F /* PBXContainerItemProxy */;
+		};
+		C269E192A2F0F20881CB909B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 97E931C3A6EB696A863A3309 /* RECore */;
+			targetProxy = EBF18694ACAD0065F37CD72B /* PBXContainerItemProxy */;
 		};
 		CBD7BED5DDAA865E969F972D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1272,6 +1491,22 @@
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		27921F325356FB0FD3A82373 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.REAudioAnalysisTests;
+				SDKROOT = macosx;
 			};
 			name = Release;
 		};
@@ -1519,7 +1754,7 @@
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				DEVELOPMENT_TEAM = 2W7MCN34W9;
+				DEVELOPMENT_TEAM = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "SilenceCut needs microphone access for audio processing.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "SilenceCut needs access to save exported videos to your photo library.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1532,6 +1767,22 @@
 				PRODUCT_NAME = SilenceCut;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		9004E602FB09FE8021CF0F01 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.RECoreTests;
+				SDKROOT = macosx;
 			};
 			name = Release;
 		};
@@ -1583,6 +1834,22 @@
 			};
 			name = Debug;
 		};
+		AF98C55FEA61768A167C241A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.RECoreTests;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
 		B226298CCC6DB3CB8BF327E8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1621,6 +1888,22 @@
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		C2D84D7A0396A596BF82777F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ru.aldushin.REAudioAnalysisTests;
+				SDKROOT = macosx;
 			};
 			name = Debug;
 		};
@@ -1788,7 +2071,7 @@
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				DEVELOPMENT_TEAM = 2W7MCN34W9;
+				DEVELOPMENT_TEAM = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "SilenceCut needs microphone access for audio processing.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "SilenceCut needs access to save exported videos to your photo library.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1837,6 +2120,15 @@
 			buildConfigurations = (
 				E36011618182052733EECCAF /* Debug */,
 				198A1B4387E858B73B360277 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		253F5425567FF69C61E02F28 /* Build configuration list for PBXNativeTarget "RECoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AF98C55FEA61768A167C241A /* Debug */,
+				9004E602FB09FE8021CF0F01 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -1900,6 +2192,15 @@
 			buildConfigurations = (
 				5C7AF60E481A9CA7FFAB8FCB /* Debug */,
 				0D4BF57AFD721BE8E1D2D54A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5BE9F104C41A288BD3AB30BD /* Build configuration list for PBXNativeTarget "REAudioAnalysisTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C2D84D7A0396A596BF82777F /* Debug */,
+				27921F325356FB0FD3A82373 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

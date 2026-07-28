@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 import REUI
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -12,6 +13,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Global key monitor (skip when editing text fields)
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let vm = self?.viewModel else { return event }
+
+            // Explicit flag from SwiftUI @FocusState (subtitle text fields)
+            if vm.isTextEditingActive { return event }
 
             // Don't intercept keys when user is typing in a text field
             if let responder = NSApp.keyWindow?.firstResponder {
@@ -33,6 +37,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
 
+            // "?" — hotkey cheatsheet
+            if event.characters == "?" {
+                vm.showHotkeysHelp.toggle()
+                return nil
+            }
+
             switch event.keyCode {
             case 49: // Space — Play/Pause
                 vm.togglePlayback()
@@ -42,26 +52,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     vm.deleteSelectedClip()
                     return nil
                 }
-            case 38: // J — reverse/slow
+            case 38: // J — back 1s
                 vm.nudgePlayhead(by: -1.0)
                 return nil
             case 40: // K — pause
                 if vm.isPlaying { vm.togglePlayback() }
                 return nil
-            case 37: // L — forward/fast
+            case 37: // L — forward 1s
                 vm.nudgePlayhead(by: 1.0)
                 return nil
-            case 34: // I — set in point (split + delete left)
-                vm.splitAtPlayhead()
+            case 34: // I — trim in: cut everything left of playhead in current clip
+                vm.trimInAtPlayhead()
                 return nil
-            case 31: // O — set out point (split + delete right)
-                vm.splitAtPlayhead()
+            case 31: // O — trim out: cut everything right of playhead in current clip
+                vm.trimOutAtPlayhead()
                 return nil
-            case 123: // Left arrow — step back 1 frame
-                vm.nudgePlayhead(by: -1.0/30.0)
+            case 30: // ] — next cut
+                vm.jumpToNextCut()
                 return nil
-            case 124: // Right arrow — step forward 1 frame
-                vm.nudgePlayhead(by: 1.0/30.0)
+            case 33: // [ — previous cut
+                vm.jumpToPreviousCut()
+                return nil
+            case 123: // Left arrow — step back 1 frame (real fps)
+                vm.nudgePlayhead(by: -1.0 / vm.videoFPS)
+                return nil
+            case 124: // Right arrow — step forward 1 frame (real fps)
+                vm.nudgePlayhead(by: 1.0 / vm.videoFPS)
                 return nil
             default:
                 break
@@ -106,6 +122,12 @@ struct SilenceCutApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("Открыть видео...") { openFile() }
                     .keyboardShortcut("o", modifiers: .command)
+                Button("Открыть проект...") { openProject() }
+                    .keyboardShortcut("o", modifiers: [.command, .shift])
+                Divider()
+                Button("Сохранить проект") { viewModel.saveProjectNow() }
+                    .keyboardShortcut("s", modifiers: .command)
+                    .disabled(viewModel.project.sourceURL == nil)
             }
             CommandGroup(replacing: .undoRedo) {
                 Button("Отменить") { viewModel.undo() }
@@ -114,6 +136,10 @@ struct SilenceCutApp: App {
                 Button("Повторить") { viewModel.redo() }
                     .keyboardShortcut("z", modifiers: [.command, .shift])
                     .disabled(!viewModel.canRedo)
+            }
+            CommandGroup(after: .help) {
+                Button("Горячие клавиши") { viewModel.showHotkeysHelp.toggle() }
+                    .keyboardShortcut("/", modifiers: .command)
             }
             // Space/Delete handled in AppDelegate NSEvent monitor
             // (which checks for text field focus before intercepting)
@@ -126,6 +152,15 @@ struct SilenceCutApp: App {
         panel.allowsMultipleSelection = false
         if panel.runModal() == .OK, let url = panel.url {
             viewModel.importVideo(url: url)
+        }
+    }
+
+    private func openProject() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.init(filenameExtension: "silencecut") ?? .json]
+        panel.allowsMultipleSelection = false
+        if panel.runModal() == .OK, let url = panel.url {
+            viewModel.openProjectFile(url: url)
         }
     }
 }

@@ -31,9 +31,9 @@ public enum ExportPreset: String, CaseIterable, Identifiable {
 
     public var description: String {
         switch self {
-        case .high: return "1080×1920, 10 Mbps"
-        case .medium: return "1080×1920, 5 Mbps"
-        case .low: return "1080×1920, 2.5 Mbps"
+        case .high: return "H.264, 10 Мбит/с"
+        case .medium: return "H.264, 5 Мбит/с"
+        case .low: return "H.264, 2,5 Мбит/с"
         }
     }
 }
@@ -43,6 +43,26 @@ public struct ExportProgress {
     public let fraction: Double
     public let timeElapsed: TimeInterval
     public let estimatedRemaining: TimeInterval?
+}
+
+/// Потокобезопасный токен отмены экспорта
+public final class ExportCancellationToken: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _isCancelled = false
+
+    public init() {}
+
+    public func cancel() {
+        lock.lock()
+        _isCancelled = true
+        lock.unlock()
+    }
+
+    public var isCancelled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _isCancelled
+    }
 }
 
 public enum ExportService {
@@ -61,12 +81,15 @@ public enum ExportService {
         }
     }
 
+    /// Single-pass export: AVAssetReader(composition + videoComposition) → optional
+    /// CG subtitle burn-in → AVAssetWriter with preset bitrate. One encode, no temp files.
     public static func export(
         timeline: EditTimeline,
         to outputURL: URL,
         preset: ExportPreset = .high,
         subtitleEntries: [SubtitleEntry] = [],
         subtitleStyle: SubtitleStyle = .classic,
+        cancellation: ExportCancellationToken? = nil,
         progress: @escaping (ExportProgress) -> Void
     ) async throws {
         guard timeline.enabledClipCount > 0 else { throw ExportError.noClips }
@@ -75,48 +98,66 @@ public enum ExportService {
         let result = try await CompositionBuilder.build(from: timeline)
         try? FileManager.default.removeItem(at: outputURL)
 
-        if !subtitleEntries.isEmpty {
-            print("[Export] Subtitle burn-in: \(subtitleEntries.count) entries via Core Graphics")
-            try await exportWithCGSubtitles(
-                composition: result.composition,
-                videoComposition: result.videoComposition,
-                audioMix: result.audioMix,
-                subtitleEntries: subtitleEntries,
-                subtitleStyle: subtitleStyle,
-                timeline: timeline,
-                outputURL: outputURL,
-                preset: preset,
-                startTime: startTime,
-                progress: progress
-            )
-        } else {
-            print("[Export] Fast export (no subtitles)")
-            try await exportFast(
-                composition: result.composition,
-                videoComposition: result.videoComposition,
-                audioMix: result.audioMix,
-                outputURL: outputURL,
-                startTime: startTime,
-                progress: progress
-            )
-        }
+        try await exportSinglePass(
+            composition: result.composition,
+            videoComposition: result.videoComposition,
+            audioMix: result.audioMix,
+            subtitleEntries: subtitleEntries,
+            subtitleStyle: subtitleStyle,
+            outputURL: outputURL,
+            preset: preset,
+            startTime: startTime,
+            cancellation: cancellation,
+            progress: progress
+        )
     }
 
-    // MARK: - Fast Export
+    /// Audio-only export (M4A) — used for transcription so Whisper doesn't wait
+    /// for a full video encode. Timings match the timeline exactly.
+    public static func exportAudioOnly(
+        timeline: EditTimeline,
+        to outputURL: URL,
+        cancellation: ExportCancellationToken? = nil,
+        progress: @escaping (ExportProgress) -> Void = { _ in }
+    ) async throws {
+        guard timeline.enabledClipCount > 0 else { throw ExportError.noClips }
 
-    private static func exportFast(
-        composition: AVMutableComposition,
-        videoComposition: AVMutableVideoComposition?,
-        audioMix: AVMutableAudioMix?,
+        let startTime = Date()
+        let result = try await CompositionBuilder.build(from: timeline)
+        try? FileManager.default.removeItem(at: outputURL)
+
+        try await exportViaSession(
+            asset: result.composition,
+            videoComposition: nil,
+            audioMix: result.audioMix,
+            outputURL: outputURL,
+            fileType: .m4a,
+            presetName: AVAssetExportPresetAppleM4A,
+            startTime: startTime,
+            cancellation: cancellation,
+            progress: progress
+        )
+        print("[Export] Audio-only export done → \(outputURL.lastPathComponent)")
+    }
+
+    // MARK: - Session-based Export (audio-only + fallback for sources without video)
+
+    private static func exportViaSession(
+        asset: AVAsset,
+        videoComposition: AVVideoComposition?,
+        audioMix: AVAudioMix?,
         outputURL: URL,
+        fileType: AVFileType,
+        presetName: String,
         startTime: Date,
+        cancellation: ExportCancellationToken?,
         progress: @escaping (ExportProgress) -> Void
     ) async throws {
-        guard let session = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
+        guard let session = AVAssetExportSession(asset: asset, presetName: presetName) else {
             throw ExportError.exportFailed("Cannot create export session")
         }
         session.outputURL = outputURL
-        session.outputFileType = .mp4
+        session.outputFileType = fileType
         session.shouldOptimizeForNetworkUse = true
         if let vc = videoComposition { session.videoComposition = vc }
         if let am = audioMix { session.audioMix = am }
@@ -124,6 +165,10 @@ public enum ExportService {
         let exportTask = Task { await session.export() }
         let progressTask = Task {
             while !Task.isCancelled {
+                if cancellation?.isCancelled == true {
+                    session.cancelExport()
+                    break
+                }
                 let p = session.progress
                 let elapsed = Date().timeIntervalSince(startTime)
                 let remaining: TimeInterval? = p > 0.01 ? elapsed / Double(p) * (1.0 - Double(p)) : nil
@@ -135,44 +180,57 @@ public enum ExportService {
         await exportTask.value
         progressTask.cancel()
 
+        if cancellation?.isCancelled == true {
+            try? FileManager.default.removeItem(at: outputURL)
+            throw ExportError.cancelled
+        }
+
         guard session.status == .completed else {
             throw ExportError.exportFailed(session.error?.localizedDescription ?? "Status \(session.status.rawValue)")
         }
         let elapsed = Date().timeIntervalSince(startTime)
-        print("[Export] Fast completed in \(String(format: "%.1f", elapsed))s")
         await MainActor.run { progress(ExportProgress(fraction: 1.0, timeElapsed: elapsed, estimatedRemaining: 0)) }
     }
 
-    // MARK: - Two-pass Export with CG Subtitle Burn-in
-    // Pass 1: AVAssetExportSession → temp.mp4 (reliable, no auth issues)
-    // Pass 2: AVAssetReader(temp.mp4) → draw subtitles → AVAssetWriter → final.mp4
+    // MARK: - Single-pass Reader → Writer Export
 
-    private static func exportWithCGSubtitles(
+    private struct SubRange {
+        let text: String
+        let start: Double
+        let end: Double
+        let words: [(word: String, start: Double, end: Double)]
+    }
+
+    private static func exportSinglePass(
         composition: AVMutableComposition,
         videoComposition: AVMutableVideoComposition?,
         audioMix: AVMutableAudioMix?,
         subtitleEntries: [SubtitleEntry],
         subtitleStyle: SubtitleStyle,
-        timeline: EditTimeline,
         outputURL: URL,
         preset: ExportPreset,
         startTime: Date,
+        cancellation: ExportCancellationToken?,
         progress: @escaping (ExportProgress) -> Void
     ) async throws {
-        struct SubRange {
-            let text: String
-            let start: Double
-            let end: Double
-            let words: [(word: String, start: Double, end: Double)]
+        let videoTracks = try await composition.loadTracks(withMediaType: .video)
+
+        // No video track (audio-only source) — fall back to plain session export
+        guard let videoComposition, !videoTracks.isEmpty else {
+            try await exportViaSession(
+                asset: composition, videoComposition: nil, audioMix: audioMix,
+                outputURL: outputURL, fileType: .mp4,
+                presetName: AVAssetExportPresetHighestQuality,
+                startTime: startTime, cancellation: cancellation, progress: progress
+            )
+            return
         }
 
-        // Subtitle timings are ALREADY in timeline time (transcribed from exported temp video)
-        // No source→timeline mapping needed!
+        // Subtitle timings are ALREADY in timeline time (transcribed from exported timeline)
         let subtitleRanges: [SubRange] = subtitleEntries.compactMap { entry in
             let s = CMTimeGetSeconds(entry.startTime)
             let e = CMTimeGetSeconds(entry.endTime)
             guard e > s else { return nil }
-
             let text = subtitleStyle.isUppercase ? entry.text.uppercased() : entry.text
             let words: [(word: String, start: Double, end: Double)] = entry.words.map { w in
                 let word = subtitleStyle.isUppercase ? w.word.uppercased() : w.word
@@ -180,169 +238,193 @@ public enum ExportService {
             }
             return SubRange(text: text, start: s, end: e, words: words)
         }
-        print("[Export] \(subtitleRanges.count)/\(subtitleEntries.count) subtitle ranges (direct timeline time, no mapping)")
+        let burnSubtitles = !subtitleRanges.isEmpty
+        print("[Export] Single pass, \(subtitleRanges.count) subtitle ranges, preset \(preset.rawValue)")
 
-        // === PASS 1: Export composition to temp file ===
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("silencecut_\(UUID().uuidString).mp4")
-        print("[Export] Pass 1: composition → \(tempURL.lastPathComponent)")
+        let renderSize = videoComposition.renderSize
+        let totalDur = max(CMTimeGetSeconds(try await composition.load(.duration)), 0.001)
 
-        guard let session = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
-            throw ExportError.exportFailed("Cannot create export session")
-        }
-        session.outputURL = tempURL
-        session.outputFileType = .mp4
-        if let vc = videoComposition { session.videoComposition = vc }
-        if let am = audioMix { session.audioMix = am }
+        // Pre-create scaled subtitle font once (constant for the whole export)
+        let scaleX = renderSize.width / 1080
+        let scaleY = renderSize.height / 1920
+        let scaledFont = CTFontCreateWithName(
+            subtitleStyle.fontName as CFString,
+            subtitleStyle.fontSize * min(scaleX, scaleY),
+            nil
+        )
 
-        let pass1Task = Task { await session.export() }
-        let pass1Progress = Task {
-            while !Task.isCancelled {
-                let p = session.progress
-                await MainActor.run { progress(ExportProgress(fraction: Double(p) * 0.4, timeElapsed: Date().timeIntervalSince(startTime), estimatedRemaining: nil)) }
-                if p >= 1.0 { break }
-                try? await Task.sleep(for: .milliseconds(200))
-            }
-        }
-        await pass1Task.value
-        pass1Progress.cancel()
+        // === Reader: composition with videoComposition (orientation baked in) ===
+        let reader = try AVAssetReader(asset: composition)
 
-        guard session.status == .completed else {
-            try? FileManager.default.removeItem(at: tempURL)
-            throw ExportError.exportFailed("Pass 1: \(session.error?.localizedDescription ?? "failed")")
-        }
-        print("[Export] Pass 1 done ✓")
-
-        // === PASS 2: Read temp → burn subtitles → write final ===
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-        print("[Export] Pass 2: burn-in subtitles")
-
-        let tempAsset = AVURLAsset(url: tempURL)
-        let reader = try AVAssetReader(asset: tempAsset)
-
-        guard let vTrack = try await tempAsset.loadTracks(withMediaType: .video).first else {
-            throw ExportError.exportFailed("No video in temp")
-        }
-        let natSize = try await vTrack.load(.naturalSize)
-        let xform = try await vTrack.load(.preferredTransform)
-        let renderSize = videoComposition?.renderSize ?? CGSize(width: 1080, height: 1920)
-        print("[Export] Pass 2: natural=\(natSize), transform=\(xform), render=\(renderSize)")
-
-        let vOutput = AVAssetReaderTrackOutput(track: vTrack, outputSettings: [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
-        ])
+        // BGRA only when we draw on frames; otherwise let the compositor pick its native format
+        let videoSettings: [String: Any]? = burnSubtitles
+            ? [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+            : nil
+        let vOutput = AVAssetReaderVideoCompositionOutput(videoTracks: videoTracks, videoSettings: videoSettings)
+        vOutput.videoComposition = videoComposition
         reader.add(vOutput)
 
-        var aOutput: AVAssetReaderTrackOutput? = nil
-        if let aTrack = try await tempAsset.loadTracks(withMediaType: .audio).first {
-            let ao = AVAssetReaderTrackOutput(track: aTrack, outputSettings: nil)
+        let audioTracks = try await composition.loadTracks(withMediaType: .audio)
+        var aOutput: AVAssetReaderAudioMixOutput? = nil
+        if !audioTracks.isEmpty {
+            let ao = AVAssetReaderAudioMixOutput(audioTracks: audioTracks, audioSettings: nil)
+            ao.audioMix = audioMix
             reader.add(ao)
             aOutput = ao
         }
 
-        try? FileManager.default.removeItem(at: outputURL)
+        // === Writer: H.264 at preset bitrate, AAC audio ===
         let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
+        writer.shouldOptimizeForNetworkUse = true
 
         let vInput = AVAssetWriterInput(mediaType: .video, outputSettings: [
             AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: Int(natSize.width),
-            AVVideoHeightKey: Int(natSize.height),
+            AVVideoWidthKey: Int(renderSize.width),
+            AVVideoHeightKey: Int(renderSize.height),
             AVVideoCompressionPropertiesKey: [
                 AVVideoAverageBitRateKey: preset.videoBitRate,
-                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
+                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
+                AVVideoMaxKeyFrameIntervalKey: 30  // 1s GOP — precise passthrough splits
             ]
         ])
-        vInput.transform = xform
         vInput.expectsMediaDataInRealTime = false
         writer.add(vInput)
 
         var aInput: AVAssetWriterInput? = nil
-        if let aTrack2 = try await tempAsset.loadTracks(withMediaType: .audio).first {
-            let fmtDescs = try await aTrack2.load(.formatDescriptions)
-            let hint = fmtDescs.first
-            let ai = AVAssetWriterInput(mediaType: .audio, outputSettings: nil, sourceFormatHint: hint)
+        if aOutput != nil {
+            // AAC settings derived from the source track format
+            var sampleRate: Double = 44100
+            var channels = 2
+            if let fmt = try await audioTracks.first?.load(.formatDescriptions).first,
+               let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(fmt)?.pointee {
+                if asbd.mSampleRate > 0 { sampleRate = asbd.mSampleRate }
+                channels = max(1, min(Int(asbd.mChannelsPerFrame), 2))
+            }
+            let ai = AVAssetWriterInput(mediaType: .audio, outputSettings: [
+                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVSampleRateKey: sampleRate,
+                AVNumberOfChannelsKey: channels,
+                AVEncoderBitRateKey: preset.audioBitRate
+            ])
             ai.expectsMediaDataInRealTime = false
             writer.add(ai)
             aInput = ai
         }
 
         guard reader.startReading() else {
-            throw ExportError.exportFailed("Pass 2 reader: \(reader.error?.localizedDescription ?? "?")")
+            throw ExportError.exportFailed("Reader: \(reader.error?.localizedDescription ?? "?")")
         }
         guard writer.startWriting() else {
-            throw ExportError.exportFailed("Pass 2 writer: \(writer.error?.localizedDescription ?? "?")")
+            throw ExportError.exportFailed("Writer: \(writer.error?.localizedDescription ?? "?")")
         }
         writer.startSession(atSourceTime: .zero)
 
-        let totalDur = CMTimeGetSeconds(try await tempAsset.load(.duration))
-        let ctFont = CTFontCreateWithName((subtitleStyle.fontName as CFString), subtitleStyle.fontSize, nil)
+        // === Pump both tracks via requestMediaDataWhenReady (no busy-wait) ===
+        let videoQueue = DispatchQueue(label: "silencecut.export.video")
+        let audioQueue = DispatchQueue(label: "silencecut.export.audio")
 
-        print("[Export] Pass 2: processing \(String(format: "%.1f", totalDur))s")
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            let group = DispatchGroup()
 
-        try await Task.detached {
-            var fc = 0
+            group.enter()
             var videoDone = false
-            var audioDone = (aInput == nil)
-
-            while reader.status == .reading && !(videoDone && audioDone) {
-                var didWork = false
-
-                // Video
-                if !videoDone && vInput.isReadyForMoreMediaData {
-                    if let buf = vOutput.copyNextSampleBuffer() {
-                        let pts = CMSampleBufferGetPresentationTimeStamp(buf)
-                        let t = CMTimeGetSeconds(pts)
-
-                        if let sub = subtitleRanges.first(where: { t >= $0.start && t < $0.end }),
-                           let pb = CMSampleBufferGetImageBuffer(buf) {
-                            drawSubtitle(text: sub.text, words: sub.words, frameTime: t,
-                                         on: pb, renderSize: renderSize,
-                                         sourceTransform: xform, style: subtitleStyle, font: ctFont)
-                        }
-                        vInput.append(buf)
-                        fc += 1
-                        didWork = true
-
-                        if fc % 60 == 0 {
-                            let frac = 0.4 + min(t / totalDur, 1.0) * 0.6
-                            Task { @MainActor in
-                                progress(ExportProgress(fraction: frac, timeElapsed: Date().timeIntervalSince(startTime), estimatedRemaining: nil))
-                            }
-                        }
-                    } else {
-                        vInput.markAsFinished()
+            var frameCount = 0
+            vInput.requestMediaDataWhenReady(on: videoQueue) {
+                guard !videoDone else { return }
+                while vInput.isReadyForMoreMediaData {
+                    if cancellation?.isCancelled == true {
                         videoDone = true
-                        print("[Export] Pass 2 video: \(fc) frames")
+                        vInput.markAsFinished()
+                        group.leave()
+                        return
                     }
-                }
-
-                // Audio (interleaved)
-                if !audioDone, let aIn = aInput, let aOut = aOutput, aIn.isReadyForMoreMediaData {
-                    if let b = aOut.copyNextSampleBuffer() {
-                        aIn.append(b)
-                        didWork = true
-                    } else {
-                        aIn.markAsFinished()
-                        audioDone = true
-                        print("[Export] Pass 2 audio done")
+                    guard let buf = vOutput.copyNextSampleBuffer() else {
+                        videoDone = true
+                        vInput.markAsFinished()
+                        print("[Export] Video done: \(frameCount) frames")
+                        group.leave()
+                        return
                     }
-                }
-
-                if !didWork {
-                    Thread.sleep(forTimeInterval: 0.005)
+                    let t = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(buf))
+                    if burnSubtitles,
+                       let sub = subtitleRanges.first(where: { t >= $0.start && t < $0.end }),
+                       let pb = CMSampleBufferGetImageBuffer(buf) {
+                        drawSubtitle(text: sub.text, words: sub.words, frameTime: t,
+                                     on: pb, renderSize: renderSize,
+                                     style: subtitleStyle, font: scaledFont)
+                    }
+                    if !vInput.append(buf) {
+                        videoDone = true
+                        vInput.markAsFinished()
+                        group.leave()
+                        return
+                    }
+                    frameCount += 1
+                    if frameCount % 30 == 0 {
+                        let frac = min(t / totalDur, 1.0)
+                        let elapsed = Date().timeIntervalSince(startTime)
+                        let remaining: TimeInterval? = frac > 0.01 ? elapsed / frac * (1.0 - frac) : nil
+                        Task { @MainActor in
+                            progress(ExportProgress(fraction: frac, timeElapsed: elapsed, estimatedRemaining: remaining))
+                        }
+                    }
                 }
             }
 
-            // Finish any remaining
-            if !videoDone { vInput.markAsFinished() }
-            if !audioDone, let aIn = aInput { aIn.markAsFinished() }
-        }.value
+            if let aInput, let aOutput {
+                group.enter()
+                var audioDone = false
+                aInput.requestMediaDataWhenReady(on: audioQueue) {
+                    guard !audioDone else { return }
+                    while aInput.isReadyForMoreMediaData {
+                        if cancellation?.isCancelled == true {
+                            audioDone = true
+                            aInput.markAsFinished()
+                            group.leave()
+                            return
+                        }
+                        guard let buf = aOutput.copyNextSampleBuffer() else {
+                            audioDone = true
+                            aInput.markAsFinished()
+                            group.leave()
+                            return
+                        }
+                        if !aInput.append(buf) {
+                            audioDone = true
+                            aInput.markAsFinished()
+                            group.leave()
+                            return
+                        }
+                    }
+                }
+            }
+
+            group.notify(queue: .global()) { cont.resume() }
+        }
+
+        // === Finalize ===
+        if cancellation?.isCancelled == true {
+            if reader.status == .reading { reader.cancelReading() }
+            writer.cancelWriting()
+            try? FileManager.default.removeItem(at: outputURL)
+            throw ExportError.cancelled
+        }
+        if reader.status == .failed || writer.status == .failed || writer.error != nil {
+            if reader.status == .reading { reader.cancelReading() }
+            writer.cancelWriting()
+            throw ExportError.exportFailed(
+                writer.error?.localizedDescription
+                ?? reader.error?.localizedDescription
+                ?? "неизвестная ошибка"
+            )
+        }
+        if reader.status == .reading { reader.cancelReading() }
 
         await writer.finishWriting()
-        reader.cancelReading()
-
         guard writer.status == .completed else {
-            throw ExportError.exportFailed(writer.error?.localizedDescription ?? "Writer: \(writer.status.rawValue)")
+            throw ExportError.exportFailed(writer.error?.localizedDescription ?? "Writer status \(writer.status.rawValue)")
         }
+
         let elapsed = Date().timeIntervalSince(startTime)
         print("[Export] Done in \(String(format: "%.1f", elapsed))s → \(outputURL.lastPathComponent)")
         await MainActor.run { progress(ExportProgress(fraction: 1.0, timeElapsed: elapsed, estimatedRemaining: 0)) }
@@ -350,14 +432,14 @@ public enum ExportService {
 
     // MARK: - Core Graphics Subtitle Rendering
 
-    /// Draw subtitle with karaoke word highlighting via Core Graphics
+    /// Draw subtitle with karaoke word highlighting via Core Graphics.
+    /// Frames come from the video composition, so orientation is already baked in.
     private static func drawSubtitle(
         text: String,
         words: [(word: String, start: Double, end: Double)],
         frameTime: Double,
         on pixelBuffer: CVPixelBuffer,
         renderSize: CGSize,
-        sourceTransform: CGAffineTransform,
         style: SubtitleStyle,
         font: CTFont
     ) {
@@ -381,7 +463,6 @@ public enum ExportService {
         ) else { return }
 
         context.saveGState()
-        context.concatenate(sourceTransform)
 
         let drawW = renderSize.width
         let drawH = renderSize.height
@@ -391,9 +472,6 @@ public enum ExportService {
         let padding = max(SafeZone.left, SafeZone.right) * scaleX
         let textWidth = drawW - padding * 2
         let maxBoxHeight: CGFloat = 400 * scaleY // enough for 6+ lines
-        let fontSize = style.fontSize * min(scaleX, scaleY)
-
-        let ctFont = CTFontCreateWithName(style.fontName as CFString, fontSize, nil)
 
         // Build attributed string with karaoke highlighting
         let normalColor = CGColor(
@@ -433,7 +511,7 @@ public enum ExportService {
                     color = isActive ? highlightColor : normalColor
                 }
                 let wordStr = NSAttributedString(string: (i > 0 ? " " : "") + w.word, attributes: [
-                    .font: ctFont,
+                    .font: font,
                     .foregroundColor: color
                 ] as [NSAttributedString.Key: Any])
                 mutable.append(wordStr)
@@ -441,7 +519,7 @@ public enum ExportService {
             attrStr = mutable
         } else {
             attrStr = NSAttributedString(string: text, attributes: [
-                .font: ctFont,
+                .font: font,
                 .foregroundColor: normalColor
             ] as [NSAttributedString.Key: Any])
         }
@@ -522,7 +600,7 @@ public enum ExportService {
                     let isActive = i == activeWordIdx
                     let color = isActive ? CGColor(red: 1, green: 1, blue: 1, alpha: 1) : CGColor(red: 0, green: 0, blue: 0, alpha: 0)
                     let wordStr = NSAttributedString(string: (i > 0 ? " " : "") + w.word, attributes: [
-                        .font: ctFont,
+                        .font: font,
                         .foregroundColor: color
                     ] as [NSAttributedString.Key: Any])
                     mutable.append(wordStr)

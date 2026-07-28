@@ -75,108 +75,153 @@ public enum SilenceDetector {
         progress: ((Double) -> Void)? = nil
     ) async throws -> SilenceDetectionResult {
         let sampleRate: Int = 44100
-
-        // 1. Read audio samples via AVAssetReader
-        let samples = try await readAudioSamples(from: url, sampleRate: sampleRate)
-        progress?(0.3)
-
-        // 2. RMS analysis with vDSP
         let windowSize = settings.windowSize
         let windowDuration = Double(windowSize) / Double(sampleRate)
-        let totalWindows = (samples.count - windowSize) / windowSize + 1
-        guard totalWindows > 0 else {
-            throw DetectionError.cannotRead
-        }
 
-        // Compute RMS for each window
-        var rmsValues = [Float](repeating: 0, count: totalWindows)
-        for i in 0..<totalWindows {
-            let start = i * windowSize
-            let end = min(start + windowSize, samples.count)
-            let count = end - start
-            guard count > 0 else { break }
-
-            samples.withUnsafeBufferPointer { buf in
-                guard let base = buf.baseAddress else { return }
-                var rms: Float = 0
-                vDSP_rmsqv(base.advanced(by: start), 1, &rms, vDSP_Length(count))
-                rmsValues[i] = rms
+        // 1-2. Stream audio and compute per-window RMS on the fly (constant memory)
+        var carry: [Float] = []
+        var rmsValues: [Float] = []
+        let sampleCount: Int
+        do {
+            let result = try await AudioSampleStream.read(from: url, sampleRate: sampleRate) { chunk, fraction in
+                carry.append(contentsOf: chunk)
+                var start = 0
+                while carry.count - start >= windowSize {
+                    let rms = carry.withUnsafeBufferPointer { buf -> Float in
+                        var value: Float = 0
+                        if let base = buf.baseAddress {
+                            vDSP_rmsqv(base + start, 1, &value, vDSP_Length(windowSize))
+                        }
+                        return value
+                    }
+                    rmsValues.append(rms)
+                    start += windowSize
+                }
+                if start > 0 { carry.removeFirst(start) }
+                progress?(fraction * 0.6)
+            }
+            sampleCount = result.sampleCount
+        } catch let error as AudioSampleStream.StreamError {
+            switch error {
+            case .noAudioTrack: throw DetectionError.noAudioTrack
+            case .cannotRead: throw DetectionError.cannotRead
             }
         }
-        progress?(0.6)
+        guard !rmsValues.isEmpty else {
+            throw DetectionError.cannotRead
+        }
+        let totalDuration = Double(sampleCount) / Double(sampleRate)
+        progress?(0.7)
 
         // 3. Classify each window as speech or silence
         let thresholdLinear = powf(10.0, settings.thresholdDB / 20.0)
-        var isSpeech = [Bool](repeating: false, count: totalWindows)
-        for i in 0..<totalWindows {
-            isSpeech[i] = rmsValues[i] >= thresholdLinear
-        }
+        let isSpeech = rmsValues.map { $0 >= thresholdLinear }
 
-        // 4. Find speech regions with hysteresis
+        // 4-6. Build speech regions (pure logic, unit-tested)
+        let finalSpeech = speechRegions(
+            isSpeech: isSpeech,
+            windowDuration: windowDuration,
+            totalDuration: totalDuration,
+            settings: settings
+        )
+        progress?(0.9)
+
+        // 7. Convert to CMTimeRange + silence gaps + totals (shared with detect(cache:))
+        let result = buildResult(finalSpeech: finalSpeech, totalDuration: totalDuration)
+        progress?(1.0)
+        return result
+    }
+
+    /// Мгновенный пересчёт тишины по уже готовому `RMSCache` — без повторного чтения файла.
+    /// Использует ту же классификацию окон и построение регионов/результата, что и
+    /// `detect(in:settings:progress:)` (через общий `buildResult`), поэтому оба пути при
+    /// одинаковых данных (RMS-окна/windowDuration/totalDuration) и настройках дают идентичный результат.
+    public static func detect(cache: RMSCache, settings: SilenceSettings) -> SilenceDetectionResult {
+        // 3. Classify each window as speech or silence
+        let thresholdLinear = powf(10.0, settings.thresholdDB / 20.0)
+        let isSpeech = cache.rmsValues.map { $0 >= thresholdLinear }
+
+        // 4-6. Build speech regions (pure logic, unit-tested)
+        let finalSpeech = speechRegions(
+            isSpeech: isSpeech,
+            windowDuration: cache.windowDuration,
+            totalDuration: cache.totalDuration,
+            settings: settings
+        )
+
+        // 7. Convert to CMTimeRange + silence gaps + totals (shared with detect(in:))
+        return buildResult(finalSpeech: finalSpeech, totalDuration: cache.totalDuration)
+    }
+
+    // MARK: - Region Building (pure, testable)
+
+    /// Строит речевые регионы из классифицированных окон:
+    /// окна → сырые регионы (мин. 100 мс) → padding → слияние пересечений →
+    /// склейка регионов, разделённых паузами короче minSilenceDuration.
+    static func speechRegions(
+        isSpeech: [Bool],
+        windowDuration: Double,
+        totalDuration: Double,
+        settings: SilenceSettings
+    ) -> [(startSec: Double, endSec: Double)] {
+        // Raw regions with minimum speech duration filter (100ms)
         var rawSpeechRegions: [(startSec: Double, endSec: Double)] = []
         var regionStart: Int? = nil
 
-        for i in 0..<totalWindows {
+        for i in 0..<isSpeech.count {
             if isSpeech[i] {
                 if regionStart == nil { regionStart = i }
             } else if let start = regionStart {
                 let startSec = Double(start) * windowDuration
                 let endSec = Double(i) * windowDuration
-                let duration = endSec - startSec
-                // Minimum speech duration filter (100ms)
-                if duration >= 0.1 {
+                if endSec - startSec >= 0.1 {
                     rawSpeechRegions.append((startSec, endSec))
                 }
                 regionStart = nil
             }
         }
-        // Handle speech at end of file
+        // Speech at end of file
         if let start = regionStart {
             let startSec = Double(start) * windowDuration
-            let endSec = Double(samples.count) / Double(sampleRate)
-            if endSec - startSec >= 0.1 {
-                rawSpeechRegions.append((startSec, endSec))
+            if totalDuration - startSec >= 0.1 {
+                rawSpeechRegions.append((startSec, totalDuration))
             }
         }
-        progress?(0.8)
 
-        // 5. Apply padding and merge overlapping regions
-        let totalDuration = Double(samples.count) / Double(sampleRate)
-        var paddedRegions: [(startSec: Double, endSec: Double)] = []
+        // Apply padding and merge overlapping regions
+        var merged: [(startSec: Double, endSec: Double)] = []
         for region in rawSpeechRegions {
             let paddedStart = max(0, region.startSec - settings.padding)
             let paddedEnd = min(totalDuration, region.endSec + settings.padding)
-            paddedRegions.append((paddedStart, paddedEnd))
-        }
-
-        // Merge overlapping
-        var merged: [(startSec: Double, endSec: Double)] = []
-        for region in paddedRegions {
-            if let last = merged.last, region.startSec <= last.endSec {
-                merged[merged.count - 1].endSec = max(last.endSec, region.endSec)
+            if let last = merged.last, paddedStart <= last.endSec {
+                merged[merged.count - 1].endSec = max(last.endSec, paddedEnd)
             } else {
-                merged.append(region)
+                merged.append((paddedStart, paddedEnd))
             }
         }
 
-        // 6. Filter: only keep silences >= minSilenceDuration
-        // Re-merge speech regions that were separated by short silences
+        // Re-merge speech regions separated by silences shorter than minSilenceDuration
         var finalSpeech: [(startSec: Double, endSec: Double)] = []
         for region in merged {
-            if let last = finalSpeech.last {
-                let gap = region.startSec - last.endSec
-                if gap < settings.minSilenceDuration {
-                    // Gap too short — merge with previous speech
-                    finalSpeech[finalSpeech.count - 1].endSec = region.endSec
-                } else {
-                    finalSpeech.append(region)
-                }
+            if let last = finalSpeech.last, region.startSec - last.endSec < settings.minSilenceDuration {
+                finalSpeech[finalSpeech.count - 1].endSec = region.endSec
             } else {
                 finalSpeech.append(region)
             }
         }
+        return finalSpeech
+    }
 
-        // 7. Convert to CMTimeRange
+    // MARK: - Result Building (pure, testable)
+
+    /// Конвертирует речевые регионы (в секундах) в `SilenceDetectionResult`: CMTimeRange для речи,
+    /// паузы-тишина между регионами (и в начале/конце файла), суммарные длительности.
+    /// Общий helper для `detect(in:settings:progress:)` и `detect(cache:settings:)` — гарантирует,
+    /// что оба пути строят результат идентично.
+    private static func buildResult(
+        finalSpeech: [(startSec: Double, endSec: Double)],
+        totalDuration: Double
+    ) -> SilenceDetectionResult {
         let timescale: CMTimeScale = 600
         let speechRanges: [CMTimeRange] = finalSpeech.map { region in
             CMTimeRange(
@@ -208,8 +253,6 @@ public enum SilenceDetector {
         let totalSilence = silenceRanges.reduce(0.0) { $0 + CMTimeGetSeconds($1.duration) }
         let totalSpeech = speechRanges.reduce(0.0) { $0 + CMTimeGetSeconds($1.duration) }
 
-        progress?(1.0)
-
         return SilenceDetectionResult(
             speechRanges: speechRanges,
             silenceRanges: silenceRanges,
@@ -217,55 +260,5 @@ public enum SilenceDetector {
             totalSpeechDuration: totalSpeech,
             pauseCount: silenceRanges.count
         )
-    }
-
-    // MARK: - Audio Reading
-
-    private static func readAudioSamples(from url: URL, sampleRate: Int) async throws -> [Float] {
-        let asset = AVURLAsset(url: url)
-        guard let audioTrack = try await asset.loadTracks(withMediaType: .audio).first else {
-            throw DetectionError.noAudioTrack
-        }
-
-        let duration = try await asset.load(.duration)
-        let audioDuration = CMTimeGetSeconds(duration)
-
-        let reader = try AVAssetReader(asset: asset)
-        let outputSettings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVLinearPCMBitDepthKey: 32,
-            AVLinearPCMIsFloatKey: true,
-            AVLinearPCMIsNonInterleaved: false,
-            AVSampleRateKey: sampleRate,
-            AVNumberOfChannelsKey: 1,
-        ]
-        let trackOutput = AVAssetReaderTrackOutput(track: audioTrack, outputSettings: outputSettings)
-        trackOutput.alwaysCopiesSampleData = false
-        reader.add(trackOutput)
-
-        guard reader.startReading() else {
-            throw DetectionError.cannotRead
-        }
-
-        var allSamples: [Float] = []
-        allSamples.reserveCapacity(Int(audioDuration * Double(sampleRate)))
-
-        while let buffer = trackOutput.copyNextSampleBuffer() {
-            guard let blockBuffer = CMSampleBufferGetDataBuffer(buffer) else { continue }
-            let length = CMBlockBufferGetDataLength(blockBuffer)
-            var data = Data(count: length)
-            data.withUnsafeMutableBytes { rawBuffer in
-                guard let base = rawBuffer.baseAddress else { return }
-                CMBlockBufferCopyDataBytes(blockBuffer, atOffset: 0, dataLength: length, destination: base)
-            }
-            let floatCount = length / MemoryLayout<Float>.size
-            data.withUnsafeBytes { rawBuffer in
-                guard let floats = rawBuffer.baseAddress?.assumingMemoryBound(to: Float.self) else { return }
-                let buf = UnsafeBufferPointer(start: floats, count: floatCount)
-                allSamples.append(contentsOf: buf)
-            }
-        }
-
-        return allSamples
     }
 }

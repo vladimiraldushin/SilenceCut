@@ -6,6 +6,10 @@ import REAudioAnalysis
 /// Панель управления субтитрами и стилями
 struct SubtitlePanel: View {
     @Bindable var viewModel: EditorViewModel
+    @FocusState private var focusedEntryId: UUID?
+    @State private var customPresetNames: [String] = SubtitleStylePresetStore.names()
+    @State private var showSavePresetAlert = false
+    @State private var newPresetName = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -65,6 +69,50 @@ struct SubtitlePanel: View {
                         }
                     }
                     .pickerStyle(.segmented)
+
+                    // Свои пресеты (сохранение текущего набора настроек под именем)
+                    Menu {
+                        ForEach(customPresetNames, id: \.self) { name in
+                            Button(name) {
+                                if let style = SubtitleStylePresetStore.load(named: name) {
+                                    viewModel.subtitleStyle = style
+                                }
+                            }
+                        }
+                        if !customPresetNames.isEmpty {
+                            Divider()
+                            Menu("Удалить пресет") {
+                                ForEach(customPresetNames, id: \.self) { name in
+                                    Button(name, role: .destructive) {
+                                        SubtitleStylePresetStore.delete(named: name)
+                                        customPresetNames = SubtitleStylePresetStore.names()
+                                    }
+                                }
+                            }
+                            Divider()
+                        }
+                        Button("Сохранить текущий как...") {
+                            showSavePresetAlert = true
+                        }
+                    } label: {
+                        Image(systemName: "star")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .frame(width: 24)
+                    .help("Свои пресеты стиля")
+                }
+                .alert("Сохранить пресет стиля", isPresented: $showSavePresetAlert) {
+                    TextField("Название", text: $newPresetName)
+                    Button("Сохранить") {
+                        let name = newPresetName.trimmingCharacters(in: .whitespaces)
+                        if !name.isEmpty {
+                            SubtitleStylePresetStore.save(viewModel.subtitleStyle, named: name)
+                            customPresetNames = SubtitleStylePresetStore.names()
+                        }
+                        newPresetName = ""
+                    }
+                    Button("Отмена", role: .cancel) { newPresetName = "" }
                 }
 
                 // Показать/скрыть
@@ -226,22 +274,53 @@ struct SubtitlePanel: View {
 
                 Divider()
 
-                // Список субтитров
-                Text("\(viewModel.subtitleEntries.count) сегментов")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                // Список субтитров (follow-режим: активный сегмент подсвечен и в фокусе)
+                HStack {
+                    Text("\(viewModel.subtitleEntries.count) сегментов")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    if viewModel.isPreviewExporting {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Button {
+                            viewModel.exportStylePreview()
+                        } label: {
+                            Label("Тест стиля (5 с)", systemImage: "film")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .help("Экспортирует 5 секунд вокруг плейхеда с вжитыми субтитрами")
+                    }
+                }
 
-                ScrollView {
-                    LazyVStack(spacing: 4) {
-                        ForEach(Array(viewModel.subtitleEntries.enumerated()), id: \.element.id) { index, entry in
-                            subtitleRow(entry, index: index)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 4) {
+                            ForEach(Array(viewModel.subtitleEntries.enumerated()), id: \.element.id) { index, entry in
+                                subtitleRow(entry, index: index)
+                                    .id(entry.id)
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 200)
+                    .onChange(of: activeEntryId) { _, newValue in
+                        guard let newValue, viewModel.isPlaying else { return }
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            proxy.scrollTo(newValue, anchor: .center)
                         }
                     }
                 }
-                .frame(maxHeight: 200)
             }
         }
         .padding()
+        .onChange(of: focusedEntryId) { _, newValue in
+            viewModel.isTextEditingActive = newValue != nil
+        }
+        .onDisappear {
+            viewModel.isTextEditingActive = false
+        }
     }
 
     // MARK: - Live Preview
@@ -337,12 +416,23 @@ struct SubtitlePanel: View {
                abs(c.blue - color.blue) < 0.05
     }
 
+    /// Активный сегмент под плейхедом (для подсветки и автоскролла)
+    private var activeEntryId: UUID? {
+        viewModel.activeSubtitle(at: viewModel.playheadPosition)?.id
+    }
+
     private func subtitleRow(_ entry: SubtitleEntry, index: Int) -> some View {
-        HStack(spacing: 6) {
+        let isActive = entry.id == activeEntryId
+        return HStack(spacing: 6) {
             Text(formatTime(entry.startTime))
                 .font(.system(.caption2, design: .monospaced))
-                .foregroundColor(.secondary)
+                .foregroundColor(isActive ? .accentColor : .secondary)
                 .frame(width: 55, alignment: .trailing)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // Субтитры уже в timeline-времени
+                    viewModel.seekSmoothly(to: entry.startTime)
+                }
 
             TextField("", text: Binding(
                 get: { viewModel.subtitleEntries[safe: index]?.text ?? "" },
@@ -355,32 +445,49 @@ struct SubtitlePanel: View {
             ))
             .font(.caption)
             .textFieldStyle(.plain)
+            .focused($focusedEntryId, equals: entry.id)
             .frame(maxWidth: .infinity)
 
-            Button {
-                if let tlTime = viewModel.timeline.timelineTime(forSourceTime: entry.startTime) {
-                    viewModel.seekSmoothly(to: tlTime)
+            Menu {
+                Button {
+                    viewModel.seekSmoothly(to: entry.startTime)
+                } label: {
+                    Label("Перейти к сегменту", systemImage: "play.circle")
+                }
+                Button {
+                    viewModel.mergeSubtitleWithNext(at: index)
+                } label: {
+                    Label("Объединить со следующим", systemImage: "arrow.triangle.merge")
+                }
+                .disabled(index + 1 >= viewModel.subtitleEntries.count)
+                Button {
+                    viewModel.splitSubtitleAtPlayhead(index: index)
+                } label: {
+                    Label("Разрезать по плейхеду", systemImage: "scissors")
+                }
+                Divider()
+                Button(role: .destructive) {
+                    if index < viewModel.subtitleEntries.count {
+                        viewModel.subtitleEntries.remove(at: index)
+                        viewModel.scheduleAutosave()
+                    }
+                } label: {
+                    Label("Удалить", systemImage: "trash")
                 }
             } label: {
-                Image(systemName: "play.circle")
+                Image(systemName: "ellipsis.circle")
             }
-            .buttonStyle(.plain)
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .frame(width: 22)
             .font(.caption)
-
-            Button {
-                if index < viewModel.subtitleEntries.count {
-                    viewModel.subtitleEntries.remove(at: index)
-                }
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundColor(.red.opacity(0.6))
-            }
-            .buttonStyle(.plain)
-            .font(.caption2)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
-        .background(RoundedRectangle(cornerRadius: 4).fill(Color.primary.opacity(0.05)))
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(isActive ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.05))
+        )
     }
 
     private func formatTime(_ time: CMTime) -> String {
