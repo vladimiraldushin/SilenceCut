@@ -1,4 +1,5 @@
 import Testing
+import Foundation
 import CoreGraphics
 @testable import RETimeline
 import RECore
@@ -72,19 +73,76 @@ private let horizontal = CGSize(width: 1920, height: 1080)
     #expect(abs(ys.max()! - 1920) < 0.01)
 }
 
-@Test func jumpCutZoomAlternatesBetweenClips() {
-    var options = RenderOptions()
-    options.jumpCutZoomEnabled = true
-    options.jumpCutZoomAmount = 1.08
+// Джамп-кат зум: чередование с минимальным временем удержания 1.5 с
+private var zoomOptions: RenderOptions {
+    RenderOptions(jumpCutZoomEnabled: true, jumpCutZoomAmount: 1.08, jumpCutZoomMinHold: 1.5)
+}
 
-    #expect(options.zoomScale(forClipIndex: 0) == 1.0)
-    #expect(options.zoomScale(forClipIndex: 1) == 1.08)
-    #expect(options.zoomScale(forClipIndex: 2) == 1.0)
-    #expect(options.zoomScale(forClipIndex: 3) == 1.08)
+@Test func jumpCutZoomAlternatesOnLongClips() {
+    // Каждый кусок длиннее порога — масштаб меняется на каждой склейке, как и задумано
+    let scales = zoomOptions.zoomScales(forClipDurations: [5, 5, 5, 5])
+    #expect(scales == [1.0, 1.08, 1.0, 1.08])
+}
+
+@Test func jumpCutZoomHoldsThroughShortClips() {
+    // Серия коротких кусков (вырезанные паузы в речи) — масштаб держится, кадр не дёргается
+    let scales = zoomOptions.zoomScales(forClipDurations: [5, 0.3, 0.4, 0.3, 5])
+    #expect(scales == [1.0, 1.08, 1.08, 1.08, 1.08])
+
+    let changes = zip(scales, scales.dropFirst()).filter { $0 != $1 }.count
+    #expect(changes == 1)
+}
+
+@Test func jumpCutZoomRareOnAllShortClips() {
+    // Весь ролик из коротких кусков: зум остаётся, но переключается редко
+    let durations = [Double](repeating: 0.4, count: 20)
+    let scales = zoomOptions.zoomScales(forClipDurations: durations)
+    let changes = zip(scales, scales.dropFirst()).filter { $0 != $1 }.count
+
+    // 20 × 0.4 с = 8 с; при удержании 1.5 с это не больше 5 смен вместо 19
+    #expect(changes <= 5)
+    #expect(changes >= 1)
+}
+
+@Test func jumpCutZoomKeepsMinimumHoldBetweenChanges() {
+    // Ключевое свойство: между сменами масштаба всегда проходит не меньше заданного времени
+    let durations: [Double] = [3.0, 0.2, 0.9, 0.4, 2.5, 0.3, 0.3, 4.0, 0.6]
+    let options = zoomOptions
+    let scales = options.zoomScales(forClipDurations: durations)
+
+    var secondsSinceChange = durations[0]
+    for i in 1..<scales.count {
+        if scales[i] != scales[i - 1] {
+            #expect(secondsSinceChange >= options.jumpCutZoomMinHold - 0.001)
+            secondsSinceChange = durations[i]
+        } else {
+            secondsSinceChange += durations[i]
+        }
+    }
+}
+
+@Test func jumpCutZoomStartsWithoutZoom() {
+    // Первый кусок всегда в исходном масштабе — иначе ролик начинался бы с наезда
+    let scales = zoomOptions.zoomScales(forClipDurations: [5, 5])
+    #expect(scales.first == 1.0)
 }
 
 @Test func jumpCutZoomDisabledKeepsScaleOne() {
     let options = RenderOptions()
     #expect(options.jumpCutZoomEnabled == false)
-    #expect(options.zoomScale(forClipIndex: 1) == 1.0)
+    #expect(options.zoomScales(forClipDurations: [5, 5, 5]) == [1.0, 1.0, 1.0])
+}
+
+@Test func renderOptionsDecodeWithoutNewFields() throws {
+    // Проекты, сохранённые до появления удержания масштаба, должны читаться
+    let legacy = """
+    {"outputAspect":"vertical","jumpCutZoomEnabled":true,"jumpCutZoomAmount":1.1,"audioGain":1.4}
+    """
+    let options = try JSONDecoder().decode(RenderOptions.self, from: Data(legacy.utf8))
+
+    #expect(options.outputAspect == .vertical)
+    #expect(options.jumpCutZoomEnabled)
+    #expect(options.jumpCutZoomAmount == 1.1)
+    #expect(options.jumpCutZoomMinHold == 1.5)   // значение по умолчанию
+    #expect(options.audioGain == 1.4)
 }

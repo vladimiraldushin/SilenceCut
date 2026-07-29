@@ -36,8 +36,10 @@ public enum CompositionBuilder {
         var sourceNaturalSize: CGSize = .zero
         var nominalFrameRate: Float = 30
 
-        // Timeline offsets of every enabled clip — jump-cut zoom switches at these points
+        // Timeline offsets and lengths of every enabled clip — jump-cut zoom needs both:
+        // where the cuts are and how long each piece stays on screen
         var clipStarts: [CMTime] = []
+        var clipDurations: [Double] = []
 
         for clip in timeline.clips where clip.isEnabled {
             let asset = AVURLAsset(url: clip.sourceURL)
@@ -64,6 +66,7 @@ public enum CompositionBuilder {
             }
 
             clipStarts.append(insertionTime)
+            clipDurations.append(CMTimeGetSeconds(clip.effectiveDuration))
             insertionTime = CMTimeAdd(insertionTime, clip.effectiveDuration)
         }
 
@@ -88,15 +91,21 @@ public enum CompositionBuilder {
             instruction.timeRange = CMTimeRange(start: .zero, duration: insertionTime)
 
             let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
-            // One transform per clip — a step change at each cut, no interpolation
+            // Step change at cuts where the zoom actually differs — no interpolation,
+            // and no redundant transforms while the scale is being held
+            let scales = options.zoomScales(forClipDurations: clipDurations)
+            var appliedZoom: Double? = nil
             for (index, start) in clipStarts.enumerated() {
+                let zoom = scales[index]
+                guard appliedZoom != zoom else { continue }
                 let transform = renderTransform(
                     sourceTransform: sourceTransform,
                     orientedSize: orientedSize,
                     targetSize: renderSize,
-                    zoom: options.zoomScale(forClipIndex: index)
+                    zoom: zoom
                 )
                 layerInstruction.setTransform(transform, at: start)
+                appliedZoom = zoom
             }
             instruction.layerInstructions = [layerInstruction]
 

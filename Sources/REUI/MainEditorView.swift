@@ -891,7 +891,7 @@ struct RenderOptionsPanel: View {
                 Toggle(isOn: $viewModel.renderOptions.jumpCutZoomEnabled) {
                     Text("Джамп-кат зум")
                 }
-                Text("Чередует масштаб на соседних клипах — маскирует склейки после вырезания пауз")
+                Text("Чередует масштаб на склейках — маскирует стыки после вырезания пауз")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 
@@ -906,6 +906,20 @@ struct RenderOptionsPanel: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 34, alignment: .trailing)
                     }
+
+                    HStack {
+                        Text("Не чаще чем")
+                            .font(.caption)
+                        Slider(value: $viewModel.renderOptions.jumpCutZoomMinHold, in: 0.5...5.0, step: 0.5)
+                        Text(String(format: "%.1f с", viewModel.renderOptions.jumpCutZoomMinHold))
+                            .font(.caption)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 40, alignment: .trailing)
+                    }
+                    Text("Короткие куски подряд проходят на одном масштабе — на частых склейках кадр не дёргается")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
             }
 

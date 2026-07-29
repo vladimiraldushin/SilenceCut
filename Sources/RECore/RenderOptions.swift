@@ -42,10 +42,14 @@ public struct RenderOptions: Codable, Equatable, Sendable {
     /// Формат кадра с центральным кропом
     public var outputAspect: OutputAspect
 
-    /// Джамп-кат зум: чередование масштаба на соседних клипах — приём talking-head роликов,
-    /// маскирует склейки после вырезания пауз
+    /// Джамп-кат зум: чередование масштаба на склейках — приём talking-head роликов,
+    /// маскирует стыки после вырезания пауз
     public var jumpCutZoomEnabled: Bool
     public var jumpCutZoomAmount: Double
+
+    /// Минимальное время между сменами масштаба, секунды. После вырезания пауз идут
+    /// серии коротких кусков; без этого порога кадр дёргался бы на каждом стыке.
+    public var jumpCutZoomMinHold: Double
 
     /// Линейный множитель громкости (1.0 — без изменений). Считается из замера LUFS.
     public var audioGain: Double
@@ -54,19 +58,55 @@ public struct RenderOptions: Codable, Equatable, Sendable {
         outputAspect: OutputAspect = .source,
         jumpCutZoomEnabled: Bool = false,
         jumpCutZoomAmount: Double = 1.08,
+        jumpCutZoomMinHold: Double = 1.5,
         audioGain: Double = 1.0
     ) {
         self.outputAspect = outputAspect
         self.jumpCutZoomEnabled = jumpCutZoomEnabled
         self.jumpCutZoomAmount = jumpCutZoomAmount
+        self.jumpCutZoomMinHold = jumpCutZoomMinHold
         self.audioGain = audioGain
     }
 
     public static let `default` = RenderOptions()
 
-    /// Масштаб для клипа по его порядковому номеру среди включённых
-    public func zoomScale(forClipIndex index: Int) -> Double {
-        guard jumpCutZoomEnabled else { return 1.0 }
-        return index % 2 == 1 ? jumpCutZoomAmount : 1.0
+    /// Масштабы для всех клипов таймлайна по их длительностям.
+    /// Масштаб чередуется, но переключается только на тех стыках, где предыдущий
+    /// уровень продержался на экране не меньше `jumpCutZoomMinHold`. Серия коротких
+    /// кусков проходит на одном масштабе — кадр стоит, а не прыгает.
+    public func zoomScales(forClipDurations durations: [Double]) -> [Double] {
+        guard jumpCutZoomEnabled else {
+            return Array(repeating: 1.0, count: durations.count)
+        }
+
+        var scales: [Double] = []
+        scales.reserveCapacity(durations.count)
+        var zoomedIn = false
+        var heldSeconds = 0.0
+
+        for (index, duration) in durations.enumerated() {
+            if index > 0 && heldSeconds >= jumpCutZoomMinHold {
+                zoomedIn.toggle()
+                heldSeconds = 0
+            }
+            scales.append(zoomedIn ? jumpCutZoomAmount : 1.0)
+            heldSeconds += max(0, duration)
+        }
+        return scales
+    }
+
+    // Старые проекты сохранены без новых полей — читаем с подстановкой значений по умолчанию,
+    // иначе восстановление проекта молча провалится
+    private enum CodingKeys: String, CodingKey {
+        case outputAspect, jumpCutZoomEnabled, jumpCutZoomAmount, jumpCutZoomMinHold, audioGain
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        outputAspect = try c.decodeIfPresent(OutputAspect.self, forKey: .outputAspect) ?? .source
+        jumpCutZoomEnabled = try c.decodeIfPresent(Bool.self, forKey: .jumpCutZoomEnabled) ?? false
+        jumpCutZoomAmount = try c.decodeIfPresent(Double.self, forKey: .jumpCutZoomAmount) ?? 1.08
+        jumpCutZoomMinHold = try c.decodeIfPresent(Double.self, forKey: .jumpCutZoomMinHold) ?? 1.5
+        audioGain = try c.decodeIfPresent(Double.self, forKey: .audioGain) ?? 1.0
     }
 }
