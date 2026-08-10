@@ -174,6 +174,11 @@ public class EditorViewModel {
 
     public var hasSources: Bool { !timeline.sources.isEmpty }
 
+    /// Подписи источников для таймлайна и полки
+    public var sourceNames: [MediaSource.ID: String] {
+        Dictionary(uniqueKeysWithValues: timeline.sources.map { ($0.id, $0.displayName) })
+    }
+
     /// Экспорт невозможен, пока какой-то файл не найден — иначе получится дырявое видео
     public var canExport: Bool {
         hasSources && offlineSourceIDs.isEmpty && timeline.enabledClipCount > 0

@@ -266,12 +266,20 @@ extension MainEditorView {
         }
     }
 
+    /// Дроп мимо таймлайна. Пустой проект открывается, непустой — пополняется:
+    /// сбрасывать собранный монтаж потому, что файл упал не на ту дорожку, недопустимо.
     private func handleDropMacOS(_ providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
-        provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
-            guard let data = item as? Data,
-                  let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
-            Task { @MainActor in viewModel.importVideo(url: url) }
+        guard !providers.isEmpty else { return false }
+        Task { @MainActor in
+            var urls: [URL] = []
+            for provider in providers {
+                guard let item = try? await provider.loadItem(forTypeIdentifier: "public.file-url"),
+                      let data = item as? Data,
+                      let url = URL(dataRepresentation: data, relativeTo: nil) else { continue }
+                urls.append(url)
+            }
+            guard !urls.isEmpty else { return }
+            viewModel.addSources(urls: urls)
         }
         return true
     }
@@ -779,15 +787,32 @@ extension MainEditorView {
 
             TimelineViewWrapper(
                 clips: viewModel.timeline.clips,
+                overlays: viewModel.timeline.overlays,
                 playheadPosition: viewModel.playheadPosition,
                 pixelsPerSecond: viewModel.pixelsPerSecond,
-                waveformData: viewModel.waveformData,
+                waveforms: viewModel.waveforms,
+                sourceNames: viewModel.sourceNames,
+                selectedClipId: viewModel.selectedClipId,
+                selectedOverlayId: viewModel.selectedOverlayId,
                 onSeek: { time in viewModel.seekSmoothly(to: time) },
                 onTrimClip: { id, range in viewModel.trimClip(id: id, newSourceRange: range) },
                 onTrimEnd: { viewModel.trimEnded() },
                 onSelectClip: { id in viewModel.selectedClipId = id },
                 silenceZones: viewModel.displayZones,
-                onToggleZone: { id in viewModel.toggleReviewZone(id: id) }
+                onToggleZone: { id in viewModel.toggleReviewZone(id: id) },
+                onSelectOverlay: { id in viewModel.selectedOverlayId = id },
+                onDropFile: { url, time, toOverlayLane in
+                    if toOverlayLane {
+                        viewModel.addOverlay(url: url, at: time)
+                    } else {
+                        viewModel.addSources(urls: [url])
+                    }
+                },
+                onMoveOverlay: { id, start in viewModel.moveOverlay(id: id, to: start) },
+                onTrimOverlay: { id, range, start in
+                    viewModel.trimOverlay(id: id, newSourceRange: range, timelineStart: start)
+                },
+                onOverlayDragEnd: { viewModel.overlayDragEnded() }
             )
         }
     }
