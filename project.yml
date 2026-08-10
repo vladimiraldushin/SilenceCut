@@ -40,6 +40,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.RECore
         GENERATE_INFOPLIST_FILE: true
+    # Тесты модуля привязаны к его же схеме: их можно прогнать, не собирая приложение целиком
+    scheme:
+      testTargets:
+        - RECoreTests
 
   RETimeline:
     type: framework
@@ -51,6 +55,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.RETimeline
         GENERATE_INFOPLIST_FILE: true
+    scheme:
+      testTargets:
+        - RETimelineTests
 
   REAudioAnalysis:
     type: framework
@@ -60,6 +67,9 @@ targets:
       - target: RECore
       - package: WhisperKit
       - package: FluidAudio
+    scheme:
+      testTargets:
+        - REAudioAnalysisTests
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REAudioAnalysis

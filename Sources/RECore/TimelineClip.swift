@@ -5,7 +5,9 @@ import CoreMedia
 /// Stores source reference and trim points. The source file is NEVER modified.
 public struct TimelineClip: Identifiable, Codable, Equatable {
     public let id: UUID
-    public let sourceURL: URL
+
+    /// Ссылка на запись в реестре `EditTimeline.sources`
+    public var sourceID: MediaSource.ID
 
     /// Full range of the source media (never changes — enables non-destructive trim)
     public let availableRange: CMTimeRange
@@ -22,6 +24,13 @@ public struct TimelineClip: Identifiable, Codable, Equatable {
     /// Whether this clip is included in the output
     public var isEnabled: Bool = true
 
+    /// Как кадр этого клипа ложится на холст проекта
+    public var framing: ClipFraming = .default
+
+    /// URL из проектов старого формата, где источник хранился прямо в клипе.
+    /// Живёт только между декодированием и миграцией в `ProjectStore`; наружу не сохраняется.
+    public var legacySourceURL: URL?
+
     /// Duration on the timeline (accounting for speed)
     public var effectiveDuration: CMTime {
         CMTimeMultiplyByFloat64(sourceRange.duration, multiplier: 1.0 / speed)
@@ -34,21 +43,67 @@ public struct TimelineClip: Identifiable, Codable, Equatable {
 
     public init(
         id: UUID = UUID(),
-        sourceURL: URL,
+        sourceID: MediaSource.ID,
         availableRange: CMTimeRange,
         sourceRange: CMTimeRange,
         timelineOffset: CMTime = .zero,
         speed: Double = 1.0,
-        isEnabled: Bool = true
+        isEnabled: Bool = true,
+        framing: ClipFraming = .default
     ) {
         self.id = id
-        self.sourceURL = sourceURL
+        self.sourceID = sourceID
         self.availableRange = availableRange
         self.sourceRange = sourceRange
         self.timelineOffset = timelineOffset
         self.speed = speed
         self.isEnabled = isEnabled
+        self.framing = framing
     }
+
+    // MARK: - Codable
+
+    enum CodingKeys: String, CodingKey {
+        case id, sourceID, availableRange, sourceRange, timelineOffset, speed, isEnabled, framing
+        case sourceURL   // только для чтения проектов первой версии
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        availableRange = try c.decode(CMTimeRange.self, forKey: .availableRange)
+        sourceRange = try c.decode(CMTimeRange.self, forKey: .sourceRange)
+        timelineOffset = try c.decode(CMTime.self, forKey: .timelineOffset)
+        speed = try c.decodeIfPresent(Double.self, forKey: .speed) ?? 1.0
+        isEnabled = try c.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+        framing = try c.decodeIfPresent(ClipFraming.self, forKey: .framing) ?? .default
+
+        if let id = try c.decodeIfPresent(UUID.self, forKey: .sourceID) {
+            sourceID = id
+            legacySourceURL = nil
+        } else {
+            // Проект первой версии: источник в клипе, реестра нет.
+            // Настоящий id проставит миграция в ProjectStore — она видит все клипы сразу
+            // и знает, какие из них ссылаются на один и тот же файл.
+            sourceID = TimelineClip.unresolvedSourceID
+            legacySourceURL = try c.decodeIfPresent(URL.self, forKey: .sourceURL)
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(sourceID, forKey: .sourceID)
+        try c.encode(availableRange, forKey: .availableRange)
+        try c.encode(sourceRange, forKey: .sourceRange)
+        try c.encode(timelineOffset, forKey: .timelineOffset)
+        try c.encode(speed, forKey: .speed)
+        try c.encode(isEnabled, forKey: .isEnabled)
+        try c.encode(framing, forKey: .framing)
+    }
+
+    /// Заглушка на время между декодированием старого проекта и миграцией
+    public static let unresolvedSourceID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
 }
 
 // MARK: - Codable conformance for CMTime/CMTimeRange

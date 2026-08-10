@@ -5,10 +5,28 @@ import CoreMedia
 /// All timeline operations manipulate this model, then CompositionBuilder
 /// rebuilds AVMutableComposition from scratch.
 public struct EditTimeline: Codable, Equatable {
+    /// Реестр исходников проекта. Лежит внутри EDL, а не в `Project`, чтобы модель монтажа
+    /// оставалась самодостаточной: сборщик композиции, экспорт и снимки undo принимают
+    /// одну структуру и не обрастают вторым параметром с реестром.
+    public var sources: [MediaSource]
+
     public var clips: [TimelineClip]
 
-    public init(clips: [TimelineClip] = []) {
+    public init(sources: [MediaSource] = [], clips: [TimelineClip] = []) {
+        self.sources = sources
         self.clips = clips
+    }
+
+    public func source(for id: MediaSource.ID) -> MediaSource? {
+        sources.first { $0.id == id }
+    }
+
+    enum CodingKeys: String, CodingKey { case sources, clips }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        sources = try c.decodeIfPresent([MediaSource].self, forKey: .sources) ?? []
+        clips = try c.decode([TimelineClip].self, forKey: .clips)
     }
 
     /// Total duration of the edited timeline (only enabled clips)
@@ -51,7 +69,7 @@ public struct EditTimeline: Codable, Equatable {
 
         let secondHalf = TimelineClip(
             id: UUID(),
-            sourceURL: clip.sourceURL,
+            sourceID: clip.sourceID,
             availableRange: clip.availableRange,
             sourceRange: CMTimeRange(
                 start: sourceSplitPoint,
@@ -59,7 +77,8 @@ public struct EditTimeline: Codable, Equatable {
             ),
             timelineOffset: splitTime,
             speed: clip.speed,
-            isEnabled: clip.isEnabled
+            isEnabled: clip.isEnabled,
+            framing: clip.framing
         )
 
         clips[clipIndex] = firstHalf
@@ -149,20 +168,4 @@ public struct EditTimeline: Codable, Equatable {
         return nil
     }
 
-    /// Create timeline from speech ranges (for silence detection)
-    public static func fromSpeechRanges(_ ranges: [CMTimeRange], sourceURL: URL, availableRange: CMTimeRange) -> EditTimeline {
-        var clips: [TimelineClip] = []
-        var offset = CMTime.zero
-        for range in ranges {
-            let clip = TimelineClip(
-                sourceURL: sourceURL,
-                availableRange: availableRange,
-                sourceRange: range,
-                timelineOffset: offset
-            )
-            clips.append(clip)
-            offset = CMTimeAdd(offset, range.duration)
-        }
-        return EditTimeline(clips: clips)
-    }
 }

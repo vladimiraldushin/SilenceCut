@@ -1,7 +1,10 @@
 import Testing
 import Foundation
 import CoreMedia
+import CoreGraphics
 @testable import RECore
+
+private let storeTestSourceID = UUID()
 
 @Test func projectSnapshotRoundTrip() throws {
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -10,12 +13,12 @@ import CoreMedia
 
     var timeline = EditTimeline(clips: [
         TimelineClip(
-            sourceURL: videoURL,
+            sourceID: storeTestSourceID,
             availableRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
             sourceRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 4, preferredTimescale: 600))
         ),
         TimelineClip(
-            sourceURL: videoURL,
+            sourceID: storeTestSourceID,
             availableRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
             sourceRange: CMTimeRange(start: CMTime(seconds: 4, preferredTimescale: 600), duration: CMTime(seconds: 3, preferredTimescale: 600))
         ),

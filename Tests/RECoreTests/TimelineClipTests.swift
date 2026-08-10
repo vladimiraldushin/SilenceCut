@@ -1,10 +1,14 @@
 import Testing
+import Foundation
 import CoreMedia
 @testable import RECore
 
+private let testSourceID = UUID()
+private let otherSourceID = UUID()
+
 @Test func clipEffectiveDuration() {
     let clip = TimelineClip(
-        sourceURL: URL(fileURLWithPath: "/test.mp4"),
+        sourceID: testSourceID,
         availableRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
         sourceRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600))
     )
@@ -13,7 +17,7 @@ import CoreMedia
 
 @Test func clipEffectiveDurationWithSpeed() {
     let clip = TimelineClip(
-        sourceURL: URL(fileURLWithPath: "/test.mp4"),
+        sourceID: testSourceID,
         availableRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
         sourceRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
         speed: 2.0
@@ -24,12 +28,12 @@ import CoreMedia
 @Test func timelineDuration() {
     let clips = [
         TimelineClip(
-            sourceURL: URL(fileURLWithPath: "/test.mp4"),
+            sourceID: testSourceID,
             availableRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
             sourceRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 5, preferredTimescale: 600))
         ),
         TimelineClip(
-            sourceURL: URL(fileURLWithPath: "/test.mp4"),
+            sourceID: testSourceID,
             availableRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
             sourceRange: CMTimeRange(start: CMTime(seconds: 5, preferredTimescale: 600), duration: CMTime(seconds: 3, preferredTimescale: 600))
         ),
@@ -41,7 +45,7 @@ import CoreMedia
 @Test func timelineSplit() {
     var timeline = EditTimeline(clips: [
         TimelineClip(
-            sourceURL: URL(fileURLWithPath: "/test.mp4"),
+            sourceID: testSourceID,
             availableRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
             sourceRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600))
         ),
@@ -59,12 +63,12 @@ import CoreMedia
 @Test func timelineDelete() {
     var timeline = EditTimeline(clips: [
         TimelineClip(
-            sourceURL: URL(fileURLWithPath: "/a.mp4"),
+            sourceID: testSourceID,
             availableRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
             sourceRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 5, preferredTimescale: 600))
         ),
         TimelineClip(
-            sourceURL: URL(fileURLWithPath: "/b.mp4"),
+            sourceID: otherSourceID,
             availableRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
             sourceRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 3, preferredTimescale: 600))
         ),
@@ -82,7 +86,7 @@ import CoreMedia
 @Test func timelineToggle() {
     var timeline = EditTimeline(clips: [
         TimelineClip(
-            sourceURL: URL(fileURLWithPath: "/test.mp4"),
+            sourceID: testSourceID,
             availableRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
             sourceRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600))
         ),
@@ -98,24 +102,9 @@ import CoreMedia
     #expect(CMTimeGetSeconds(timeline.duration) == 10.0)
 }
 
-@Test func timelineFromSpeechRanges() {
-    let ranges = [
-        CMTimeRange(start: CMTime(seconds: 1, preferredTimescale: 600), duration: CMTime(seconds: 3, preferredTimescale: 600)),
-        CMTimeRange(start: CMTime(seconds: 8, preferredTimescale: 600), duration: CMTime(seconds: 2, preferredTimescale: 600)),
-    ]
-    let url = URL(fileURLWithPath: "/test.mp4")
-    let available = CMTimeRange(start: .zero, duration: CMTime(seconds: 15, preferredTimescale: 600))
-
-    let timeline = EditTimeline.fromSpeechRanges(ranges, sourceURL: url, availableRange: available)
-
-    #expect(timeline.clips.count == 2)
-    #expect(CMTimeGetSeconds(timeline.duration) == 5.0) // 3 + 2
-    #expect(CMTimeGetSeconds(timeline.clips[1].timelineOffset) == 3.0)
-}
-
 @Test func clipCodable() throws {
     let clip = TimelineClip(
-        sourceURL: URL(fileURLWithPath: "/test.mp4"),
+        sourceID: testSourceID,
         availableRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
         sourceRange: CMTimeRange(start: CMTime(seconds: 2, preferredTimescale: 600), duration: CMTime(seconds: 5, preferredTimescale: 600))
     )
