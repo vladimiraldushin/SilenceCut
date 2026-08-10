@@ -15,6 +15,10 @@ public enum CompositionBuilder {
     /// Build composition from timeline — the core function.
     /// `options` drive framing (aspect crop), jump-cut zoom and audio gain;
     /// preview and export both go through here, so what you see is what you get.
+    ///
+    /// Дорожек три: видео хребта, видео перебивок, звук хребта. Перебивки живут на своей
+    /// дорожке, а не врезаются в хребет — сборщику не нужно нарезать хребет вокруг каждой
+    /// картинки, и звук речи под перебивкой не прерывается.
     public static func build(
         from timeline: EditTimeline,
         options: RenderOptions = .default
@@ -31,42 +35,51 @@ public enum CompositionBuilder {
             preferredTrackID: kCMPersistentTrackID_Invalid
         )
 
+        let renderSize = projectRenderSize(timeline: timeline, options: options)
+        let spine = timeline.clips.filter(\.isEnabled)
+
+        // Куда какой клип встал и с каким кадрированием — нужно для трансформаций и рамп
+        struct Placed {
+            let start: CMTime
+            let duration: Double
+            let framing: ClipFraming
+            let orientedSize: CGSize
+            let sourceTransform: CGAffineTransform
+            let gain: Double
+        }
+        var placed: [Placed] = []
         var insertionTime = CMTime.zero
-        var sourceTransform: CGAffineTransform = .identity
-        var sourceNaturalSize: CGSize = .zero
-        var nominalFrameRate: Float = 30
 
-        // Timeline offsets and lengths of every enabled clip — jump-cut zoom needs both:
-        // where the cuts are and how long each piece stays on screen
-        var clipStarts: [CMTime] = []
-        var clipDurations: [Double] = []
+        for clip in spine {
+            guard let source = timeline.source(for: clip.sourceID) else { continue }
+            let asset = AVURLAsset(url: source.url)
 
-        for clip in timeline.clips where clip.isEnabled {
-            let asset = AVURLAsset(url: clip.sourceURL)
-
-            // Insert video
             let videoTracks = try await asset.loadTracks(withMediaType: AVMediaType.video)
-            if let srcVideo = videoTracks.first {
-                try videoTrack.insertTimeRange(clip.sourceRange, of: srcVideo, at: insertionTime)
+            guard let srcVideo = videoTracks.first else { continue }
+            try videoTrack.insertTimeRange(clip.sourceRange, of: srcVideo, at: insertionTime)
 
-                // Capture transform + size from first clip (all clips share same source)
-                if sourceNaturalSize == .zero {
-                    sourceNaturalSize = try await srcVideo.load(.naturalSize)
-                    sourceTransform = try await srcVideo.load(.preferredTransform)
-                    let fps = try await srcVideo.load(.nominalFrameRate)
-                    if fps > 1 { nominalFrameRate = fps }
+            // Звук: у немого исходника вставляем пустоту той же длины. Раньше источник был
+            // один и расхождению неоткуда было взяться; с разными файлами пропуск вставки
+            // уводит весь звук после этого клипа.
+            if let dstAudio = audioTrack {
+                let audioTracks = try await asset.loadTracks(withMediaType: AVMediaType.audio)
+                if let srcAudio = audioTracks.first {
+                    try dstAudio.insertTimeRange(clip.sourceRange, of: srcAudio, at: insertionTime)
+                } else {
+                    dstAudio.insertEmptyTimeRange(
+                        CMTimeRange(start: insertionTime, duration: clip.effectiveDuration)
+                    )
                 }
             }
 
-            // Insert audio
-            let audioTracks = try await asset.loadTracks(withMediaType: AVMediaType.audio)
-            if let srcAudio = audioTracks.first,
-               let dstAudio = audioTrack {
-                try dstAudio.insertTimeRange(clip.sourceRange, of: srcAudio, at: insertionTime)
-            }
-
-            clipStarts.append(insertionTime)
-            clipDurations.append(CMTimeGetSeconds(clip.effectiveDuration))
+            placed.append(Placed(
+                start: insertionTime,
+                duration: CMTimeGetSeconds(clip.effectiveDuration),
+                framing: clip.framing,
+                orientedSize: source.orientedSize,
+                sourceTransform: source.preferredTransform,
+                gain: source.gain
+            ))
             insertionTime = CMTimeAdd(insertionTime, clip.effectiveDuration)
         }
 
@@ -80,76 +93,148 @@ public enum CompositionBuilder {
             }
         }
 
-        // Build video composition: orientation + aspect crop + jump-cut zoom
+        // === Перебивки ===
+        struct PlacedOverlay {
+            let range: CMTimeRange
+            let framing: ClipFraming
+            let orientedSize: CGSize
+            let sourceTransform: CGAffineTransform
+        }
+        var placedOverlays: [PlacedOverlay] = []
+        var overlayTrack: AVMutableCompositionTrack?
+
+        let overlays = timeline.clampedOverlays.sorted {
+            CMTimeCompare($0.timelineStart, $1.timelineStart) < 0
+        }
+        if !overlays.isEmpty, !placed.isEmpty {
+            overlayTrack = composition.addMutableTrack(
+                withMediaType: AVMediaType.video,
+                preferredTrackID: kCMPersistentTrackID_Invalid
+            )
+            var overlayCursor = CMTime.zero
+            for overlay in overlays {
+                guard let source = timeline.source(for: overlay.sourceID),
+                      let track = overlayTrack else { continue }
+                // Перебивки не должны наезжать друг на друга: то, что началось раньше, остаётся
+                guard CMTimeCompare(overlay.timelineStart, overlayCursor) >= 0 else { continue }
+
+                let asset = AVURLAsset(url: source.url)
+                let videoTracks = try await asset.loadTracks(withMediaType: AVMediaType.video)
+                guard let srcVideo = videoTracks.first else { continue }
+
+                // Дорожка заполняется подряд, поэтому промежуток до перебивки — пустой диапазон
+                let gap = CMTimeSubtract(overlay.timelineStart, overlayCursor)
+                if CMTimeGetSeconds(gap) > 0.001 {
+                    track.insertEmptyTimeRange(CMTimeRange(start: overlayCursor, duration: gap))
+                }
+                try track.insertTimeRange(overlay.sourceRange, of: srcVideo, at: overlay.timelineStart)
+
+                placedOverlays.append(PlacedOverlay(
+                    range: overlay.timelineRange,
+                    framing: overlay.framing,
+                    orientedSize: source.orientedSize,
+                    sourceTransform: source.preferredTransform
+                ))
+                overlayCursor = overlay.timelineEnd
+            }
+            if placedOverlays.isEmpty {
+                composition.removeTrack(overlayTrack!)
+                overlayTrack = nil
+            }
+        }
+
+        // === Видеокомпозиция: ориентация, кадрирование, джамп-кат зум, перебивки ===
         var videoComp: AVMutableVideoComposition? = nil
 
-        if sourceNaturalSize != .zero {
-            let orientedSize = transformedSize(sourceNaturalSize, transform: sourceTransform)
-            let renderSize = options.outputAspect.renderSize ?? orientedSize
-
+        if !placed.isEmpty {
             let instruction = AVMutableVideoCompositionInstruction()
             instruction.timeRange = CMTimeRange(start: .zero, duration: insertionTime)
 
-            let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
+            let spineLayer = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
             // Step change at cuts where the zoom actually differs — no interpolation,
             // and no redundant transforms while the scale is being held
-            let scales = options.zoomScales(forClipDurations: clipDurations)
-            var appliedZoom: Double? = nil
-            for (index, start) in clipStarts.enumerated() {
-                let zoom = scales[index]
-                guard appliedZoom != zoom else { continue }
+            let scales = options.zoomScales(forClipDurations: placed.map(\.duration))
+            var appliedTransform: CGAffineTransform? = nil
+            for (index, item) in placed.enumerated() {
                 let transform = renderTransform(
-                    sourceTransform: sourceTransform,
-                    orientedSize: orientedSize,
+                    sourceTransform: item.sourceTransform,
+                    orientedSize: item.orientedSize,
                     targetSize: renderSize,
-                    zoom: zoom
+                    framing: item.framing,
+                    zoom: scales[index]
                 )
-                layerInstruction.setTransform(transform, at: start)
-                appliedZoom = zoom
+                guard appliedTransform != transform else { continue }
+                spineLayer.setTransform(transform, at: item.start)
+                appliedTransform = transform
             }
-            instruction.layerInstructions = [layerInstruction]
+
+            var layers = [spineLayer]
+
+            if let overlayTrack {
+                let overlayLayer = AVMutableVideoCompositionLayerInstruction(assetTrack: overlayTrack)
+                // Вне своих диапазонов дорожка пустая, но опасити гасим явно: так кадр
+                // не зависит от того, что компоновщик решит делать с дыркой в дорожке
+                overlayLayer.setOpacity(0, at: .zero)
+                for item in placedOverlays {
+                    overlayLayer.setTransform(
+                        renderTransform(
+                            sourceTransform: item.sourceTransform,
+                            orientedSize: item.orientedSize,
+                            targetSize: renderSize,
+                            framing: item.framing,
+                            zoom: 1.0
+                        ),
+                        at: item.range.start
+                    )
+                    overlayLayer.setOpacity(1, at: item.range.start)
+                    overlayLayer.setOpacity(0, at: CMTimeRangeGetEnd(item.range))
+                }
+                // Первый слой в массиве оказывается верхним — проверено на цветных фикстурах
+                // в OverlayCompositionTests, документация на этот счёт невнятна.
+                // Если тест начнёт падать, менять надо здесь.
+                layers.insert(overlayLayer, at: 0)
+            }
+
+            instruction.layerInstructions = layers
 
             let vc = AVMutableVideoComposition()
             vc.renderSize = renderSize
-            vc.frameDuration = CMTime(value: 1, timescale: CMTimeScale(max(24, min(60, Int(nominalFrameRate.rounded())))))
+            vc.frameDuration = CMTime(value: 1, timescale: CMTimeScale(projectFrameRate(timeline: timeline)))
             vc.instructions = [instruction]
             videoComp = vc
         }
 
-        // Audio: 30ms ramps at cuts (kills clicks) + loudness normalization gain
+        // === Звук: рампы 30 мс на склейках плюс гейн источника и мастер-гейн ===
         var audioMix: AVMutableAudioMix? = nil
-        let gain = Float(max(0, options.audioGain))
-        let needsGain = abs(options.audioGain - 1.0) > 0.001
+        let masterGain = max(0, options.audioGain)
+        let needsGain = placed.contains { abs($0.gain * masterGain - 1.0) > 0.001 }
 
-        if let dstAudio = audioTrack, timeline.enabledClipCount > 1 || needsGain {
+        if let dstAudio = audioTrack, placed.count > 1 || needsGain {
             let params = AVMutableAudioMixInputParameters(track: dstAudio)
             let fadeDuration = CMTime(seconds: 0.03, preferredTimescale: 600)
 
-            if timeline.enabledClipCount > 1 {
-                var segmentStart = CMTime.zero
-                for clip in timeline.clips where clip.isEnabled {
-                    let segEnd = CMTimeAdd(segmentStart, clip.effectiveDuration)
+            if placed.count > 1 {
+                for item in placed {
+                    let gain = Float(max(0, item.gain * masterGain))
+                    let segStart = item.start
+                    let segEnd = CMTimeAdd(segStart, CMTime(seconds: item.duration, preferredTimescale: 600))
 
-                    // Fade in at start of each segment
                     params.setVolumeRamp(
                         fromStartVolume: 0.0, toEndVolume: gain,
-                        timeRange: CMTimeRange(start: segmentStart, duration: fadeDuration)
+                        timeRange: CMTimeRange(start: segStart, duration: fadeDuration)
                     )
 
-                    // Fade out at end of each segment
                     let fadeOutStart = CMTimeSubtract(segEnd, fadeDuration)
-                    if CMTimeCompare(fadeOutStart, segmentStart) > 0 {
+                    if CMTimeCompare(fadeOutStart, segStart) > 0 {
                         params.setVolumeRamp(
                             fromStartVolume: gain, toEndVolume: 0.0,
                             timeRange: CMTimeRange(start: fadeOutStart, duration: fadeDuration)
                         )
                     }
-
-                    segmentStart = segEnd
                 }
-            } else {
+            } else if let only = placed.first {
                 // Single clip — gain only
-                params.setVolume(gain, at: .zero)
+                params.setVolume(Float(max(0, only.gain * masterGain)), at: .zero)
             }
 
             let mix = AVMutableAudioMix()
@@ -160,25 +245,63 @@ public enum CompositionBuilder {
         return Result(composition: composition, videoComposition: videoComp, audioMix: audioMix)
     }
 
+    // MARK: - Project Frame (pure, testable)
+
+    /// Холст проекта. Для `.source` берётся формат первого клипа хребта: при разнородных
+    /// исходниках «как в оригинале» перестаёт быть однозначным, и правило надо знать заранее.
+    /// Стороны округляются до чётных — H.264 не принимает нечётные размеры.
+    public static func projectRenderSize(
+        timeline: EditTimeline,
+        options: RenderOptions
+    ) -> CGSize {
+        let base: CGSize
+        if let chosen = options.outputAspect.renderSize {
+            base = chosen
+        } else if let clip = timeline.clips.first(where: \.isEnabled),
+                  let source = timeline.source(for: clip.sourceID),
+                  source.orientedSize.width > 0, source.orientedSize.height > 0 {
+            base = source.orientedSize
+        } else {
+            base = CGSize(width: 1080, height: 1920)
+        }
+        return CGSize(
+            width: max(2, (Int(base.width) / 2) * 2),
+            height: max(2, (Int(base.height) / 2) * 2)
+        )
+    }
+
+    /// Частота кадров проекта — максимум по источникам хребта, зажатый в 24…60.
+    /// Источники с другой частотой компоновщик приведёт сам.
+    public static func projectFrameRate(timeline: EditTimeline) -> Int {
+        let rates = timeline.clips
+            .filter(\.isEnabled)
+            .compactMap { timeline.source(for: $0.sourceID)?.nominalFrameRate }
+            .filter { $0 > 1 }
+        let best = rates.max() ?? 30
+        return max(24, min(60, Int(best.rounded())))
+    }
+
     // MARK: - Transform Math (pure, testable)
 
     /// Transform placing an oriented source frame into the target frame:
-    /// source orientation → aspect-fill scale (center crop) → zoom about the center.
+    /// source orientation → aspect-fill scale (center crop) → кадрирование клипа → zoom about the center.
     public static func renderTransform(
         sourceTransform: CGAffineTransform,
         orientedSize: CGSize,
         targetSize: CGSize,
+        framing: ClipFraming = .default,
         zoom: Double
     ) -> CGAffineTransform {
         guard orientedSize.width > 0, orientedSize.height > 0 else { return sourceTransform }
 
         let fillScale = max(targetSize.width / orientedSize.width,
                             targetSize.height / orientedSize.height)
-        let scale = fillScale * CGFloat(max(0.01, zoom))
+        let scale = fillScale * CGFloat(max(0.01, framing.scale)) * CGFloat(max(0.01, zoom))
 
-        // Center the scaled frame in the target — crops the overflow symmetrically
-        let tx = (targetSize.width - orientedSize.width * scale) / 2
-        let ty = (targetSize.height - orientedSize.height * scale) / 2
+        // Center the scaled frame in the target — crops the overflow symmetrically,
+        // затем ручной сдвиг кадрировщика в долях холста
+        let tx = (targetSize.width - orientedSize.width * scale) / 2 + framing.offset.x * targetSize.width
+        let ty = (targetSize.height - orientedSize.height * scale) / 2 + framing.offset.y * targetSize.height
 
         return sourceTransform
             .concatenating(CGAffineTransform(scaleX: scale, y: scale))
