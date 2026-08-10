@@ -10,23 +10,29 @@ public struct EditTimeline: Codable, Equatable {
     /// одну структуру и не обрастают вторым параметром с реестром.
     public var sources: [MediaSource]
 
+    /// Хребет: связанные видео и звук. По нему работают вырезание пауз, риппл и субтитры.
     public var clips: [TimelineClip]
 
-    public init(sources: [MediaSource] = [], clips: [TimelineClip] = []) {
+    /// Перебивки: картинка поверх хребта, звук хребта продолжает идти под ней
+    public var overlays: [OverlayClip]
+
+    public init(sources: [MediaSource] = [], clips: [TimelineClip] = [], overlays: [OverlayClip] = []) {
         self.sources = sources
         self.clips = clips
+        self.overlays = overlays
     }
 
     public func source(for id: MediaSource.ID) -> MediaSource? {
         sources.first { $0.id == id }
     }
 
-    enum CodingKeys: String, CodingKey { case sources, clips }
+    enum CodingKeys: String, CodingKey { case sources, clips, overlays }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         sources = try c.decodeIfPresent([MediaSource].self, forKey: .sources) ?? []
         clips = try c.decode([TimelineClip].self, forKey: .clips)
+        overlays = try c.decodeIfPresent([OverlayClip].self, forKey: .overlays) ?? []
     }
 
     /// Total duration of the edited timeline (only enabled clips)
