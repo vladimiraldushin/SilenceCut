@@ -67,6 +67,11 @@ public final class ExportCancellationToken: @unchecked Sendable {
 
 public enum ExportService {
 
+    /// Единый формат звука проекта: к нему приводятся исходники с любыми частотами
+    /// дискретизации и числом каналов, и в нём же пишется результат
+    static let projectSampleRate: Double = 48000
+    static let projectChannelCount = 2
+
     public enum ExportError: Error, LocalizedError {
         case noClips
         case exportFailed(String)
@@ -272,7 +277,18 @@ public enum ExportService {
         }
         var aOutput: AVAssetReaderAudioMixOutput? = nil
         if !audioTracks.isEmpty {
-            let ao = AVAssetReaderAudioMixOutput(audioTracks: audioTracks, audioSettings: nil)
+            // Формат чтения задан явно. С единственным исходником он был не важен, но когда
+            // в одной дорожке встречаются 48 кГц стерео и 44,1 кГц моно, «на усмотрение
+            // системы» — это ровно то место, где звук разъезжается.
+            let ao = AVAssetReaderAudioMixOutput(audioTracks: audioTracks, audioSettings: [
+                AVFormatIDKey: kAudioFormatLinearPCM,
+                AVSampleRateKey: projectSampleRate,
+                AVNumberOfChannelsKey: projectChannelCount,
+                AVLinearPCMBitDepthKey: 32,
+                AVLinearPCMIsFloatKey: true,
+                AVLinearPCMIsNonInterleaved: false,
+                AVLinearPCMIsBigEndianKey: false
+            ])
             ao.audioMix = audioMix
             reader.add(ao)
             aOutput = ao
@@ -297,18 +313,12 @@ public enum ExportService {
 
         var aInput: AVAssetWriterInput? = nil
         if aOutput != nil {
-            // AAC settings derived from the source track format
-            var sampleRate: Double = 44100
-            var channels = 2
-            if let fmt = try await audioTracks.first?.load(.formatDescriptions).first,
-               let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(fmt)?.pointee {
-                if asbd.mSampleRate > 0 { sampleRate = asbd.mSampleRate }
-                channels = max(1, min(Int(asbd.mChannelsPerFrame), 2))
-            }
+            // Параметры AAC берутся у проекта, а не у формата первой дорожки: с разнородными
+            // источниками «первая дорожка» — лотерея, и остальные пришлось бы под неё гнуть
             let ai = AVAssetWriterInput(mediaType: .audio, outputSettings: [
                 AVFormatIDKey: kAudioFormatMPEG4AAC,
-                AVSampleRateKey: sampleRate,
-                AVNumberOfChannelsKey: channels,
+                AVSampleRateKey: projectSampleRate,
+                AVNumberOfChannelsKey: projectChannelCount,
                 AVEncoderBitRateKey: preset.audioBitRate
             ])
             ai.expectsMediaDataInRealTime = false
