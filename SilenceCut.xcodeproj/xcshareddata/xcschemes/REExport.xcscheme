@@ -15,9 +15,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "DAD8BBD38BC9E2F2A5CC04DC"
-               BuildableName = "SilenceCut.app"
-               BlueprintName = "SilenceCut"
+               BlueprintIdentifier = "5A08C61DD83950F830CEC669"
+               BuildableName = "REExport.framework"
+               BlueprintName = "REExport"
                ReferencedContainer = "container:SilenceCut.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -32,46 +32,13 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "DAD8BBD38BC9E2F2A5CC04DC"
-            BuildableName = "SilenceCut.app"
-            BlueprintName = "SilenceCut"
+            BlueprintIdentifier = "5A08C61DD83950F830CEC669"
+            BuildableName = "REExport.framework"
+            BlueprintName = "REExport"
             ReferencedContainer = "container:SilenceCut.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "7176F6E9E3E61E2B3CD9FEBE"
-               BuildableName = "RECoreTests.xctest"
-               BlueprintName = "RECoreTests"
-               ReferencedContainer = "container:SilenceCut.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "BB629FC7EDCC095BAA909AF5"
-               BuildableName = "REAudioAnalysisTests.xctest"
-               BlueprintName = "REAudioAnalysisTests"
-               ReferencedContainer = "container:SilenceCut.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "2D369150E245787F49DD3E75"
-               BuildableName = "RETimelineTests.xctest"
-               BlueprintName = "RETimelineTests"
-               ReferencedContainer = "container:SilenceCut.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
          <TestableReference
             skipped = "NO"
             parallelizable = "NO">
@@ -97,16 +64,15 @@
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
       allowLocationSimulation = "YES">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
+      <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "DAD8BBD38BC9E2F2A5CC04DC"
-            BuildableName = "SilenceCut.app"
-            BlueprintName = "SilenceCut"
+            BlueprintIdentifier = "5A08C61DD83950F830CEC669"
+            BuildableName = "REExport.framework"
+            BlueprintName = "REExport"
             ReferencedContainer = "container:SilenceCut.xcodeproj">
          </BuildableReference>
-      </BuildableProductRunnable>
+      </MacroExpansion>
       <CommandLineArguments>
       </CommandLineArguments>
    </LaunchAction>
@@ -116,18 +82,17 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "DAD8BBD38BC9E2F2A5CC04DC"
-            BuildableName = "SilenceCut.app"
-            BlueprintName = "SilenceCut"
-            ReferencedContainer = "container:SilenceCut.xcodeproj">
-         </BuildableReference>
-      </BuildableProductRunnable>
       <CommandLineArguments>
       </CommandLineArguments>
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "5A08C61DD83950F830CEC669"
+            BuildableName = "REExport.framework"
+            BlueprintName = "REExport"
+            ReferencedContainer = "container:SilenceCut.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

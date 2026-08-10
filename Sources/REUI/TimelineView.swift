@@ -1035,6 +1035,7 @@ public class TimelineUIView: UIView, UIGestureRecognizerDelegate {
     private let trackLayer = CALayer()
     private let playheadLayer = CALayer()
     private var clipLayers: [UUID: CALayer] = [:]
+    private var overlayLayers: [UUID: CALayer] = [:]
     private var zoneLayers: [UUID: CAShapeLayer] = [:]
 
     private enum TrimEdge { case left, right }
@@ -1183,7 +1184,7 @@ public class TimelineUIView: UIView, UIGestureRecognizerDelegate {
                 rightHandle.cornerRadius = 2
             }
 
-            if let waveform = waveforms[clip.sourceID] {
+            if let waveform = self.waveforms[clip.sourceID] {
                 let waveLayer: CAShapeLayer
                 if clipLayer.sublayers?.count ?? 0 > 3, let existing = clipLayer.sublayers?[3] as? CAShapeLayer {
                     waveLayer = existing
@@ -1203,7 +1204,7 @@ public class TimelineUIView: UIView, UIGestureRecognizerDelegate {
                 let endSample = Int(CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange)) * Double(waveform.samplesPerSecond))
                 let sampleCount = max(1, endSample - startSample)
 
-                for si in startSample..<min(endSample, waveform.peaks.count) {
+                for si in max(0, startSample)..<min(endSample, waveform.peaks.count) {
                     let progress = CGFloat(si - startSample) / CGFloat(sampleCount)
                     let px = progress * width
                     let h = CGFloat(waveform.peaks[si]) * amp
@@ -1219,6 +1220,34 @@ public class TimelineUIView: UIView, UIGestureRecognizerDelegate {
         for (id, layer) in clipLayers where !activeIds.contains(id) {
             layer.removeFromSuperlayer()
             clipLayers.removeValue(forKey: id)
+        }
+
+        // Перебивки: на iOS их только видно. Полосой поверх верхнего края клипов, а не
+        // отдельной дорожкой — высота таймлайна на телефоне и так на пределе.
+        // Редактирование второй дорожки живёт на macOS.
+        var activeOverlayIds = Set<UUID>()
+        for overlay in self.overlays where overlay.isEnabled {
+            activeOverlayIds.insert(overlay.id)
+            let ox = CGFloat(CMTimeGetSeconds(overlay.timelineStart) * pixelsPerSecond)
+            let ow = max(CGFloat(CMTimeGetSeconds(overlay.sourceRange.duration) * pixelsPerSecond), 2)
+
+            let stripe: CALayer
+            if let existing = overlayLayers[overlay.id] {
+                stripe = existing
+            } else {
+                stripe = CALayer()
+                stripe.zPosition = 20
+                stripe.cornerRadius = 2
+                stripe.backgroundColor = UIColor.systemPurple.withAlphaComponent(0.85).cgColor
+                trackLayer.addSublayer(stripe)
+                overlayLayers[overlay.id] = stripe
+            }
+            stripe.frame = CGRect(x: ox, y: 0, width: ow, height: 12)
+        }
+
+        for (id, layer) in overlayLayers where !activeOverlayIds.contains(id) {
+            layer.removeFromSuperlayer()
+            overlayLayers.removeValue(forKey: id)
         }
 
         // Silence zones — drawn over clips/waveform (zPosition above clip layers),

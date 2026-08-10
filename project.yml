@@ -79,6 +79,9 @@ targets:
     type: framework
     platform: macOS
     sources: [Sources/REExport]
+    scheme:
+      testTargets:
+        - REExportTests
     dependencies:
       - target: RECore
       - target: RETimeline
@@ -123,6 +126,7 @@ targets:
         - RECoreTests
         - REAudioAnalysisTests
         - RETimelineTests
+        - REExportTests
 
   # ========================
   # Tests (macOS)
@@ -159,6 +163,17 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.RETimelineTests
+        GENERATE_INFOPLIST_FILE: true
+
+  REExportTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/REExportTests]
+    dependencies:
+      - target: REExport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REExportTests
         GENERATE_INFOPLIST_FILE: true
 
   # ========================
