@@ -208,9 +208,12 @@ public class EditorViewModel {
         undoStack.removeAll()
         redoStack.removeAll()
 
+        // Флаг выставляется здесь, а не внутри задачи: очередь остальных файлов ждёт именно
+        // его, и полагаться на порядок постановки задач в акторе для этого не стоит
+        isImporting = true
+        statusMessage = "Загрузка видео..."
+
         Task { @MainActor in
-            isImporting = true
-            statusMessage = "Загрузка видео..."
             defer { isImporting = false }
 
             guard let source = await makeSource(for: url) else { return }
