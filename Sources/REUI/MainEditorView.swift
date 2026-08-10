@@ -25,6 +25,7 @@ public struct MainEditorView: View {
     @State private var showExportConfirmation = false
     @State private var inspectorTab: InspectorTab = .silence
     @State private var showBatchQueue = false
+    @State var showFramingEditor = false
 
     #if os(iOS)
     @State private var showImportPicker = false
@@ -91,6 +92,11 @@ extension MainEditorView {
                                     )
                                 }
                             }
+                            .overlay {
+                                if showFramingEditor {
+                                    FramingOverlayView(viewModel: viewModel)
+                                }
+                            }
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                             .frame(maxHeight: .infinity)
                             .padding(8)
@@ -105,8 +111,12 @@ extension MainEditorView {
 
                 Divider()
 
+                SourceShelfView(viewModel: viewModel)
+
+                Divider()
+
                 timelineSection
-                    .frame(height: 130)
+                    .frame(height: 175)
 
                 statusBar
             } else {
@@ -177,6 +187,12 @@ extension MainEditorView {
             }
             .help("Пакетная обработка нескольких файлов")
 
+            Button { showFramingEditor.toggle() } label: {
+                Label("Кадр", systemImage: showFramingEditor ? "crop.rotate" : "crop")
+            }
+            .help("Рамка кадрирования поверх превью для выделенного клипа")
+            .disabled(viewModel.selectedFraming == nil)
+
             Spacer()
 
             Button {
@@ -204,7 +220,10 @@ extension MainEditorView {
                 Button { viewModel.exportVideo() } label: {
                     Label("Экспорт", systemImage: "square.and.arrow.up")
                 }
-                .disabled(viewModel.timeline.clips.isEmpty)
+                .disabled(!viewModel.canExport)
+                .help(viewModel.canExport
+                      ? "Экспортировать смонтированное видео"
+                      : "Сначала найдите недостающие файлы источников")
             }
         }
         .buttonStyle(.bordered)
@@ -260,9 +279,9 @@ extension MainEditorView {
     private func openFileMacOS() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.movie, .video, .mpeg4Movie, .quickTimeMovie]
-        panel.allowsMultipleSelection = false
-        if panel.runModal() == .OK, let url = panel.url {
-            viewModel.importVideo(url: url)
+        panel.allowsMultipleSelection = true
+        if panel.runModal() == .OK, !panel.urls.isEmpty {
+            viewModel.addSources(urls: panel.urls)
         }
     }
 
@@ -888,6 +907,55 @@ extension MainEditorView {
 struct RenderOptionsPanel: View {
     @Bindable var viewModel: EditorViewModel
 
+    /// Кадрирование выделенного клипа или перебивки. Пусто, пока ничего не выделено —
+    /// кадрировать «вообще всё» бессмысленно: у каждого исходника свой формат.
+    @ViewBuilder
+    private var framingSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Кадрирование клипа")
+                .font(.subheadline)
+
+            if let framing = viewModel.selectedFraming {
+                HStack(spacing: 6) {
+                    Button("Заполнить") { viewModel.fillSelectedFraming() }
+                    Button("Вписать") { viewModel.fitSelectedFraming() }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                HStack {
+                    Text("Масштаб")
+                        .font(.caption)
+                    Slider(
+                        value: Binding(
+                            get: { framing.scale },
+                            set: { newValue in
+                                var updated = framing
+                                updated.scale = newValue
+                                viewModel.setSelectedFraming(updated)
+                            }
+                        ),
+                        in: 0.2...4.0,
+                        onEditingChanged: { editing in if !editing { viewModel.framingEnded() } }
+                    )
+                    Text(String(format: "%.0f%%", framing.scale * 100))
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, alignment: .trailing)
+                }
+
+                Text("Рамку можно тянуть прямо в превью — включите её кнопкой на панели воспроизведения")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Выделите клип или перебивку на таймлайне")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Формат и звук")
@@ -908,6 +976,10 @@ struct RenderOptionsPanel: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
+
+            Divider()
+
+            framingSection
 
             Divider()
 

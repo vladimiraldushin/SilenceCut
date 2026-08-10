@@ -128,6 +128,9 @@ struct SilenceCutApp: App {
                 Button("Сохранить проект") { viewModel.saveProjectNow() }
                     .keyboardShortcut("s", modifiers: .command)
                     .disabled(!viewModel.hasSources)
+                Button("Сохранить проект как...") { saveProjectAs() }
+                    .keyboardShortcut("s", modifiers: [.command, .shift, .option])
+                    .disabled(!viewModel.hasSources)
             }
             CommandGroup(replacing: .undoRedo) {
                 Button("Отменить") { viewModel.undo() }
@@ -149,9 +152,19 @@ struct SilenceCutApp: App {
     private func openFile() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.movie, .video, .mpeg4Movie, .quickTimeMovie]
-        panel.allowsMultipleSelection = false
+        panel.allowsMultipleSelection = true
+        if panel.runModal() == .OK, !panel.urls.isEmpty {
+            viewModel.addSources(urls: panel.urls)
+        }
+    }
+
+    private func saveProjectAs() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.init(filenameExtension: "silencecut") ?? .json]
+        panel.nameFieldStringValue = "\(viewModel.project.name).silencecut"
+        panel.canCreateDirectories = true
         if panel.runModal() == .OK, let url = panel.url {
-            viewModel.importVideo(url: url)
+            viewModel.saveProject(to: url)
         }
     }
 
