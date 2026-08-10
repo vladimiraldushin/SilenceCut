@@ -21,8 +21,10 @@ public struct MediaSource: Identifiable, Codable, Equatable {
     public var nominalFrameRate: Double
     public var hasAudio: Bool
 
-    /// Результат замера по BS.1770, если он проводился
+    /// Результат замера по BS.1770, если он проводился. Пик хранится вместе с громкостью:
+    /// без него не пересчитать гейн под другую цель — потолок по пику входит в формулу.
     public var integratedLUFS: Double?
+    public var peakDBFS: Double?
 
     /// Множитель громкости этого источника — приводит разные дубли к общей громкости
     public var gain: Double
@@ -45,6 +47,7 @@ public struct MediaSource: Identifiable, Codable, Equatable {
         nominalFrameRate: Double,
         hasAudio: Bool,
         integratedLUFS: Double? = nil,
+        peakDBFS: Double? = nil,
         gain: Double = 1.0
     ) {
         self.id = id
@@ -56,7 +59,26 @@ public struct MediaSource: Identifiable, Codable, Equatable {
         self.nominalFrameRate = nominalFrameRate
         self.hasAudio = hasAudio
         self.integratedLUFS = integratedLUFS
+        self.peakDBFS = peakDBFS
         self.gain = gain
+    }
+
+    /// Копия с другим id. Нужна, когда файл переоткрыт заново: метаданные свежие,
+    /// но id обязан остаться прежним — на него ссылаются клипы и перебивки.
+    public func withID(_ newID: UUID) -> MediaSource {
+        MediaSource(
+            id: newID,
+            url: url,
+            bookmarkData: bookmarkData,
+            duration: duration,
+            naturalSize: naturalSize,
+            preferredTransform: preferredTransform,
+            nominalFrameRate: nominalFrameRate,
+            hasAudio: hasAudio,
+            integratedLUFS: integratedLUFS,
+            peakDBFS: peakDBFS,
+            gain: gain
+        )
     }
 
     // MARK: - Security-scoped bookmark
@@ -112,7 +134,7 @@ public struct MediaSource: Identifiable, Codable, Equatable {
     enum CodingKeys: String, CodingKey {
         case id, url, bookmarkData, duration
         case width, height, transform
-        case nominalFrameRate, hasAudio, integratedLUFS, gain
+        case nominalFrameRate, hasAudio, integratedLUFS, peakDBFS, gain
     }
 
     public init(from decoder: Decoder) throws {
@@ -132,6 +154,7 @@ public struct MediaSource: Identifiable, Codable, Equatable {
         nominalFrameRate = try c.decodeIfPresent(Double.self, forKey: .nominalFrameRate) ?? 30
         hasAudio = try c.decodeIfPresent(Bool.self, forKey: .hasAudio) ?? true
         integratedLUFS = try c.decodeIfPresent(Double.self, forKey: .integratedLUFS)
+        peakDBFS = try c.decodeIfPresent(Double.self, forKey: .peakDBFS)
         gain = try c.decodeIfPresent(Double.self, forKey: .gain) ?? 1.0
     }
 
@@ -148,6 +171,7 @@ public struct MediaSource: Identifiable, Codable, Equatable {
         try c.encode(nominalFrameRate, forKey: .nominalFrameRate)
         try c.encode(hasAudio, forKey: .hasAudio)
         try c.encodeIfPresent(integratedLUFS, forKey: .integratedLUFS)
+        try c.encodeIfPresent(peakDBFS, forKey: .peakDBFS)
         try c.encode(gain, forKey: .gain)
     }
 }

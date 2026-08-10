@@ -127,7 +127,7 @@ struct SilenceCutApp: App {
                 Divider()
                 Button("Сохранить проект") { viewModel.saveProjectNow() }
                     .keyboardShortcut("s", modifiers: .command)
-                    .disabled(viewModel.project.sourceURL == nil)
+                    .disabled(!viewModel.hasSources)
             }
             CommandGroup(replacing: .undoRedo) {
                 Button("Отменить") { viewModel.undo() }

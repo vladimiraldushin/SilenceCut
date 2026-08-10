@@ -42,7 +42,7 @@ struct SubtitlePanel: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(viewModel.project.sourceURL == nil)
+                .disabled(!viewModel.hasSources)
 
                 // Model state indicator
                 modelStateIndicator

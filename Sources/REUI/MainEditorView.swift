@@ -71,7 +71,7 @@ extension MainEditorView {
 
             Divider()
 
-            if viewModel.project.sourceURL != nil {
+            if viewModel.hasSources {
                 HSplitView {
                     // Video Preview
                     VStack {
@@ -380,7 +380,7 @@ extension MainEditorView {
         NavigationStack {
             GeometryReader { geometry in
                 VStack(spacing: 0) {
-                    if viewModel.project.sourceURL != nil {
+                    if viewModel.hasSources {
                         // Video Preview — the inspector opens as a sheet with detents,
                         // so the preview keeps its size
                         PreviewPlayerView(player: viewModel.player)
@@ -450,7 +450,7 @@ extension MainEditorView {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 12) {
-                        if viewModel.project.sourceURL != nil {
+                        if viewModel.hasSources {
                             Button {
                                 showInspectorSheet.toggle()
                             } label: {

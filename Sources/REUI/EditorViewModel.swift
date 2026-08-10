@@ -24,7 +24,15 @@ public class EditorViewModel {
     public var statusMessage = ""
     public var pixelsPerSecond: Double = 100
     public var selectedClipId: UUID?
-    public var waveformData: WaveformData?
+    public var selectedOverlayId: UUID?
+
+    /// Волна на источник — таймлайн режет её по диапазону каждого клипа
+    public var waveforms: [MediaSource.ID: WaveformData] = [:]
+
+    /// Волна главного источника — то, что рисовалось до появления нескольких исходников
+    public var waveformData: WaveformData? {
+        timeline.sources.first.flatMap { waveforms[$0.id] }
+    }
 
     // Silence detection
     public var silenceSettings = SilenceSettings.normal
@@ -35,18 +43,30 @@ public class EditorViewModel {
     // Silence review mode — zones over the timeline before applying cuts
     public struct SilenceReviewZone: Identifiable, Equatable {
         public let id: UUID
+        /// Клип хребта, внутри которого найдена пауза. Зоны считаются в координатах его
+        /// исходника: глобальный маппинг «время исходника → время таймлайна» врал бы,
+        /// если один и тот же ролик стоит на таймлайне дважды.
+        public let clipID: TimelineClip.ID
         public let sourceRange: CMTimeRange
         public var willCut: Bool
     }
     public var silenceReviewActive = false
     public var reviewZones: [SilenceReviewZone] = []
     public var skipSilencesInPreview = false
-    /// RMS cache — instant re-detection when settings change (no file re-read)
-    private var audioRMSCache: RMSCache?
+
+    /// Кеши анализа на источник — мгновенная передетекция при движении ползунков
+    /// без повторного чтения файла
+    struct SourceAnalysis {
+        var waveform: WaveformData
+        var rms: RMSCache
+    }
+    private var analyses: [MediaSource.ID: SourceAnalysis] = [:]
+
+    /// Источники, файлы которых не нашлись при открытии проекта
+    public var offlineSourceIDs: Set<MediaSource.ID> = []
 
     // Source video metadata
     public var videoFPS: Double = 30
-    private var sourceDuration: CMTime = .zero
 
     // Video aspect ratio (9:16 for vertical, 16:9 for horizontal)
     public var videoAspectRatio: CGFloat = 9.0 / 16.0
@@ -146,88 +166,230 @@ public class EditorViewModel {
 
     // MARK: - File Import
 
-    /// URL we hold security-scoped access to (balanced stop on next import)
-    private var securityScopedURL: URL?
+    /// URL'ы, на которые держится security-scoped доступ — по одному на источник
+    private var securityScopedURLs: [MediaSource.ID: URL] = [:]
 
+    /// Главный источник: первый добавленный. К нему привязан sidecar автосохранения.
+    public var mainSourceURL: URL? { timeline.sources.first?.url }
+
+    public var hasSources: Bool { !timeline.sources.isEmpty }
+
+    /// Экспорт невозможен, пока какой-то файл не найден — иначе получится дырявое видео
+    public var canExport: Bool {
+        hasSources && offlineSourceIDs.isEmpty && timeline.enabledClipCount > 0
+    }
+
+    /// Открыть первый ролик: сбрасывает проект и восстанавливает сохранённое состояние
     public func importVideo(url: URL) {
-        if let old = securityScopedURL {
-            old.stopAccessingSecurityScopedResource()
-            securityScopedURL = nil
-        }
-        if url.startAccessingSecurityScopedResource() {
-            securityScopedURL = url
-        }
-        project.sourceURL = url
-        project.name = url.deletingPathExtension().lastPathComponent
+        for (_, scoped) in securityScopedURLs { scoped.stopAccessingSecurityScopedResource() }
+        securityScopedURLs.removeAll()
 
-        // Reset state from previous project
+        timeline = EditTimeline()
         subtitleEntries = []
         silenceResult = nil
         silenceReviewActive = false
         reviewZones = []
-        audioRMSCache = nil
+        analyses.removeAll()
+        waveforms.removeAll()
+        offlineSourceIDs.removeAll()
         loudnessMeasurement = nil
         normalizeLoudness = false
         renderOptions = .default
         selectedClipId = nil
+        selectedOverlayId = nil
         playheadPosition = .zero
         isPlaying = false
-        isImporting = true
-        statusMessage = "Загрузка видео..."
+        project = Project(name: url.deletingPathExtension().lastPathComponent)
         undoStack.removeAll()
         redoStack.removeAll()
 
         Task { @MainActor in
-            let asset = AVURLAsset(url: url)
-            do {
-                let duration = try await asset.load(.duration)
-                sourceDuration = duration
+            isImporting = true
+            statusMessage = "Загрузка видео..."
+            defer { isImporting = false }
 
-                // Detect video aspect ratio (9:16 vertical, 16:9 horizontal) + fps
-                if let videoTrack = try await asset.loadTracks(withMediaType: .video).first {
-                    let size = try await videoTrack.load(.naturalSize)
-                    let transform = try await videoTrack.load(.preferredTransform)
-                    let transformed = size.applying(transform)
-                    let w = abs(transformed.width)
-                    let h = abs(transformed.height)
-                    if h > 0 { videoAspectRatio = w / h }
-                    let fps = try await videoTrack.load(.nominalFrameRate)
-                    if fps > 1 { videoFPS = Double(fps) }
-                }
+            guard let source = await makeSource(for: url) else { return }
+            registerScopedAccess(for: source)
+            timeline.sources = [source]
+            timeline.clips = [TimelineClip(
+                sourceID: source.id,
+                availableRange: CMTimeRange(start: .zero, duration: source.duration),
+                sourceRange: CMTimeRange(start: .zero, duration: source.duration)
+            )]
+            applyDisplayMetadata(from: source)
 
-                let availableRange = CMTimeRange(start: .zero, duration: duration)
-
-                let clip = TimelineClip(
-                    sourceURL: url,
-                    availableRange: availableRange,
-                    sourceRange: availableRange
-                )
-                timeline = EditTimeline(clips: [clip])
-
-                // Restore autosaved project (sidecar .silencecut next to the video)
-                if let snapshot = ProjectStore.load(for: url) {
-                    timeline = snapshot.timeline
-                    subtitleEntries = snapshot.subtitleEntries
-                    subtitleStyle = snapshot.subtitleStyle
-                    if let options = snapshot.renderOptions {
-                        renderOptions = options
-                        normalizeLoudness = abs(options.audioGain - 1.0) > 0.001
-                    }
-                    statusMessage = "Проект восстановлен: \(snapshot.savedAt.formatted(date: .abbreviated, time: .shortened))"
-                } else {
-                    statusMessage = "Загружено: \(url.lastPathComponent)"
-                }
-                await rebuildPreview()
-
-                // Waveform + RMS cache in ONE streaming pass
-                let analysis = try await AudioAnalysis.analyze(url: url)
-                waveformData = analysis.waveform
-                audioRMSCache = analysis.rms
-                isImporting = false
-            } catch {
-                statusMessage = "Ошибка: \(error.localizedDescription)"
-                isImporting = false
+            // Restore autosaved project (sidecar .silencecut next to the video)
+            if let snapshot = ProjectStore.load(for: url) {
+                restore(snapshot, fallbackSource: source)
+                statusMessage = "Проект восстановлен: \(snapshot.savedAt.formatted(date: .abbreviated, time: .shortened))"
+            } else {
+                statusMessage = "Загружено: \(url.lastPathComponent)"
             }
+
+            await rebuildPreview()
+            for source in timeline.sources {
+                await analyzeSource(source)
+            }
+        }
+    }
+
+    /// Добавить ролики в конец хребта, не трогая уже собранный монтаж
+    public func addSources(urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        guard hasSources else {
+            // Первый ролик открывает проект, остальные доезжают следом
+            importVideo(url: urls[0])
+            if urls.count > 1 {
+                let rest = Array(urls.dropFirst())
+                Task { @MainActor in
+                    while isImporting { try? await Task.sleep(for: .milliseconds(50)) }
+                    addSources(urls: rest)
+                }
+            }
+            return
+        }
+
+        Task { @MainActor in
+            isImporting = true
+            defer { isImporting = false }
+            saveUndoState()
+
+            var added = 0
+            for url in urls {
+                // Тот же файл второй раз переиспользует запись реестра, а не плодит дубль
+                var source = timeline.sources.first { $0.url.path == url.path }
+                if source == nil {
+                    guard let fresh = await makeSource(for: url) else { continue }
+                    registerScopedAccess(for: fresh)
+                    timeline.sources.append(fresh)
+                    source = fresh
+                }
+                guard let source else { continue }
+
+                timeline.clips.append(TimelineClip(
+                    sourceID: source.id,
+                    availableRange: CMTimeRange(start: .zero, duration: source.duration),
+                    sourceRange: CMTimeRange(start: .zero, duration: source.duration)
+                ))
+                added += 1
+            }
+
+            guard added > 0 else { return }
+            timeline.recalculateOffsets()
+            invalidateSubtitles()
+            statusMessage = added == 1 ? "Ролик добавлен" : "Добавлено роликов: \(added)"
+            await rebuildPreview()
+            scheduleAutosave()
+
+            for source in timeline.sources where analyses[source.id] == nil {
+                await analyzeSource(source)
+            }
+        }
+    }
+
+    /// Читает метаданные файла. Возвращает nil, если видео в нём нет — такой файл
+    /// в реестр не попадает.
+    private func makeSource(for url: URL) async -> MediaSource? {
+        let asset = AVURLAsset(url: url)
+        do {
+            guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
+                statusMessage = "В файле нет видео: \(url.lastPathComponent)"
+                return nil
+            }
+            let hasAudio = try await !asset.loadTracks(withMediaType: .audio).isEmpty
+            var source = MediaSource(
+                url: url,
+                duration: try await asset.load(.duration),
+                naturalSize: try await videoTrack.load(.naturalSize),
+                preferredTransform: try await videoTrack.load(.preferredTransform),
+                nominalFrameRate: Double(try await videoTrack.load(.nominalFrameRate)),
+                hasAudio: hasAudio
+            )
+            try? source.createBookmark()
+            return source
+        } catch {
+            statusMessage = "Не удалось открыть \(url.lastPathComponent): \(error.localizedDescription)"
+            return nil
+        }
+    }
+
+    private func registerScopedAccess(for source: MediaSource) {
+        if source.url.startAccessingSecurityScopedResource() {
+            securityScopedURLs[source.id] = source.url
+        }
+    }
+
+    /// Пропорции и частота кадров превью следуют за главным источником
+    private func applyDisplayMetadata(from source: MediaSource) {
+        let oriented = source.orientedSize
+        if oriented.height > 0 { videoAspectRatio = oriented.width / oriented.height }
+        if source.nominalFrameRate > 1 { videoFPS = source.nominalFrameRate }
+    }
+
+    /// Восстанавливает сохранённый проект и проверяет, что все файлы на месте
+    private func restore(_ snapshot: ProjectSnapshot, fallbackSource: MediaSource) {
+        timeline = snapshot.timeline
+        subtitleEntries = snapshot.subtitleEntries
+        subtitleStyle = snapshot.subtitleStyle
+        if let options = snapshot.renderOptions {
+            renderOptions = options
+            normalizeLoudness = timeline.sources.contains { $0.integratedLUFS != nil }
+        }
+
+        offlineSourceIDs.removeAll()
+        for index in timeline.sources.indices {
+            // Миграция со старого формата не знала метаданных кадра: ProjectStore синхронный
+            // и не мог ждать AVURLAsset. Дозаполняем от фактически открытого файла.
+            if timeline.sources[index].naturalSize == .zero,
+               timeline.sources[index].url.path == fallbackSource.url.path {
+                timeline.sources[index] = fallbackSource.withID(timeline.sources[index].id)
+            }
+
+            if timeline.sources[index].resolveBookmark() == nil {
+                offlineSourceIDs.insert(timeline.sources[index].id)
+            } else {
+                registerScopedAccess(for: timeline.sources[index])
+            }
+        }
+
+        if let main = timeline.sources.first { applyDisplayMetadata(from: main) }
+        if !offlineSourceIDs.isEmpty {
+            let names = timeline.sources
+                .filter { offlineSourceIDs.contains($0.id) }
+                .map(\.url.lastPathComponent)
+                .joined(separator: ", ")
+            statusMessage = "Файлы не найдены: \(names)"
+        }
+    }
+
+    /// Волна и RMS-кеш одним потоковым проходом. Ошибка не роняет проект — источник
+    /// просто остаётся без кешей, и детекция пауз по его клипам будет недоступна.
+    private func analyzeSource(_ source: MediaSource) async {
+        guard analyses[source.id] == nil, !offlineSourceIDs.contains(source.id) else { return }
+        do {
+            let analysis = try await AudioAnalysis.analyze(url: source.url)
+            analyses[source.id] = SourceAnalysis(waveform: analysis.waveform, rms: analysis.rms)
+            waveforms[source.id] = analysis.waveform
+        } catch {
+            print("[Analysis] \(source.url.lastPathComponent): \(error)")
+        }
+    }
+
+    /// Заново открыть файл источника, который не нашёлся при загрузке проекта
+    public func relinkSource(id: MediaSource.ID, to url: URL) {
+        guard let index = timeline.sources.firstIndex(where: { $0.id == id }) else { return }
+        Task { @MainActor in
+            guard let fresh = await makeSource(for: url) else { return }
+            var replacement = fresh.withID(id)      // на id ссылаются клипы и перебивки
+            replacement.gain = timeline.sources[index].gain
+            replacement.integratedLUFS = timeline.sources[index].integratedLUFS
+            timeline.sources[index] = replacement
+            offlineSourceIDs.remove(id)
+            registerScopedAccess(for: replacement)
+            statusMessage = "Источник найден: \(url.lastPathComponent)"
+            await rebuildPreview()
+            await analyzeSource(replacement)
+            scheduleAutosave()
         }
     }
 
@@ -563,7 +725,7 @@ public class EditorViewModel {
 
     /// Debounced autosave — called after every meaningful edit
     public func scheduleAutosave() {
-        guard project.sourceURL != nil else { return }
+        guard mainSourceURL != nil else { return }
         autosaveTask?.cancel()
         autosaveTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(2))
@@ -572,20 +734,34 @@ public class EditorViewModel {
         }
     }
 
-    public func saveProjectNow() {
-        guard let url = project.sourceURL else { return }
-        let snapshot = ProjectSnapshot(
+    private var currentSnapshot: ProjectSnapshot {
+        ProjectSnapshot(
             name: project.name,
             timeline: timeline,
             subtitleEntries: subtitleEntries,
             subtitleStyle: subtitleStyle,
             renderOptions: renderOptions
         )
+    }
+
+    public func saveProjectNow() {
+        guard let url = mainSourceURL else { return }
         do {
-            try ProjectStore.save(snapshot, for: url)
+            try ProjectStore.save(currentSnapshot, for: url)
             lastAutosaveAt = Date()
         } catch {
             print("[Autosave] Failed: \(error)")
+        }
+    }
+
+    /// «Сохранить как…» — тот же формат по произвольному пути
+    public func saveProject(to url: URL) {
+        do {
+            try ProjectStore.save(currentSnapshot, to: url)
+            lastAutosaveAt = Date()
+            statusMessage = "Проект сохранён: \(url.lastPathComponent)"
+        } catch {
+            statusMessage = "Не удалось сохранить проект: \(error.localizedDescription)"
         }
     }
 
@@ -609,49 +785,89 @@ public class EditorViewModel {
 
     // MARK: - Silence Detection (review mode)
 
-    /// Ensure the RMS cache exists (built during import; falls back to a fresh pass)
+    /// RMS-кеш источника: построен при импорте, иначе считается на месте
     @MainActor
-    private func ensureRMSCache() async throws -> RMSCache {
-        if let cache = audioRMSCache { return cache }
-        guard let url = project.sourceURL else { throw SilenceDetector.DetectionError.cannotRead }
+    private func ensureRMSCache(for source: MediaSource) async throws -> RMSCache {
+        if let analysis = analyses[source.id] { return analysis.rms }
+        guard !offlineSourceIDs.contains(source.id) else {
+            throw SilenceDetector.DetectionError.cannotRead
+        }
         isDetectingSilence = true
         defer { isDetectingSilence = false }
-        let analysis = try await AudioAnalysis.analyze(url: url) { progress in
+        let analysis = try await AudioAnalysis.analyze(url: source.url) { progress in
             Task { @MainActor in self.detectionProgress = progress }
         }
-        waveformData = analysis.waveform
-        audioRMSCache = analysis.rms
+        analyses[source.id] = SourceAnalysis(waveform: analysis.waveform, rms: analysis.rms)
+        waveforms[source.id] = analysis.waveform
         return analysis.rms
     }
 
     /// «Найти паузы» — detect and show zones for review; the timeline is untouched
-    /// until the user hits «Применить»
+    /// until the user hits «Применить».
+    ///
+    /// Детекция идёт по каждому клипу хребта в координатах его исходника: так один и тот же
+    /// ролик, стоящий на таймлайне дважды, обрабатывается как два разных куска.
     public func enterSilenceReview() {
-        guard project.sourceURL != nil else { return }
+        guard hasSources else { return }
         Task { @MainActor in
-            do {
-                let cache = try await ensureRMSCache()
-                let result = SilenceDetector.detect(cache: cache, settings: silenceSettings)
-                silenceResult = result
-                reviewZones = result.silenceRanges.map {
-                    SilenceReviewZone(id: UUID(), sourceRange: $0, willCut: true)
+            var zones: [SilenceReviewZone] = []
+            var lastResult: SilenceDetectionResult?
+
+            for clip in timeline.clips where clip.isEnabled {
+                guard let source = timeline.source(for: clip.sourceID), source.hasAudio else { continue }
+                do {
+                    let cache = try await ensureRMSCache(for: source)
+                    let result = SilenceDetector.detect(cache: cache, settings: silenceSettings)
+                    lastResult = result
+                    zones.append(contentsOf: zonesInside(clip, from: result.silenceRanges))
+                } catch {
+                    statusMessage = "Ошибка анализа \(source.url.lastPathComponent): \(error.localizedDescription)"
                 }
-                silenceReviewActive = true
-                statusMessage = "Пауз: \(reviewZones.count) — клик по зоне переключает вырезать/оставить"
-            } catch {
-                statusMessage = "Ошибка анализа: \(error.localizedDescription)"
             }
+
+            silenceResult = lastResult
+            reviewZones = zones
+            silenceReviewActive = true
+            statusMessage = zones.isEmpty
+                ? "Пауз не найдено"
+                : "Пауз: \(zones.count) — клик по зоне переключает вырезать/оставить"
+        }
+    }
+
+    /// Паузы источника, попавшие внутрь диапазона конкретного клипа
+    private func zonesInside(_ clip: TimelineClip, from silenceRanges: [CMTimeRange]) -> [SilenceReviewZone] {
+        let clipStart = CMTimeGetSeconds(clip.sourceRange.start)
+        let clipEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
+        return silenceRanges.compactMap { range in
+            let start = max(clipStart, CMTimeGetSeconds(range.start))
+            let end = min(clipEnd, CMTimeGetSeconds(CMTimeRangeGetEnd(range)))
+            guard end > start + 0.01 else { return nil }
+            return SilenceReviewZone(
+                id: UUID(),
+                clipID: clip.id,
+                sourceRange: CMTimeRange(
+                    start: CMTime(seconds: start, preferredTimescale: 600),
+                    duration: CMTime(seconds: end - start, preferredTimescale: 600)
+                ),
+                willCut: true
+            )
         }
     }
 
     /// Instant re-detection from the cache when settings sliders move (review mode only)
     public func recomputeReviewZones() {
-        guard silenceReviewActive, let cache = audioRMSCache else { return }
-        let result = SilenceDetector.detect(cache: cache, settings: silenceSettings)
-        silenceResult = result
-        reviewZones = result.silenceRanges.map {
-            SilenceReviewZone(id: UUID(), sourceRange: $0, willCut: true)
+        guard silenceReviewActive else { return }
+        var zones: [SilenceReviewZone] = []
+        var lastResult: SilenceDetectionResult?
+        for clip in timeline.clips where clip.isEnabled {
+            guard let source = timeline.source(for: clip.sourceID),
+                  let cache = analyses[source.id]?.rms else { continue }
+            let result = SilenceDetector.detect(cache: cache, settings: silenceSettings)
+            lastResult = result
+            zones.append(contentsOf: zonesInside(clip, from: result.silenceRanges))
         }
+        silenceResult = lastResult
+        reviewZones = zones
     }
 
     public func toggleReviewZone(id: UUID) {
@@ -659,61 +875,81 @@ public class EditorViewModel {
         reviewZones[idx].willCut.toggle()
     }
 
+    /// Зона в секундах таймлайна — считается от офсета своего клипа, без глобального маппинга
+    private func timelineSpan(of zone: SilenceReviewZone) -> (start: Double, end: Double)? {
+        guard let clip = timeline.clips.first(where: { $0.id == zone.clipID }) else { return nil }
+        let offset = CMTimeGetSeconds(clip.timelineOffset)
+        let clipSourceStart = CMTimeGetSeconds(clip.sourceRange.start)
+        let start = offset + (CMTimeGetSeconds(zone.sourceRange.start) - clipSourceStart) / clip.speed
+        let end = offset + (CMTimeGetSeconds(CMTimeRangeGetEnd(zone.sourceRange)) - clipSourceStart) / clip.speed
+        guard end > start else { return nil }
+        return (start, end)
+    }
+
     /// Zones mapped to timeline seconds for TimelineView display
     public var displayZones: [TimelineSilenceZone] {
         guard silenceReviewActive else { return [] }
         return reviewZones.compactMap { zone in
-            guard let start = timeline.timelineTime(forSourceTime: zone.sourceRange.start) else { return nil }
-            let zoneEnd = CMTimeRangeGetEnd(zone.sourceRange)
-            // End of a trailing zone maps outside clips — clamp to timeline end
-            let end = timeline.timelineTime(forSourceTime: zoneEnd) ?? timeline.duration
-            let s = CMTimeGetSeconds(start)
-            let e = CMTimeGetSeconds(end)
-            guard e > s else { return nil }
-            return TimelineSilenceZone(id: zone.id, startSeconds: s, endSeconds: e, willCut: zone.willCut)
+            guard let span = timelineSpan(of: zone) else { return nil }
+            return TimelineSilenceZone(
+                id: zone.id, startSeconds: span.start, endSeconds: span.end, willCut: zone.willCut
+            )
         }
     }
 
-    /// Apply the review: cut all zones marked willCut
+    /// Apply the review: cut all zones marked willCut.
+    /// Каждый клип режется у себя внутри — соседние клипы и перебивки остаются на местах,
+    /// а перебивки доезжают за хребтом через applyRemovals.
     public func applySilenceReview() {
-        guard silenceReviewActive, let sourceURL = project.sourceURL else { return }
-        let cutZones = reviewZones.filter(\.willCut).sorted {
-            CMTimeCompare($0.sourceRange.start, $1.sourceRange.start) < 0
-        }
+        guard silenceReviewActive else { return }
+        let cutZones = reviewZones.filter(\.willCut)
         guard !cutZones.isEmpty else {
             cancelSilenceReview()
             return
         }
 
-        // Speech ranges = complement of cut zones over the source duration
-        let total = CMTimeGetSeconds(sourceDuration)
-        var speechRanges: [CMTimeRange] = []
-        var cursor = 0.0
-        for zone in cutZones {
-            let zStart = CMTimeGetSeconds(zone.sourceRange.start)
-            let zEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(zone.sourceRange))
-            if zStart > cursor + 0.01 {
-                speechRanges.append(CMTimeRange(
-                    start: CMTime(seconds: cursor, preferredTimescale: 600),
-                    duration: CMTime(seconds: zStart - cursor, preferredTimescale: 600)
-                ))
-            }
-            cursor = max(cursor, zEnd)
-        }
-        if cursor < total - 0.01 {
-            speechRanges.append(CMTimeRange(
-                start: CMTime(seconds: cursor, preferredTimescale: 600),
-                duration: CMTime(seconds: total - cursor, preferredTimescale: 600)
-            ))
-        }
-
         saveUndoState()
         invalidateSubtitles()
-        timeline = EditTimeline.fromSpeechRanges(
-            speechRanges,
-            sourceURL: sourceURL,
-            availableRange: CMTimeRange(start: .zero, duration: sourceDuration)
-        )
+
+        // Клипы обрабатываются с конца: splitClipBySpeechRanges меняет офсеты всего,
+        // что стоит правее, а зоны посчитаны в старых координатах
+        let byClip = Dictionary(grouping: cutZones, by: \.clipID)
+        let orderedClipIDs = timeline.clips
+            .filter { byClip[$0.id] != nil }
+            .map(\.id)
+            .reversed()
+
+        for clipID in orderedClipIDs {
+            guard let clip = timeline.clips.first(where: { $0.id == clipID }),
+                  let zones = byClip[clipID] else { continue }
+            let cuts = zones
+                .map { (start: CMTimeGetSeconds($0.sourceRange.start),
+                        end: CMTimeGetSeconds(CMTimeRangeGetEnd($0.sourceRange))) }
+                .sorted { $0.start < $1.start }
+
+            // Речь — дополнение вырезаемого внутри диапазона клипа
+            var speech: [CMTimeRange] = []
+            var cursor = CMTimeGetSeconds(clip.sourceRange.start)
+            let clipEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
+            for cut in cuts {
+                if cut.start > cursor + 0.01 {
+                    speech.append(CMTimeRange(
+                        start: CMTime(seconds: cursor, preferredTimescale: 600),
+                        duration: CMTime(seconds: cut.start - cursor, preferredTimescale: 600)
+                    ))
+                }
+                cursor = max(cursor, cut.end)
+            }
+            if clipEnd > cursor + 0.01 {
+                speech.append(CMTimeRange(
+                    start: CMTime(seconds: cursor, preferredTimescale: 600),
+                    duration: CMTime(seconds: clipEnd - cursor, preferredTimescale: 600)
+                ))
+            }
+
+            timeline.splitClipBySpeechRanges(clipID: clipID, speechRanges: speech)
+        }
+
         let removed = cutZones.reduce(0.0) { $0 + CMTimeGetSeconds($1.sourceRange.duration) }
         silenceReviewActive = false
         reviewZones = []
@@ -729,80 +965,271 @@ public class EditorViewModel {
         statusMessage = ""
     }
 
-    /// Restore original (single clip, full video)
+    /// Restore original — по одному целому клипу на каждый источник, перебивки убираются
     public func restoreOriginal() {
-        guard let url = project.sourceURL else { return }
-        Task { @MainActor in
-            let asset = AVURLAsset(url: url)
-            do {
-                let duration = try await asset.load(.duration)
-                let availableRange = CMTimeRange(start: .zero, duration: duration)
-                let clip = TimelineClip(
-                    sourceURL: url,
-                    availableRange: availableRange,
-                    sourceRange: availableRange
-                )
-                saveUndoState()
-                invalidateSubtitles()
-                timeline = EditTimeline(clips: [clip])
-                silenceResult = nil
-                await rebuildPreview()
-                statusMessage = "Оригинал восстановлен"
-            } catch {
-                statusMessage = "Ошибка восстановления: \(error.localizedDescription)"
-            }
+        guard hasSources else { return }
+        saveUndoState()
+        invalidateSubtitles()
+        timeline.clips = timeline.sources.map { source in
+            TimelineClip(
+                sourceID: source.id,
+                availableRange: CMTimeRange(start: .zero, duration: source.duration),
+                sourceRange: CMTimeRange(start: .zero, duration: source.duration)
+            )
         }
+        timeline.overlays = []
+        timeline.recalculateOffsets()
+        silenceResult = nil
+        selectedOverlayId = nil
+        Task { @MainActor in await rebuildPreview() }
+        statusMessage = "Оригинал восстановлен"
     }
 
     // MARK: - Loudness Normalization (BS.1770 / EBU R128)
 
-    /// Измеряет громкость исходника и выставляет гейн до целевой LUFS.
-    /// Замер идёт по исходному файлу: гейтинг BS.1770 и так игнорирует паузы,
-    /// поэтому вырезание тишины на результат практически не влияет.
+    /// Приводит каждый источник к целевой LUFS своим гейном.
+    ///
+    /// Гейн считается на источник, а не один на проект: дубли, снятые в разное время,
+    /// звучат по-разному, и общий множитель их не выравняет. Замер идёт по исходному файлу —
+    /// гейтинг BS.1770 и так игнорирует паузы, поэтому вырезание тишины на результат
+    /// практически не влияет.
     public func applyLoudnessNormalization() {
         guard normalizeLoudness else {
-            renderOptions.audioGain = 1.0
+            for index in timeline.sources.indices { timeline.sources[index].gain = 1.0 }
+            Task { @MainActor in await rebuildPreview() }
+            scheduleAutosave()
             return
         }
-        guard let url = project.sourceURL else { return }
-
-        // Уже измеряли этот файл — просто пересчитываем гейн под текущую цель
-        if let measurement = loudnessMeasurement {
-            setGain(from: measurement)
-            return
-        }
+        guard hasSources else { return }
 
         isMeasuringLoudness = true
         loudnessProgress = 0
         Task { @MainActor in
-            do {
-                let measurement = try await LoudnessAnalyzer.measure(url: url) { progress in
-                    Task { @MainActor in self.loudnessProgress = progress }
+            defer { isMeasuringLoudness = false }
+            let total = max(1, timeline.sources.count)
+
+            for (index, source) in timeline.sources.enumerated() {
+                guard !offlineSourceIDs.contains(source.id), source.hasAudio else { continue }
+
+                // Уже измеряли этот файл — только пересчитываем гейн под текущую цель
+                var measurement: LoudnessMeasurement?
+                if let lufs = source.integratedLUFS, let peak = source.peakDBFS {
+                    measurement = LoudnessMeasurement(integratedLUFS: lufs, peakDBFS: peak, channelCount: 2)
+                } else {
+                    do {
+                        measurement = try await LoudnessAnalyzer.measure(url: source.url) { progress in
+                            Task { @MainActor in
+                                self.loudnessProgress = (Double(index) + progress) / Double(total)
+                            }
+                        }
+                    } catch {
+                        statusMessage = "Ошибка замера громкости \(source.url.lastPathComponent): \(error.localizedDescription)"
+                        continue
+                    }
                 }
+                guard let measurement,
+                      let position = timeline.sources.firstIndex(where: { $0.id == source.id }) else { continue }
+
                 loudnessMeasurement = measurement
-                setGain(from: measurement)
-            } catch {
-                statusMessage = "Ошибка замера громкости: \(error.localizedDescription)"
-                normalizeLoudness = false
+                timeline.sources[position].integratedLUFS = measurement.integratedLUFS
+                timeline.sources[position].peakDBFS = measurement.peakDBFS
+                timeline.sources[position].gain = LoudnessAnalyzer.gain(
+                    for: measurement, targetLUFS: targetLUFS
+                )
             }
-            isMeasuringLoudness = false
+
+            reportLoudness()
+            await rebuildPreview()
+            scheduleAutosave()
         }
     }
 
-    private func setGain(from measurement: LoudnessMeasurement) {
-        let gain = LoudnessAnalyzer.gain(for: measurement, targetLUFS: targetLUFS)
-        renderOptions.audioGain = gain
-        let db = 20 * log10(max(gain, 0.0001))
-        statusMessage = String(
-            format: "Громкость: %.1f LUFS → %.0f LUFS (%+.1f дБ)",
-            measurement.integratedLUFS, targetLUFS, db
+    private func reportLoudness() {
+        let measured = timeline.sources.filter { $0.integratedLUFS != nil }
+        guard !measured.isEmpty else {
+            statusMessage = "Громкость измерить не удалось"
+            return
+        }
+        if measured.count == 1, let only = measured.first, let lufs = only.integratedLUFS {
+            let db = 20 * log10(max(only.gain, 0.0001))
+            statusMessage = String(
+                format: "Громкость: %.1f LUFS → %.0f LUFS (%+.1f дБ)", lufs, targetLUFS, db
+            )
+        } else {
+            statusMessage = String(
+                format: "Громкость выровнена по %.0f LUFS: источников %d", targetLUFS, measured.count
+            )
+        }
+    }
+
+    // MARK: - Перебивки
+
+    /// Кладёт перебивку на таймлайн начиная с указанного момента
+    public func addOverlay(url: URL, at time: CMTime) {
+        Task { @MainActor in
+            var source = timeline.sources.first { $0.url.path == url.path }
+            if source == nil {
+                guard let fresh = await makeSource(for: url) else { return }
+                registerScopedAccess(for: fresh)
+                timeline.sources.append(fresh)
+                source = fresh
+            }
+            guard let source else { return }
+
+            // Перебивка не должна вылезать за конец хребта — там нечего перекрывать
+            let start = max(0, min(CMTimeGetSeconds(time), CMTimeGetSeconds(timeline.duration)))
+            let available = CMTimeGetSeconds(timeline.duration) - start
+            guard available > 0.05 else {
+                statusMessage = "Некуда положить перебивку: хребет закончился"
+                return
+            }
+            let length = min(CMTimeGetSeconds(source.duration), available)
+
+            saveUndoState()
+            let overlay = OverlayClip(
+                sourceID: source.id,
+                sourceRange: CMTimeRange(
+                    start: .zero,
+                    duration: CMTime(seconds: length, preferredTimescale: 600)
+                ),
+                timelineStart: CMTime(seconds: start, preferredTimescale: 600)
+            )
+            timeline.overlays.append(overlay)
+            selectedOverlayId = overlay.id
+            statusMessage = "Перебивка: \(source.displayName)"
+            await rebuildPreview()
+            scheduleAutosave()
+
+            if analyses[source.id] == nil { await analyzeSource(source) }
+        }
+    }
+
+    private var isDraggingOverlay = false
+
+    /// Двигает перебивку по таймлайну. Undo сохраняется один раз за жест.
+    public func moveOverlay(id: UUID, to start: CMTime) {
+        guard let index = timeline.overlays.firstIndex(where: { $0.id == id }) else { return }
+        if !isDraggingOverlay {
+            saveUndoState()
+            isDraggingOverlay = true
+        }
+        let maxStart = max(0, CMTimeGetSeconds(timeline.duration) - CMTimeGetSeconds(timeline.overlays[index].sourceRange.duration))
+        let clamped = max(0, min(CMTimeGetSeconds(start), maxStart))
+        timeline.overlays[index].timelineStart = CMTime(seconds: clamped, preferredTimescale: 600)
+        debouncedRebuild()
+    }
+
+    /// Тянет край перебивки: диапазон исходника меняется, начало на таймлайне задаётся явно
+    public func trimOverlay(id: UUID, newSourceRange: CMTimeRange, timelineStart: CMTime) {
+        guard let index = timeline.overlays.firstIndex(where: { $0.id == id }),
+              let source = timeline.source(for: timeline.overlays[index].sourceID) else { return }
+        if !isDraggingOverlay {
+            saveUndoState()
+            isDraggingOverlay = true
+        }
+
+        let sourceLimit = CMTimeGetSeconds(source.duration)
+        let start = max(0, min(CMTimeGetSeconds(newSourceRange.start), sourceLimit - 0.05))
+        let duration = max(0.05, min(CMTimeGetSeconds(newSourceRange.duration), sourceLimit - start))
+
+        timeline.overlays[index].sourceRange = CMTimeRange(
+            start: CMTime(seconds: start, preferredTimescale: 600),
+            duration: CMTime(seconds: duration, preferredTimescale: 600)
         )
+        timeline.overlays[index].timelineStart = CMTime(
+            seconds: max(0, CMTimeGetSeconds(timelineStart)), preferredTimescale: 600
+        )
+        debouncedRebuild()
+    }
+
+    /// Конец жеста перетаскивания или тяги — следующий начнёт новый шаг undo
+    public func overlayDragEnded() {
+        isDraggingOverlay = false
+        scheduleAutosave()
+    }
+
+    public func removeOverlay(id: UUID) {
+        guard timeline.overlays.contains(where: { $0.id == id }) else { return }
+        saveUndoState()
+        timeline.overlays.removeAll { $0.id == id }
+        if selectedOverlayId == id { selectedOverlayId = nil }
+        Task { @MainActor in await rebuildPreview() }
+        scheduleAutosave()
+    }
+
+    // MARK: - Кадрирование
+
+    /// Кадрирование выделенного клипа хребта или перебивки
+    public var selectedFraming: ClipFraming? {
+        if let id = selectedOverlayId {
+            return timeline.overlays.first { $0.id == id }?.framing
+        }
+        if let id = selectedClipId {
+            return timeline.clips.first { $0.id == id }?.framing
+        }
+        return nil
+    }
+
+    /// Исходный размер кадра выделенного элемента — нужен кнопке «Вписать целиком»
+    public var selectedOrientedSize: CGSize? {
+        if let id = selectedOverlayId,
+           let overlay = timeline.overlays.first(where: { $0.id == id }) {
+            return timeline.source(for: overlay.sourceID)?.orientedSize
+        }
+        if let id = selectedClipId,
+           let clip = timeline.clips.first(where: { $0.id == id }) {
+            return timeline.source(for: clip.sourceID)?.orientedSize
+        }
+        return nil
+    }
+
+    private var isFraming = false
+
+    /// Меняет кадрирование выделенного элемента. Undo сохраняется один раз за жест.
+    public func setSelectedFraming(_ framing: ClipFraming) {
+        if !isFraming {
+            saveUndoState()
+            isFraming = true
+        }
+        if let id = selectedOverlayId,
+           let index = timeline.overlays.firstIndex(where: { $0.id == id }) {
+            timeline.overlays[index].framing = framing
+        } else if let id = selectedClipId,
+                  let index = timeline.clips.firstIndex(where: { $0.id == id }) {
+            timeline.clips[index].framing = framing
+        } else {
+            return
+        }
+        debouncedRebuild()
+    }
+
+    public func framingEnded() {
+        isFraming = false
+        scheduleAutosave()
+    }
+
+    /// Холст проекта — к нему привязан масштаб «вписать целиком»
+    public var projectRenderSize: CGSize {
+        CompositionBuilder.projectRenderSize(timeline: timeline, options: renderOptions)
+    }
+
+    public func fitSelectedFraming() {
+        guard let size = selectedOrientedSize else { return }
+        setSelectedFraming(ClipFraming(
+            scale: ClipFraming.fitScale(orientedSize: size, targetSize: projectRenderSize)
+        ))
+        framingEnded()
+    }
+
+    public func fillSelectedFraming() {
+        setSelectedFraming(.default)
+        framingEnded()
     }
 
     // MARK: - Transcription
 
     public func transcribe() {
-        guard project.sourceURL != nil else { return }
+        guard hasSources else { return }
         guard timeline.enabledClipCount > 0 else {
             statusMessage = "Нет клипов для транскрибации"
             return
@@ -1137,16 +1564,39 @@ public class EditorViewModel {
             let sourceStart = CMTimeGetSeconds(clip.sourceRange.start) + (overlapStart - clipStart) * clip.speed
             let sourceDur = (overlapEnd - overlapStart) * clip.speed
             sliced.append(TimelineClip(
-                sourceURL: clip.sourceURL,
+                sourceID: clip.sourceID,
                 availableRange: clip.availableRange,
                 sourceRange: CMTimeRange(
                     start: CMTime(seconds: sourceStart, preferredTimescale: 600),
                     duration: CMTime(seconds: sourceDur, preferredTimescale: 600)
                 ),
-                speed: clip.speed
+                speed: clip.speed,
+                framing: clip.framing
             ))
         }
-        var previewTimeline = EditTimeline(clips: sliced)
+
+        // Перебивки, попавшие в окно, тоже едут в тест — иначе он врёт про то, что увидит зритель
+        let slicedOverlays: [OverlayClip] = timeline.clampedOverlays.compactMap { overlay in
+            let start = CMTimeGetSeconds(overlay.timelineStart)
+            let end = start + CMTimeGetSeconds(overlay.sourceRange.duration)
+            let overlapStart = max(start, t0)
+            let overlapEnd = min(end, t1)
+            guard overlapEnd > overlapStart + 0.05 else { return nil }
+            var copy = overlay
+            copy.sourceRange = CMTimeRange(
+                start: CMTime(
+                    seconds: CMTimeGetSeconds(overlay.sourceRange.start) + (overlapStart - start),
+                    preferredTimescale: 600
+                ),
+                duration: CMTime(seconds: overlapEnd - overlapStart, preferredTimescale: 600)
+            )
+            copy.timelineStart = CMTime(seconds: overlapStart - t0, preferredTimescale: 600)
+            return copy
+        }
+
+        var previewTimeline = EditTimeline(
+            sources: timeline.sources, clips: sliced, overlays: slicedOverlays
+        )
         previewTimeline.recalculateOffsets()
 
         // Shift subtitles into the window's local time
@@ -1226,17 +1676,15 @@ public class EditorViewModel {
             guard let self, self.isPlaying else { return }
             self.playheadPosition = time
 
-            // Review mode: «прослушать с пропусками» — jump over zones marked for cutting
-            if self.silenceReviewActive, self.skipSilencesInPreview,
-               let sourceTime = self.timeline.sourceTime(forTimelineTime: time) {
-                let s = CMTimeGetSeconds(sourceTime)
-                if let zone = self.reviewZones.first(where: { z in
-                    z.willCut &&
-                    s >= CMTimeGetSeconds(z.sourceRange.start) + 0.02 &&
-                    s < CMTimeGetSeconds(CMTimeRangeGetEnd(z.sourceRange)) - 0.02
+            // Review mode: «прослушать с пропусками» — jump over zones marked for cutting.
+            // Зоны сравниваются прямо во времени таймлайна: с несколькими источниками
+            // обратный маппинг «время таймлайна → время исходника» неоднозначен.
+            if self.silenceReviewActive, self.skipSilencesInPreview {
+                let seconds = CMTimeGetSeconds(time)
+                if let zone = self.displayZones.first(where: {
+                    $0.willCut && seconds >= $0.startSeconds + 0.02 && seconds < $0.endSeconds - 0.02
                 }) {
-                    let zoneEnd = CMTimeRangeGetEnd(zone.sourceRange)
-                    let target = self.timeline.timelineTime(forSourceTime: zoneEnd) ?? self.timeline.duration
+                    let target = CMTime(seconds: zone.endSeconds, preferredTimescale: 600)
                     self.playheadPosition = target
                     self.player?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
                 }

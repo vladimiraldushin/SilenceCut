@@ -202,12 +202,19 @@ public final class BatchQueueModel {
             }
 
             let asset = AVURLAsset(url: sourceURL)
-            let duration = try await asset.load(.duration)
-            let timeline = EditTimeline.fromSpeechRanges(
-                silence.speechRanges,
-                sourceURL: sourceURL,
-                availableRange: CMTimeRange(start: .zero, duration: duration)
+            guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
+                updateState(id: id, .failed("В файле нет видео"))
+                return
+            }
+            let source = MediaSource(
+                url: sourceURL,
+                duration: try await asset.load(.duration),
+                naturalSize: try await videoTrack.load(.naturalSize),
+                preferredTransform: try await videoTrack.load(.preferredTransform),
+                nominalFrameRate: Double(try await videoTrack.load(.nominalFrameRate)),
+                hasAudio: try await !asset.loadTracks(withMediaType: .audio).isEmpty
             )
+            let timeline = EditTimeline.singleSource(source, speechRanges: silence.speechRanges)
 
             updateState(id: id, .running(stage: "Анализ", progress: 0.15))
             if token.isCancelled { updateState(id: id, .cancelled); return }

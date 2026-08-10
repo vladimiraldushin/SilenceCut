@@ -170,7 +170,7 @@ struct SilenceDetectionPanel: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(viewModel.project.sourceURL == nil)
+                .disabled(!viewModel.hasSources)
 
                 if viewModel.silenceResult != nil {
                     Button {

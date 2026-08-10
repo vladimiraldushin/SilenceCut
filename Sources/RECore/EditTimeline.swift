@@ -132,6 +132,20 @@ public struct EditTimeline: Codable, Equatable {
         recalculateOffsets()
     }
 
+    /// Таймлайн из одного источника по найденным диапазонам речи — пакетная обработка
+    /// собирает проект именно так, без ручного монтажа
+    public static func singleSource(_ source: MediaSource, speechRanges: [CMTimeRange]) -> EditTimeline {
+        let available = CMTimeRange(start: .zero, duration: source.duration)
+        var timeline = EditTimeline(
+            sources: [source],
+            clips: speechRanges.map {
+                TimelineClip(sourceID: source.id, availableRange: available, sourceRange: $0)
+            }
+        )
+        timeline.recalculateOffsets()
+        return timeline
+    }
+
     /// Find clip index at a given timeline time
     public func clipIndex(at time: CMTime) -> Int? {
         for (i, clip) in clips.enumerated() where clip.isEnabled {
