@@ -102,6 +102,7 @@
 		CEBD6FB81A73C1163C2C0C8C /* SubtitleMarkdownExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BE4B5F28EA4351021536B73 /* SubtitleMarkdownExporter.swift */; };
 		CFAEF41566E8580A5E862C5C /* SilenceDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7438A77723E8F226465D2E3C /* SilenceDetector.swift */; };
 		D334D41C680E2F57967F1498 /* REAudioAnalysis-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E9EE611B9409EF67024B133 /* REAudioAnalysis-iOS.framework */; };
+		D519B404A08A3EA0B94DCA29 /* ProjectMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5789FDDB6B22463A47B8132 /* ProjectMigrationTests.swift */; };
 		D55756F4338B80CEDC7359F6 /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BAA5E9E0908542D21B7016D /* TranscriptionService.swift */; };
 		D60B61C8B6DC16CD1C3511AB /* EditTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */; };
 		D73E184BFD3AA566DC911375 /* CompositionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B393CEBEB6454425D206940 /* CompositionBuilder.swift */; };
@@ -454,6 +455,7 @@
 		9AFB408B69327330EBAFC712 /* REExport.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = REExport.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPlayerView.swift; sourceTree = "<group>"; };
 		A2C54CB65E77B0DB040CDD51 /* SubtitleEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleEntry.swift; sourceTree = "<group>"; };
+		B5789FDDB6B22463A47B8132 /* ProjectMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectMigrationTests.swift; sourceTree = "<group>"; };
 		C0879AC88785B477EA4ADDD8 /* ProjectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectStore.swift; sourceTree = "<group>"; };
 		C38F6599CFE96AB9F4C0579C /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
 		C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = REAudioAnalysis.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -637,6 +639,7 @@
 			isa = PBXGroup;
 			children = (
 				7CB19C115AC59E1D7DB247A0 /* MediaSourceTests.swift */,
+				B5789FDDB6B22463A47B8132 /* ProjectMigrationTests.swift */,
 				25E767F05369E7F15FB1555B /* ProjectStoreTests.swift */,
 				867B6544F63DCE6289770469 /* TimelineClipTests.swift */,
 				4F91109B0A50223C205B9995 /* TimelineRemovalTests.swift */,
@@ -1295,6 +1298,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4FA0F30C64AF26062CF86951 /* MediaSourceTests.swift in Sources */,
+				D519B404A08A3EA0B94DCA29 /* ProjectMigrationTests.swift in Sources */,
 				E26B4EC1EA86EF101F06BDBB /* ProjectStoreTests.swift in Sources */,
 				2639D9B37F21CE06BA44EAB7 /* TimelineClipTests.swift in Sources */,
 				0697E9BE90A3F8D1BDE17CF8 /* TimelineRemovalTests.swift in Sources */,

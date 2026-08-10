@@ -59,6 +59,52 @@ public struct MediaSource: Identifiable, Codable, Equatable {
         self.gain = gain
     }
 
+    // MARK: - Security-scoped bookmark
+
+    /// Без bookmark доступ к файлу не переживает перезапуск приложения
+    public mutating func createBookmark() throws {
+        #if os(macOS)
+        bookmarkData = try url.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        #else
+        bookmarkData = try url.bookmarkData(
+            options: [],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        #endif
+    }
+
+    /// Восстанавливает URL из bookmark и обновляет `url`, если файл переехал.
+    /// Возвращает nil, если bookmark протух и файл не найден — источник считается offline.
+    public mutating func resolveBookmark() -> URL? {
+        guard let data = bookmarkData else {
+            return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        }
+        var isStale = false
+        do {
+            #if os(macOS)
+            let resolved = try URL(
+                resolvingBookmarkData: data, options: .withSecurityScope,
+                relativeTo: nil, bookmarkDataIsStale: &isStale
+            )
+            #else
+            let resolved = try URL(
+                resolvingBookmarkData: data, options: [],
+                relativeTo: nil, bookmarkDataIsStale: &isStale
+            )
+            #endif
+            url = resolved
+            if isStale { try? createBookmark() }
+            return resolved
+        } catch {
+            return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        }
+    }
+
     // MARK: - Codable
 
     // CGSize и CGAffineTransform кодируются явно списком чисел: у их системных конформансов
