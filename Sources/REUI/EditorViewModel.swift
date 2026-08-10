@@ -1070,6 +1070,87 @@ public class EditorViewModel {
         }
     }
 
+    // MARK: - Вставка и перестановка клипов хребта
+
+    /// Ролик, выбранный на полке источников — его вставляет запятая
+    public var selectedSourceId: MediaSource.ID?
+
+    /// Ширина видимой части таймлайна: нужна команде «вписать в окно»
+    public var timelineViewportWidth: Double = 800
+
+    /// Вставляет ролик из реестра в указанный момент, разрезая клип под ним
+    public func insertSource(id: MediaSource.ID, at time: CMTime) {
+        guard let source = timeline.source(for: id) else { return }
+        saveUndoState()
+        invalidateSubtitles()
+        let full = CMTimeRange(start: .zero, duration: source.duration)
+        timeline.insertClip(
+            TimelineClip(sourceID: source.id, availableRange: full, sourceRange: full),
+            at: time
+        )
+        statusMessage = "Вставлен \(source.displayName)"
+        Task { @MainActor in await rebuildPreview() }
+        scheduleAutosave()
+    }
+
+    /// Вставляет файл в указанный момент, добавив его в реестр, если он новый
+    public func insertSource(url: URL, at time: CMTime) {
+        Task { @MainActor in
+            if let existing = timeline.sources.first(where: { $0.url.path == url.path }) {
+                insertSource(id: existing.id, at: time)
+                return
+            }
+            guard let source = await makeSource(for: url) else { return }
+            registerScopedAccess(for: source)
+            timeline.sources.append(source)
+            insertSource(id: source.id, at: time)
+            await analyzeSource(source)
+        }
+    }
+
+    /// Запятая: выбранный на полке ролик встаёт на плейхед
+    public func insertSelectedSourceAtPlayhead() {
+        guard let id = selectedSourceId ?? timeline.sources.first?.id else {
+            statusMessage = "Выберите ролик на полке источников"
+            return
+        }
+        insertSource(id: id, at: playheadPosition)
+    }
+
+    /// Переставляет клип хребта к указанному стыку
+    public func moveClip(id: UUID, toBoundary boundary: Int) {
+        guard let index = timeline.clips.firstIndex(where: { $0.id == id }),
+              index != boundary, index + 1 != boundary else { return }
+        saveUndoState()
+        invalidateSubtitles()
+        timeline.moveClip(id: id, toBoundary: boundary)
+        Task { @MainActor in await rebuildPreview() }
+        scheduleAutosave()
+    }
+
+    /// T — выключить клип из вывода, не удаляя его с таймлайна
+    public func toggleSelectedClip() {
+        guard let id = selectedClipId else { return }
+        toggleClip(id: id)
+    }
+
+    // MARK: - Навигация и зум
+
+    public func jumpToStart() {
+        seekSmoothly(to: .zero)
+    }
+
+    public func jumpToEnd() {
+        seekSmoothly(to: timeline.duration)
+    }
+
+    /// Подобрать масштаб так, чтобы весь таймлайн поместился в окно
+    public func zoomToFit() {
+        let seconds = CMTimeGetSeconds(timeline.duration)
+        guard seconds > 0.1, timelineViewportWidth > 50 else { return }
+        pixelsPerSecond = max(20, min(500, (timelineViewportWidth - 24) / seconds))
+    }
+
     // MARK: - Перебивки
 
     /// Кладёт перебивку на таймлайн начиная с указанного момента

@@ -44,6 +44,7 @@ public struct TimelineViewWrapper: NSViewRepresentable {
     let onMoveOverlay: ((UUID, CMTime) -> Void)?
     let onTrimOverlay: ((UUID, CMTimeRange, CMTime) -> Void)?
     let onOverlayDragEnd: (() -> Void)?
+    let onMoveClip: ((UUID, Int) -> Void)?
 
     public init(
         clips: [TimelineClip],
@@ -64,7 +65,8 @@ public struct TimelineViewWrapper: NSViewRepresentable {
         onDropFile: ((URL, CMTime, Bool) -> Void)? = nil,
         onMoveOverlay: ((UUID, CMTime) -> Void)? = nil,
         onTrimOverlay: ((UUID, CMTimeRange, CMTime) -> Void)? = nil,
-        onOverlayDragEnd: (() -> Void)? = nil
+        onOverlayDragEnd: (() -> Void)? = nil,
+        onMoveClip: ((UUID, Int) -> Void)? = nil
     ) {
         self.clips = clips
         self.overlays = overlays
@@ -85,6 +87,7 @@ public struct TimelineViewWrapper: NSViewRepresentable {
         self.onMoveOverlay = onMoveOverlay
         self.onTrimOverlay = onTrimOverlay
         self.onOverlayDragEnd = onOverlayDragEnd
+        self.onMoveClip = onMoveClip
     }
 
     public func makeNSView(context: Context) -> NSScrollView {
@@ -129,6 +132,7 @@ public struct TimelineViewWrapper: NSViewRepresentable {
         timeline.onMoveOverlay = onMoveOverlay
         timeline.onTrimOverlay = onTrimOverlay
         timeline.onOverlayDragEnd = onOverlayDragEnd
+        timeline.onMoveClip = onMoveClip
     }
 
     public func makeCoordinator() -> Coordinator { Coordinator() }
@@ -157,6 +161,8 @@ public class TimelineNSView: NSView {
     /// (id, новый диапазон исходника, новое начало на таймлайне)
     var onTrimOverlay: ((UUID, CMTimeRange, CMTime) -> Void)?
     var onOverlayDragEnd: (() -> Void)?
+    /// (id клипа, номер стыка, куда его перенести)
+    var onMoveClip: ((UUID, Int) -> Void)?
 
     // State
     private var clips: [TimelineClip] = []
@@ -186,6 +192,11 @@ public class TimelineNSView: NSView {
         id: UUID, mode: OverlayDragMode,
         initialSourceRange: CMTimeRange, initialStart: Double
     )?
+
+    /// Перетаскивание клипа хребта: тянуть можно только уже выделенный клип,
+    /// иначе пропадёт скраб протяжкой по таймлайну
+    private var clipDrag: (id: UUID, targetBoundary: Int)?
+    private let insertMarkerLayer = CALayer()
 
     // Geometry
     private let spineHeight: CGFloat = 80
@@ -218,6 +229,11 @@ public class TimelineNSView: NSView {
         spineLayer.backgroundColor = NSColor(calibratedWhite: 0.15, alpha: 1).cgColor
         spineLayer.cornerRadius = 4
         layer?.addSublayer(spineLayer)
+
+        insertMarkerLayer.backgroundColor = NSColor.systemYellow.cgColor
+        insertMarkerLayer.zPosition = 90
+        insertMarkerLayer.isHidden = true
+        layer?.addSublayer(insertMarkerLayer)
 
         playheadLayer.backgroundColor = NSColor.red.cgColor
         playheadLayer.zPosition = 100
@@ -629,6 +645,7 @@ public class TimelineNSView: NSView {
         case .began:
             if beginOverlayDrag(at: point) { return }
             if beginSpineTrim(at: point) { return }
+            if beginClipDrag(at: point) { return }
             onSeek?(CMTime(seconds: seconds(atX: point.x), preferredTimescale: 600))
 
         case .changed:
@@ -637,6 +654,8 @@ public class TimelineNSView: NSView {
                 continueOverlayDrag(delta: delta)
             } else if trimming != nil {
                 continueSpineTrim(delta: delta)
+            } else if clipDrag != nil {
+                continueClipDrag(at: point)
             } else {
                 onSeek?(CMTime(seconds: seconds(atX: point.x), preferredTimescale: 600))
             }
@@ -644,11 +663,78 @@ public class TimelineNSView: NSView {
         case .ended, .cancelled:
             if overlayDrag != nil { onOverlayDragEnd?() }
             if trimming != nil { onTrimEnd?() }
+            if let drag = clipDrag, gesture.state == .ended {
+                onMoveClip?(drag.id, drag.targetBoundary)
+            }
             overlayDrag = nil
             trimming = nil
+            clipDrag = nil
+            hideInsertMarker()
 
         default: break
         }
+    }
+
+    // MARK: - Перетаскивание клипа хребта
+
+    /// x каждого стыка: границ на одну больше, чем клипов
+    private var boundaryPositions: [CGFloat] {
+        var positions: [CGFloat] = [0]
+        var x: CGFloat = 0
+        for clip in clips where clip.isEnabled {
+            x += CGFloat(CMTimeGetSeconds(clip.effectiveDuration) * pixelsPerSecond)
+            positions.append(x)
+        }
+        return positions
+    }
+
+    private func beginClipDrag(at point: CGPoint) -> Bool {
+        guard onMoveClip != nil, let selected = selectedClipId else { return false }
+        let trackPoint = CGPoint(x: point.x, y: point.y - spineY)
+        guard let layer = clipLayers[selected], layer.frame.contains(trackPoint) else { return false }
+
+        clipDrag = (id: selected, targetBoundary: nearestBoundary(toX: point.x))
+        showInsertMarker(atBoundary: clipDrag!.targetBoundary)
+        NSCursor.closedHand.set()
+        return true
+    }
+
+    private func continueClipDrag(at point: CGPoint) {
+        guard var drag = clipDrag else { return }
+        drag.targetBoundary = nearestBoundary(toX: point.x)
+        clipDrag = drag
+        showInsertMarker(atBoundary: drag.targetBoundary)
+    }
+
+    private func nearestBoundary(toX x: CGFloat) -> Int {
+        let positions = boundaryPositions
+        var best = 0
+        var bestDistance = CGFloat.infinity
+        for (index, position) in positions.enumerated() where abs(position - x) < bestDistance {
+            bestDistance = abs(position - x)
+            best = index
+        }
+        return best
+    }
+
+    private func showInsertMarker(atBoundary boundary: Int) {
+        let positions = boundaryPositions
+        guard boundary < positions.count else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        insertMarkerLayer.isHidden = false
+        insertMarkerLayer.frame = CGRect(
+            x: positions[boundary] - 1.5, y: spineY, width: 3, height: spineHeight
+        )
+        CATransaction.commit()
+    }
+
+    private func hideInsertMarker() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        insertMarkerLayer.isHidden = true
+        CATransaction.commit()
+        NSCursor.arrow.set()
     }
 
     private func beginOverlayDrag(at point: CGPoint) -> Bool {
@@ -876,6 +962,15 @@ public class TimelineNSView: NSView {
         }
 
         let trackPoint = CGPoint(x: point.x, y: point.y - spineY)
+
+        if let selected = selectedClipId, onMoveClip != nil,
+           let layer = clipLayers[selected], layer.frame.contains(trackPoint),
+           abs(trackPoint.x - layer.frame.minX) >= handleWidth,
+           abs(trackPoint.x - layer.frame.maxX) >= handleWidth {
+            NSCursor.openHand.set()
+            return
+        }
+
         var onHandle = false
         for clip in clips where clip.isEnabled {
             guard let layer = clipLayers[clip.id] else { continue }
@@ -942,7 +1037,8 @@ public struct TimelineViewWrapper: UIViewRepresentable {
         onDropFile: ((URL, CMTime, Bool) -> Void)? = nil,
         onMoveOverlay: ((UUID, CMTime) -> Void)? = nil,
         onTrimOverlay: ((UUID, CMTimeRange, CMTime) -> Void)? = nil,
-        onOverlayDragEnd: (() -> Void)? = nil
+        onOverlayDragEnd: (() -> Void)? = nil,
+        onMoveClip: ((UUID, Int) -> Void)? = nil
     ) {
         self.clips = clips
         self.overlays = overlays

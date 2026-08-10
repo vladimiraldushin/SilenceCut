@@ -360,14 +360,22 @@ struct HotkeysHelpView: View {
         ("J / L", "Секунда назад / вперёд"),
         ("K", "Пауза"),
         ("← / →", "Кадр назад / вперёд"),
-        ("[ / ]", "Предыдущая / следующая склейка"),
-        ("I", "Обрезать начало клипа до плейхеда"),
-        ("O", "Обрезать конец клипа от плейхеда"),
-        ("⌘⇧S", "Разрезать клип"),
+        ("⇧← / ⇧→", "Секунда назад / вперёд"),
+        ("↑ / ↓", "Предыдущая / следующая склейка"),
+        ("[ / ]", "То же самое"),
+        ("Home / End", "В начало / конец таймлайна"),
+        ("I или Q", "Обрезать начало клипа до плейхеда"),
+        ("O или W", "Обрезать конец клипа от плейхеда"),
+        ("⌘B", "Разрезать клип на плейхеде"),
+        (",", "Вставить выбранный ролик на плейхед"),
+        ("T", "Выключить / включить клип в выводе"),
         ("Delete", "Удалить выбранный клип"),
+        ("⌘+ / ⌘−", "Крупнее / мельче"),
+        ("⇧Z", "Вписать таймлайн в окно"),
         ("⌘Z / ⌘⇧Z", "Отменить / повторить"),
-        ("⌘S", "Сохранить проект"),
+        ("⌘S / ⌘⇧⌥S", "Сохранить проект / сохранить как"),
         ("⌘O / ⌘⇧O", "Открыть видео / проект"),
+        ("⌘E", "Экспорт"),
         ("?", "Эта шпаргалка"),
     ]
 
@@ -799,8 +807,17 @@ extension MainEditorView {
                     .font(.caption2).foregroundStyle(.tertiary)
                 Button { viewModel.zoomIn() } label: { Image(systemName: "plus.magnifyingglass") }
                     .buttonStyle(.plain).font(.caption)
+                Button { viewModel.zoomToFit() } label: { Image(systemName: "arrow.left.and.right.square") }
+                    .buttonStyle(.plain).font(.caption)
+                    .help("Вписать таймлайн в окно (⇧Z)")
             }
             .padding(.horizontal, 8)
+            // Ширина видимой части нужна команде «вписать в окно»
+            .background(GeometryReader { geo in
+                Color.clear.onChange(of: geo.size.width, initial: true) { _, width in
+                    viewModel.timelineViewportWidth = Double(width)
+                }
+            })
             .padding(.vertical, 4)
             .background(.bar)
 
@@ -823,6 +840,9 @@ extension MainEditorView {
                 onDropFile: { url, time, toOverlayLane in
                     if toOverlayLane {
                         viewModel.addOverlay(url: url, at: time)
+                    } else if viewModel.hasSources {
+                        // Ролик встаёт туда, куда его бросили, а не в конец
+                        viewModel.insertSource(url: url, at: time)
                     } else {
                         viewModel.addSources(urls: [url])
                     }
@@ -831,7 +851,8 @@ extension MainEditorView {
                 onTrimOverlay: { id, range, start in
                     viewModel.trimOverlay(id: id, newSourceRange: range, timelineStart: start)
                 },
-                onOverlayDragEnd: { viewModel.overlayDragEnded() }
+                onOverlayDragEnd: { viewModel.overlayDragEnded() },
+                onMoveClip: { id, boundary in viewModel.moveClip(id: id, toBoundary: boundary) }
             )
         }
     }

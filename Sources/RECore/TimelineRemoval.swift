@@ -174,6 +174,131 @@ extension EditTimeline {
         recalculateOffsets()
     }
 
+    // MARK: - Вставка и перестановка
+
+    /// Раздвигает таймлайн в точке `time` на `duration`.
+    ///
+    /// Симметрично `applyRemovals`: кадры перебивки привязаны к своему месту на таймлайне,
+    /// поэтому перебивка, накрывшая точку вставки, распадается надвое — иначе её картинка
+    /// поехала бы поверх только что вставленного материала.
+    public mutating func applyInsertion(at time: CMTime, duration: CMTime) {
+        let point = CMTimeGetSeconds(time)
+        let shift = CMTimeGetSeconds(duration)
+        guard shift > Self.epsilon else { return }
+
+        var result: [OverlayClip] = []
+        for overlay in overlays {
+            let start = CMTimeGetSeconds(overlay.timelineStart)
+            let length = CMTimeGetSeconds(overlay.sourceRange.duration)
+            let end = start + length
+
+            if start >= point - Self.epsilon {
+                var moved = overlay
+                moved.timelineStart = CMTime(seconds: start + shift, preferredTimescale: 600)
+                result.append(moved)
+            } else if end <= point + Self.epsilon {
+                result.append(overlay)
+            } else {
+                // Точка вставки внутри перебивки — режем и правую половину сдвигаем
+                let sourceStart = CMTimeGetSeconds(overlay.sourceRange.start)
+                let headLength = point - start
+
+                var head = overlay
+                head.sourceRange = CMTimeRange(
+                    start: overlay.sourceRange.start,
+                    duration: CMTime(seconds: headLength, preferredTimescale: 600)
+                )
+                result.append(head)
+
+                let tail = OverlayClip(
+                    id: UUID(),
+                    sourceID: overlay.sourceID,
+                    sourceRange: CMTimeRange(
+                        start: CMTime(seconds: sourceStart + headLength, preferredTimescale: 600),
+                        duration: CMTime(seconds: length - headLength, preferredTimescale: 600)
+                    ),
+                    timelineStart: CMTime(seconds: point + shift, preferredTimescale: 600),
+                    framing: overlay.framing,
+                    isEnabled: overlay.isEnabled
+                )
+                result.append(tail)
+            }
+        }
+        overlays = result
+    }
+
+    /// Индекс в хребте, куда встанет клип, если бросить его в момент `time`.
+    /// Считается по ближайшей границе клипов — попадать в неё пиксель в пиксель не нужно.
+    public func insertIndex(atTimelineTime time: CMTime) -> Int {
+        let target = CMTimeGetSeconds(time)
+        let enabled = clips.filter(\.isEnabled)
+        guard !enabled.isEmpty else { return 0 }
+
+        var boundaries: [Double] = [0]
+        for clip in enabled {
+            boundaries.append(CMTimeGetSeconds(clip.timelineEnd))
+        }
+        var bestIndex = 0
+        var bestDistance = Double.infinity
+        for (index, boundary) in boundaries.enumerated() {
+            let distance = abs(boundary - target)
+            if distance < bestDistance {
+                bestDistance = distance
+                bestIndex = index
+            }
+        }
+        return bestIndex
+    }
+
+    /// Вставляет клип в момент `time`, разрезав клип под ней, и раздвигает перебивки.
+    public mutating func insertClip(_ clip: TimelineClip, at time: CMTime) {
+        let total = CMTimeGetSeconds(duration)
+        let point = max(0, min(CMTimeGetSeconds(time), total))
+        let at = CMTime(seconds: point, preferredTimescale: 600)
+
+        // Плейхед внутри клипа — сначала разрезаем, чтобы вставка встала ровно в это место
+        if let index = clipIndex(at: at) {
+            let host = clips[index]
+            let offsetInClip = point - CMTimeGetSeconds(host.timelineOffset)
+            if offsetInClip > Self.epsilon,
+               offsetInClip < CMTimeGetSeconds(host.effectiveDuration) - Self.epsilon {
+                splitClip(at: index, splitTime: at)
+            }
+        }
+
+        // После возможного разреза граница существует ровно в этой точке
+        var insertAt = clips.count
+        for (index, existing) in clips.enumerated()
+        where CMTimeGetSeconds(existing.timelineOffset) >= point - Self.epsilon {
+            insertAt = index
+            break
+        }
+
+        var inserted = clip
+        inserted.timelineOffset = at
+        clips.insert(inserted, at: insertAt)
+
+        applyInsertion(at: at, duration: inserted.effectiveDuration)
+        recalculateOffsets()
+    }
+
+    /// Переставляет клип хребта к указанной ГРАНИЦЕ — номеру стыка в текущем массиве,
+    /// каким его вернёт `insertIndex(atTimelineTime:)`. Границ на одну больше, чем клипов:
+    /// 0 — перед первым, `clips.count` — в самый конец.
+    ///
+    /// Именно границы, а не конечный индекс: перетаскивание на таймлайне даёт стык, в который
+    /// целится курсор, и пересчитывать его в конечную позицию должен тот, кто знает про
+    /// изъятие клипа из массива, — то есть эта функция.
+    ///
+    /// Общая длина не меняется, поэтому перебивки остаются там, где стояли.
+    public mutating func moveClip(id: TimelineClip.ID, toBoundary boundary: Int) {
+        guard let from = clips.firstIndex(where: { $0.id == id }) else { return }
+        let clip = clips.remove(at: from)
+        let to = max(0, min(boundary > from ? boundary - 1 : boundary, clips.count))
+        clips.insert(clip, at: to)
+        recalculateOffsets()
+    }
+
     /// Перебивки, обрезанные по фактической длине хребта: вылезшая за конец картинка
     /// не должна дотягивать композицию до пустоты
     public var clampedOverlays: [OverlayClip] {

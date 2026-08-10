@@ -37,11 +37,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
 
+            // Клавиши с ⌘/⌃/⌥ — не наши: они уходят в меню. Без этой проверки монитор
+            // глотал ⌘O (keyCode 31 — это буква O) и пункт «Открыть видео» не срабатывал.
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            let hasCommandLike = !modifiers.intersection([.command, .control, .option]).isEmpty
+            if hasCommandLike { return event }
+
             // "?" — hotkey cheatsheet
             if event.characters == "?" {
                 vm.showHotkeysHelp.toggle()
                 return nil
             }
+
+            let shift = modifiers.contains(.shift)
 
             switch event.keyCode {
             case 49: // Space — Play/Pause
@@ -61,23 +69,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             case 37: // L — forward 1s
                 vm.nudgePlayhead(by: 1.0)
                 return nil
-            case 34: // I — trim in: cut everything left of playhead in current clip
+            case 34, 12: // I, Q — ripple trim: cut everything left of playhead
                 vm.trimInAtPlayhead()
                 return nil
-            case 31: // O — trim out: cut everything right of playhead in current clip
+            case 31, 13: // O, W — ripple trim: cut everything right of playhead
                 vm.trimOutAtPlayhead()
                 return nil
-            case 30: // ] — next cut
+            case 30, 125: // ], ↓ — next cut
                 vm.jumpToNextCut()
                 return nil
-            case 33: // [ — previous cut
+            case 33, 126: // [, ↑ — previous cut
                 vm.jumpToPreviousCut()
                 return nil
-            case 123: // Left arrow — step back 1 frame (real fps)
-                vm.nudgePlayhead(by: -1.0 / vm.videoFPS)
+            case 43: // , — вставить выбранный на полке ролик на плейхед
+                vm.insertSelectedSourceAtPlayhead()
                 return nil
-            case 124: // Right arrow — step forward 1 frame (real fps)
-                vm.nudgePlayhead(by: 1.0 / vm.videoFPS)
+            case 17: // T — выключить/включить клип в выводе
+                vm.toggleSelectedClip()
+                return nil
+            case 6 where shift: // ⇧Z — вписать таймлайн в окно
+                vm.zoomToFit()
+                return nil
+            case 115: // Home — в начало
+                vm.jumpToStart()
+                return nil
+            case 119: // End — в конец
+                vm.jumpToEnd()
+                return nil
+            case 123: // Left arrow — кадр назад, с Shift — секунда
+                vm.nudgePlayhead(by: shift ? -1.0 : -1.0 / vm.videoFPS)
+                return nil
+            case 124: // Right arrow — кадр вперёд, с Shift — секунда
+                vm.nudgePlayhead(by: shift ? 1.0 : 1.0 / vm.videoFPS)
                 return nil
             default:
                 break
@@ -131,6 +154,26 @@ struct SilenceCutApp: App {
                 Button("Сохранить проект как...") { saveProjectAs() }
                     .keyboardShortcut("s", modifiers: [.command, .shift, .option])
                     .disabled(!viewModel.hasSources)
+            }
+            CommandMenu("Монтаж") {
+                Button("Разрезать на плейхеде") { viewModel.splitAtPlayhead() }
+                    .keyboardShortcut("b", modifiers: .command)
+                    .disabled(viewModel.timeline.clips.isEmpty)
+                Button("Вставить ролик на плейхед") { viewModel.insertSelectedSourceAtPlayhead() }
+                    .disabled(!viewModel.hasSources)
+                Button("Удалить выбранный клип") { viewModel.deleteSelectedClip() }
+                    .disabled(viewModel.selectedClipId == nil)
+                Divider()
+                Button("Крупнее") { viewModel.zoomIn() }
+                    .keyboardShortcut("=", modifiers: .command)
+                Button("Мельче") { viewModel.zoomOut() }
+                    .keyboardShortcut("-", modifiers: .command)
+                Button("Вписать в окно") { viewModel.zoomToFit() }
+                    .keyboardShortcut("z", modifiers: .shift)
+                Divider()
+                Button("Экспорт...") { viewModel.exportVideo() }
+                    .keyboardShortcut("e", modifiers: .command)
+                    .disabled(!viewModel.canExport)
             }
             CommandGroup(replacing: .undoRedo) {
                 Button("Отменить") { viewModel.undo() }

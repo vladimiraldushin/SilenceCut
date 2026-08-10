@@ -33,6 +33,7 @@
 		318409DD6419D96B756BA239 /* ParakeetEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0732023B9A65CE7DA935948E /* ParakeetEngine.swift */; };
 		330B4E5F5DDD0BA26F724E38 /* REAudioAnalysis-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E9EE611B9409EF67024B133 /* REAudioAnalysis-iOS.framework */; };
 		388509254DA9E198C3F58561 /* CompositionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B393CEBEB6454425D206940 /* CompositionBuilder.swift */; };
+		39C47F05BB81E693A6F5D6AA /* TimelineInsertTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD07427F5C4A901AD15D370C /* TimelineInsertTests.swift */; };
 		3BFBCFBF434F90B5DBE9563C /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 6544E01FA45F058855A381D1 /* FluidAudio */; };
 		3D3D7B956C5DD2C2928BDC56 /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E137873BB74A6C52AB2EC48F /* TimelineView.swift */; };
 		3FA66C1F131CEFE19CBDE670 /* ModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4E2740A4D99AF07019E6FB /* ModelManager.swift */; };
@@ -499,6 +500,7 @@
 		D27CF088BF30FDEBD2CCA072 /* SourceShelfView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceShelfView.swift; sourceTree = "<group>"; };
 		D428AA377B12872DC87ECB72 /* OverlayCompositionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayCompositionTests.swift; sourceTree = "<group>"; };
 		D81370ED6EB2B26A89A474CE /* RenderOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderOptions.swift; sourceTree = "<group>"; };
+		DD07427F5C4A901AD15D370C /* TimelineInsertTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineInsertTests.swift; sourceTree = "<group>"; };
 		E137873BB74A6C52AB2EC48F /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineView.swift; sourceTree = "<group>"; };
 		E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceDetectionPanel.swift; sourceTree = "<group>"; };
 		EB82737643CD2BE53F03862A /* RETimeline.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RETimeline.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -691,6 +693,7 @@
 				B5789FDDB6B22463A47B8132 /* ProjectMigrationTests.swift */,
 				25E767F05369E7F15FB1555B /* ProjectStoreTests.swift */,
 				867B6544F63DCE6289770469 /* TimelineClipTests.swift */,
+				DD07427F5C4A901AD15D370C /* TimelineInsertTests.swift */,
 				4F91109B0A50223C205B9995 /* TimelineRemovalTests.swift */,
 			);
 			path = RECoreTests;
@@ -1383,6 +1386,7 @@
 				D519B404A08A3EA0B94DCA29 /* ProjectMigrationTests.swift in Sources */,
 				E26B4EC1EA86EF101F06BDBB /* ProjectStoreTests.swift in Sources */,
 				2639D9B37F21CE06BA44EAB7 /* TimelineClipTests.swift in Sources */,
+				39C47F05BB81E693A6F5D6AA /* TimelineInsertTests.swift in Sources */,
 				0697E9BE90A3F8D1BDE17CF8 /* TimelineRemovalTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

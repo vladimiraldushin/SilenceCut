@@ -37,6 +37,7 @@ public struct SourceShelfView: View {
 
     private func chip(for source: MediaSource) -> some View {
         let isOffline = viewModel.offlineSourceIDs.contains(source.id)
+        let isSelected = viewModel.selectedSourceId == source.id
 
         return HStack(spacing: 6) {
             Image(systemName: isOffline ? "exclamationmark.triangle.fill" : "film")
@@ -57,15 +58,33 @@ public struct SourceShelfView: View {
                 Button("Найти…") { relink(source) }
                     .font(.caption2)
                     .buttonStyle(.link)
+            } else {
+                Button {
+                    viewModel.selectedSourceId = source.id
+                    viewModel.insertSource(id: source.id, at: viewModel.playheadPosition)
+                } label: {
+                    Image(systemName: "text.insert")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .help("Вставить на плейхед (клавиша «,» для выбранного ролика)")
             }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(isOffline ? Color.orange.opacity(0.15) : Color.secondary.opacity(0.12))
+                .fill(isOffline ? Color.orange.opacity(0.15)
+                      : isSelected ? Color.accentColor.opacity(0.25)
+                      : Color.secondary.opacity(0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 1)
         )
         .frame(maxWidth: 260)
+        .contentShape(Rectangle())
+        .onTapGesture { viewModel.selectedSourceId = source.id }
         .help(source.url.path)
     }
 
