@@ -76,27 +76,25 @@ extension EditTimeline {
     public mutating func applyRemovals(_ removed: [CMTimeRange]) {
         let spans = Self.mergedSpans(removed)
         guard !spans.isEmpty else { return }
+        overlays = Self.removing(spans, from: overlays)
+        graphics = Self.removing(spans, from: graphics)
+    }
 
-        var result: [OverlayClip] = []
-        for overlay in overlays {
-            let start = CMTimeGetSeconds(overlay.timelineStart)
-            let sourceStart = CMTimeGetSeconds(overlay.sourceRange.start)
-            let whole = Span(start: start, end: start + CMTimeGetSeconds(overlay.sourceRange.duration))
+    /// Общий риппл для всего, что приколото ко времени таймлайна.
+    ///
+    /// Кадры приколотого клипа, лежавшие в вырезанном куске, исчезают вместе с ним. Поэтому
+    /// вырез внутри разбивает клип надвое, а вырез с краю — подрезает.
+    static func removing<Clip: PinnedClip>(_ spans: [Span], from clips: [Clip]) -> [Clip] {
+        var result: [Clip] = []
+        for clip in clips {
+            let start = CMTimeGetSeconds(clip.timelineStart)
+            let sourceStart = CMTimeGetSeconds(clip.sourceRange.start)
+            let whole = Span(start: start, end: start + CMTimeGetSeconds(clip.sourceRange.duration))
 
             var isFirstPiece = true
-            for piece in Self.surviving(whole, after: spans) {
-                var copy = overlay
-                // Первый уцелевший кусок наследует id — выделение и undo не теряют перебивку
-                if !isFirstPiece {
-                    copy = OverlayClip(
-                        id: UUID(),
-                        sourceID: overlay.sourceID,
-                        sourceRange: overlay.sourceRange,
-                        timelineStart: overlay.timelineStart,
-                        framing: overlay.framing,
-                        isEnabled: overlay.isEnabled
-                    )
-                }
+            for piece in surviving(whole, after: spans) {
+                // Первый уцелевший кусок наследует id — выделение и undo не теряют клип
+                var copy = isFirstPiece ? clip : clip.splitCopy()
                 isFirstPiece = false
 
                 copy.sourceRange = CMTimeRange(
@@ -104,13 +102,12 @@ extension EditTimeline {
                     duration: CMTime(seconds: piece.length, preferredTimescale: 600)
                 )
                 copy.timelineStart = CMTime(
-                    seconds: Self.shifted(piece.start, by: spans),
-                    preferredTimescale: 600
+                    seconds: shifted(piece.start, by: spans), preferredTimescale: 600
                 )
                 result.append(copy)
             }
         }
-        overlays = result
+        return result
     }
 
     /// Заменяет клип хребта набором клипов по диапазонам речи (в координатах его исходника)
@@ -185,46 +182,48 @@ extension EditTimeline {
         let point = CMTimeGetSeconds(time)
         let shift = CMTimeGetSeconds(duration)
         guard shift > Self.epsilon else { return }
+        overlays = Self.inserting(at: point, shift: shift, into: overlays)
+        graphics = Self.inserting(at: point, shift: shift, into: graphics)
+    }
 
-        var result: [OverlayClip] = []
-        for overlay in overlays {
-            let start = CMTimeGetSeconds(overlay.timelineStart)
-            let length = CMTimeGetSeconds(overlay.sourceRange.duration)
+    /// Общее раздвигание для всего, что приколото ко времени таймлайна
+    static func inserting<Clip: PinnedClip>(
+        at point: Double, shift: Double, into clips: [Clip]
+    ) -> [Clip] {
+        var result: [Clip] = []
+        for clip in clips {
+            let start = CMTimeGetSeconds(clip.timelineStart)
+            let length = CMTimeGetSeconds(clip.sourceRange.duration)
             let end = start + length
 
-            if start >= point - Self.epsilon {
-                var moved = overlay
+            if start >= point - epsilon {
+                var moved = clip
                 moved.timelineStart = CMTime(seconds: start + shift, preferredTimescale: 600)
                 result.append(moved)
-            } else if end <= point + Self.epsilon {
-                result.append(overlay)
+            } else if end <= point + epsilon {
+                result.append(clip)
             } else {
-                // Точка вставки внутри перебивки — режем и правую половину сдвигаем
-                let sourceStart = CMTimeGetSeconds(overlay.sourceRange.start)
+                // Точка вставки внутри клипа — режем и правую половину сдвигаем
+                let sourceStart = CMTimeGetSeconds(clip.sourceRange.start)
                 let headLength = point - start
 
-                var head = overlay
+                var head = clip
                 head.sourceRange = CMTimeRange(
-                    start: overlay.sourceRange.start,
+                    start: clip.sourceRange.start,
                     duration: CMTime(seconds: headLength, preferredTimescale: 600)
                 )
                 result.append(head)
 
-                let tail = OverlayClip(
-                    id: UUID(),
-                    sourceID: overlay.sourceID,
-                    sourceRange: CMTimeRange(
-                        start: CMTime(seconds: sourceStart + headLength, preferredTimescale: 600),
-                        duration: CMTime(seconds: length - headLength, preferredTimescale: 600)
-                    ),
-                    timelineStart: CMTime(seconds: point + shift, preferredTimescale: 600),
-                    framing: overlay.framing,
-                    isEnabled: overlay.isEnabled
+                var tail = clip.splitCopy()
+                tail.sourceRange = CMTimeRange(
+                    start: CMTime(seconds: sourceStart + headLength, preferredTimescale: 600),
+                    duration: CMTime(seconds: length - headLength, preferredTimescale: 600)
                 )
+                tail.timelineStart = CMTime(seconds: point + shift, preferredTimescale: 600)
                 result.append(tail)
             }
         }
-        overlays = result
+        return result
     }
 
     /// Индекс в хребте, куда встанет клип, если бросить его в момент `time`.
@@ -302,20 +301,28 @@ extension EditTimeline {
     /// Перебивки, обрезанные по фактической длине хребта: вылезшая за конец картинка
     /// не должна дотягивать композицию до пустоты
     public var clampedOverlays: [OverlayClip] {
-        let end = CMTimeGetSeconds(duration)
-        return overlays.compactMap { overlay in
-            guard overlay.isEnabled else { return nil }
-            let start = CMTimeGetSeconds(overlay.timelineStart)
-            guard start < end - Self.epsilon else { return nil }
-            let available = min(CMTimeGetSeconds(overlay.sourceRange.duration), end - start)
-            guard available > Self.epsilon else { return nil }
+        Self.clamped(overlays, toTimelineEnd: CMTimeGetSeconds(duration))
+    }
 
-            var clamped = overlay
-            clamped.sourceRange = CMTimeRange(
-                start: overlay.sourceRange.start,
+    /// То же для графики: титр, вылезший за конец хребта, подрезается
+    public var clampedGraphics: [GraphicClip] {
+        Self.clamped(graphics, toTimelineEnd: CMTimeGetSeconds(duration))
+    }
+
+    static func clamped<Clip: PinnedClip>(_ clips: [Clip], toTimelineEnd end: Double) -> [Clip] {
+        clips.compactMap { clip in
+            guard clip.isEnabled else { return nil }
+            let start = CMTimeGetSeconds(clip.timelineStart)
+            guard start < end - epsilon else { return nil }
+            let available = min(CMTimeGetSeconds(clip.sourceRange.duration), end - start)
+            guard available > epsilon else { return nil }
+
+            var result = clip
+            result.sourceRange = CMTimeRange(
+                start: clip.sourceRange.start,
                 duration: CMTime(seconds: available, preferredTimescale: 600)
             )
-            return clamped
+            return result
         }
     }
 }

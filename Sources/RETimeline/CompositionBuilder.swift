@@ -143,6 +143,45 @@ public enum CompositionBuilder {
             }
         }
 
+        // === Дорожка графики: титры с альфой поверх всего ===
+        var placedGraphics: [CMTimeRange] = []
+        var graphicTrack: AVMutableCompositionTrack?
+
+        let graphics = timeline.clampedGraphics.sorted {
+            CMTimeCompare($0.timelineStart, $1.timelineStart) < 0
+        }
+        if !graphics.isEmpty, !placed.isEmpty {
+            graphicTrack = composition.addMutableTrack(
+                withMediaType: AVMediaType.video,
+                preferredTrackID: kCMPersistentTrackID_Invalid
+            )
+            var cursor = CMTime.zero
+            for graphic in graphics {
+                guard let source = timeline.source(for: graphic.sourceID),
+                      let track = graphicTrack else { continue }
+                // Как и у перебивок, дорожка одна и заполняется подряд: наехавший титр
+                // пропускается, а не ломает раскладку
+                guard CMTimeCompare(graphic.timelineStart, cursor) >= 0 else { continue }
+
+                let asset = AVURLAsset(url: source.url)
+                let videoTracks = try await asset.loadTracks(withMediaType: AVMediaType.video)
+                guard let srcVideo = videoTracks.first else { continue }
+
+                let gap = CMTimeSubtract(graphic.timelineStart, cursor)
+                if CMTimeGetSeconds(gap) > 0.001 {
+                    track.insertEmptyTimeRange(CMTimeRange(start: cursor, duration: gap))
+                }
+                try track.insertTimeRange(graphic.sourceRange, of: srcVideo, at: graphic.timelineStart)
+
+                placedGraphics.append(graphic.timelineRange)
+                cursor = graphic.timelineEnd
+            }
+            if placedGraphics.isEmpty {
+                composition.removeTrack(graphicTrack!)
+                graphicTrack = nil
+            }
+        }
+
         // === Видеокомпозиция: ориентация, кадрирование, джамп-кат зум, перебивки ===
         var videoComp: AVMutableVideoComposition? = nil
 
@@ -193,6 +232,20 @@ public enum CompositionBuilder {
                 // в OverlayCompositionTests, документация на этот счёт невнятна.
                 // Если тест начнёт падать, менять надо здесь.
                 layers.insert(overlayLayer, at: 0)
+            }
+
+            if let graphicTrack {
+                let graphicLayer = AVMutableVideoCompositionLayerInstruction(assetTrack: graphicTrack)
+                graphicLayer.setOpacity(0, at: .zero)
+                for range in placedGraphics {
+                    graphicLayer.setOpacity(1, at: range.start)
+                    graphicLayer.setOpacity(0, at: CMTimeRangeGetEnd(range))
+                }
+                // Трансформации нет намеренно: титр рендерится сразу в размер холста,
+                // поэтому любое масштабирование здесь только размыло бы текст.
+                // Графика идёт первой — то есть поверх и хребта, и перебивок:
+                // надпись должна оставаться читаемой, когда под ней b-roll.
+                layers.insert(graphicLayer, at: 0)
             }
 
             instruction.layerInstructions = layers

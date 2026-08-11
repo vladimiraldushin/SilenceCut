@@ -16,23 +16,33 @@ public struct EditTimeline: Codable, Equatable {
     /// Перебивки: картинка поверх хребта, звук хребта продолжает идти под ней
     public var overlays: [OverlayClip]
 
-    public init(sources: [MediaSource] = [], clips: [TimelineClip] = [], overlays: [OverlayClip] = []) {
+    /// Титры и анимация с прозрачностью — слой выше перебивок
+    public var graphics: [GraphicClip]
+
+    public init(
+        sources: [MediaSource] = [],
+        clips: [TimelineClip] = [],
+        overlays: [OverlayClip] = [],
+        graphics: [GraphicClip] = []
+    ) {
         self.sources = sources
         self.clips = clips
         self.overlays = overlays
+        self.graphics = graphics
     }
 
     public func source(for id: MediaSource.ID) -> MediaSource? {
         sources.first { $0.id == id }
     }
 
-    enum CodingKeys: String, CodingKey { case sources, clips, overlays }
+    enum CodingKeys: String, CodingKey { case sources, clips, overlays, graphics }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         sources = try c.decodeIfPresent([MediaSource].self, forKey: .sources) ?? []
         clips = try c.decode([TimelineClip].self, forKey: .clips)
         overlays = try c.decodeIfPresent([OverlayClip].self, forKey: .overlays) ?? []
+        graphics = try c.decodeIfPresent([GraphicClip].self, forKey: .graphics) ?? []
     }
 
     /// Total duration of the edited timeline (only enabled clips)
