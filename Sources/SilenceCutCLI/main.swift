@@ -2,38 +2,52 @@ import Foundation
 
 /// `silencecut` — управление проектом монтажа снаружи приложения.
 ///
-/// Существует ради конвейера с Remotion: титр рендерится отдельным процессом, а положить
-/// его в монтаж должен кто-то, кто понимает формат проекта. Работает и когда приложение
-/// закрыто; открытое приложение замечает правку по слежению за файлом.
+/// Существует ради конвейера с Remotion: заставки и титры рендерятся отдельным процессом,
+/// а положить их в монтаж должен кто-то, кто понимает формат проекта и умеет двигать за
+/// собой субтитры, перебивки и графику. Работает и когда приложение закрыто; открытое
+/// приложение замечает правку по слежению за файлом.
 
 let usage = """
-silencecut — правка проекта .silencecut снаружи приложения
+silencecut — монтаж из командной строки
 
-СОЗДАНИЕ
+ПРОЕКТ
   new <проект> --video <файл> [--name <имя>] [--force]
+  info <проект>                    сводка: длительность, холст, состав
+  canvas <проект>                  размер холста и fps — это нужно рендереру графики
+  list <проект> [--sources] [--clips] [--overlays] [--graphics] [--subtitles]
+  validate <проект>                пропавшие файлы, сироты, наложения, вылет за конец
+                                   код выхода 1, если нашлись проблемы
 
-ЧТЕНИЕ
-  info <проект>                    сводка: длительность, холст, число клипов
-  canvas <проект>                  размер холста и fps — что нужно рендереру титров
-  list <проект> [--sources] [--clips] [--overlays] [--graphics]
-                                   без флагов печатает всё
-  validate <проект>                пропавшие файлы, осиротевшие клипы, титры за концом
-                                   выход 1, если нашлись проблемы
+ХРЕБЕТ (видео со звуком)
+  add-clip <проект> --file <файл> [--at <сек>] [--duration <сек>] [--source-start <сек>]
+                                   без --at кладёт в конец; --at 0 это заставка
+  remove-clip <проект> --id <uuid>
+  move-clip <проект> --id <uuid> --to-boundary <номер стыка>
+  split-clip <проект> --at <сек>
+  toggle-clip <проект> --id <uuid>
+  trim-clip <проект> --id <uuid> [--source-start <сек>] [--duration <сек>]
 
-ПРАВКА
-  add-graphic <проект> --file <файл> --at <секунды>
-              [--duration <секунды>] [--source-start <секунды>]
+ПЕРЕБИВКИ (картинка поверх, звук хребта идёт дальше)
+  add-overlay <проект> --file <файл> --at <сек> [--duration <сек>] [--source-start <сек>]
+  move-overlay <проект> --id <uuid> --at <сек>
+  remove-overlay <проект> --id <uuid>
+
+ГРАФИКА (титры с прозрачностью, поверх всего)
+  add-graphic <проект> --file <файл> --at <сек> [--duration <сек>]
               [--template <имя>] [--props <json>] [--pack-version <версия>]
-  move-graphic <проект> --id <uuid> --at <секунды>
+  move-graphic <проект> --id <uuid> --at <сек>
   remove-graphic <проект> --id <uuid>
 
-Читающие команды печатают JSON.
+ИСТОЧНИКИ
+  relink-source <проект> --id <uuid> --file <файл>    файл переехал
+  prune-sources <проект>                               убрать неиспользуемые
 
-ПРИМЕР
-  silencecut canvas ~/Проекты/ролик.silencecut
-  silencecut add-graphic ~/Проекты/ролик.silencecut \\
-      --file ~/render/lower-third.mov --at 12.5 \\
-      --template LowerThird --props '{"title":"Как открыть ИП"}'
+Читающие команды печатают JSON, ошибки идут в stderr.
+
+ПРИМЕР — заставка в начало и титр под первую фразу
+  silencecut add-clip ~/ролик.silencecut --file ~/заставка.mov --at 0
+  silencecut list ~/ролик.silencecut --subtitles
+  silencecut add-graphic ~/ролик.silencecut --file ~/титр.mov --at 5.2 --duration 3
 """
 
 let arguments = Arguments(Array(CommandLine.arguments.dropFirst()))
@@ -45,15 +59,36 @@ guard !arguments.command.isEmpty, !arguments.has("help") else {
 
 do {
     switch arguments.command {
-    case "new":            try await Commands.new(arguments)
-    case "info":           try Commands.info(arguments)
-    case "canvas":         try Commands.canvas(arguments)
-    case "list":           try Commands.list(arguments)
-    case "validate":       try Commands.validate(arguments)
-    case "add-graphic":    try await Commands.addGraphic(arguments)
-    case "move-graphic":   try Commands.moveGraphic(arguments)
-    case "remove-graphic": try Commands.removeGraphic(arguments)
-    case "help":           print(usage)
+    // Проект
+    case "new":             try await Commands.new(arguments)
+    case "info":            try Commands.info(arguments)
+    case "canvas":          try Commands.canvas(arguments)
+    case "list":            try Commands.list(arguments)
+    case "validate":        try Commands.validate(arguments)
+
+    // Хребет
+    case "add-clip":        try await ClipCommands.addClip(arguments)
+    case "remove-clip":     try ClipCommands.removeClip(arguments)
+    case "move-clip":       try ClipCommands.moveClip(arguments)
+    case "split-clip":      try ClipCommands.splitClip(arguments)
+    case "toggle-clip":     try ClipCommands.toggleClip(arguments)
+    case "trim-clip":       try ClipCommands.trimClip(arguments)
+
+    // Перебивки
+    case "add-overlay":     try await ClipCommands.addOverlay(arguments)
+    case "move-overlay":    try ClipCommands.moveOverlay(arguments)
+    case "remove-overlay":  try ClipCommands.removeOverlay(arguments)
+
+    // Графика
+    case "add-graphic":     try await Commands.addGraphic(arguments)
+    case "move-graphic":    try Commands.moveGraphic(arguments)
+    case "remove-graphic":  try Commands.removeGraphic(arguments)
+
+    // Источники
+    case "relink-source":   try await ClipCommands.relinkSource(arguments)
+    case "prune-sources":   try ClipCommands.pruneSources(arguments)
+
+    case "help":            print(usage)
     default:
         throw CLIError.unknownCommand(arguments.command)
     }

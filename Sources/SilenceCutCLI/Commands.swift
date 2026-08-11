@@ -9,10 +9,10 @@ enum Commands {
 
     static func info(_ args: Arguments) throws {
         let url = try args.projectURL()
-        let snapshot = try load(url)
+        let snapshot = try Shared.load(url)
         let timeline = snapshot.timeline
 
-        printJSON([
+        Shared.printJSON([
             "project": url.path,
             "name": snapshot.name,
             "version": snapshot.version,
@@ -32,11 +32,24 @@ enum Commands {
 
     static func list(_ args: Arguments) throws {
         let url = try args.projectURL()
-        let timeline = try load(url).timeline
+        let timeline = try Shared.load(url).timeline
 
         var payload: [String: Any] = [:]
         let wantsAll = !args.has("sources") && !args.has("clips")
-            && !args.has("overlays") && !args.has("graphics")
+            && !args.has("overlays") && !args.has("graphics") && !args.has("subtitles")
+
+        if args.has("subtitles") {
+            // Субтитры во времени таймлайна — по ним и надо целиться титрами,
+            // а не угадывать секунды на глаз
+            payload["subtitles"] = try Shared.load(url).subtitleEntries.map { entry in
+                [
+                    "id": entry.id.uuidString,
+                    "text": entry.text,
+                    "start": Shared.seconds(entry.startTime),
+                    "end": Shared.seconds(entry.endTime),
+                ] as [String: Any]
+            }
+        }
 
         if wantsAll || args.has("sources") {
             payload["sources"] = timeline.sources.map { source in
@@ -57,8 +70,8 @@ enum Commands {
                 [
                     "id": clip.id.uuidString,
                     "sourceID": clip.sourceID.uuidString,
-                    "timelineStart": seconds(clip.timelineOffset),
-                    "durationSeconds": seconds(clip.effectiveDuration),
+                    "timelineStart": Shared.seconds(clip.timelineOffset),
+                    "durationSeconds": Shared.seconds(clip.effectiveDuration),
                     "isEnabled": clip.isEnabled,
                 ] as [String: Any]
             }
@@ -68,8 +81,8 @@ enum Commands {
                 [
                     "id": overlay.id.uuidString,
                     "sourceID": overlay.sourceID.uuidString,
-                    "timelineStart": seconds(overlay.timelineStart),
-                    "durationSeconds": seconds(overlay.sourceRange.duration),
+                    "timelineStart": Shared.seconds(overlay.timelineStart),
+                    "durationSeconds": Shared.seconds(overlay.sourceRange.duration),
                     "isEnabled": overlay.isEnabled,
                 ] as [String: Any]
             }
@@ -79,8 +92,8 @@ enum Commands {
                 var item: [String: Any] = [
                     "id": graphic.id.uuidString,
                     "sourceID": graphic.sourceID.uuidString,
-                    "timelineStart": seconds(graphic.timelineStart),
-                    "durationSeconds": seconds(graphic.sourceRange.duration),
+                    "timelineStart": Shared.seconds(graphic.timelineStart),
+                    "durationSeconds": Shared.seconds(graphic.sourceRange.duration),
                     "isEnabled": graphic.isEnabled,
                 ]
                 if let origin = graphic.origin {
@@ -91,13 +104,13 @@ enum Commands {
                 return item
             }
         }
-        printJSON(payload)
+        Shared.printJSON(payload)
     }
 
     /// Что нужно знать рендереру титров, чтобы попасть в проект
     static func canvas(_ args: Arguments) throws {
-        let timeline = try load(try args.projectURL()).timeline
-        printJSON(canvasDescription(timeline))
+        let timeline = try Shared.load(try args.projectURL()).timeline
+        Shared.printJSON(canvasDescription(timeline))
     }
 
     // MARK: - Создание
@@ -132,10 +145,10 @@ enum Commands {
         )
         try ProjectStore.save(snapshot, to: projectURL)
 
-        printJSON([
+        Shared.printJSON([
             "created": projectURL.path,
             "name": snapshot.name,
-            "durationSeconds": seconds(source.duration),
+            "durationSeconds": Shared.seconds(source.duration),
             "canvas": canvasDescription(timeline),
         ])
     }
@@ -144,7 +157,7 @@ enum Commands {
 
     static func addGraphic(_ args: Arguments) async throws {
         let projectURL = try args.projectURL()
-        var snapshot = try load(projectURL)
+        var snapshot = try Shared.load(projectURL)
 
         let filePath = try args.requireString("file")
         let fileURL = URL(fileURLWithPath: (filePath as NSString).expandingTildeInPath)
@@ -153,7 +166,7 @@ enum Commands {
         }
 
         let at = try args.requireDouble("at")
-        let source = try await resolveSource(fileURL, in: &snapshot.timeline)
+        let source = try await Shared.resolveSource(fileURL, in: &snapshot.timeline)
 
         // По умолчанию берём титр целиком
         let full = CMTimeGetSeconds(source.duration)
@@ -182,21 +195,21 @@ enum Commands {
         )
         snapshot.timeline.graphics.append(graphic)
 
-        try save(snapshot, to: projectURL)
-        printJSON([
+        try Shared.save(snapshot, to: projectURL)
+        Shared.printJSON([
             "added": "graphic",
             "id": graphic.id.uuidString,
-            "timelineStart": seconds(graphic.timelineStart),
-            "durationSeconds": seconds(graphic.sourceRange.duration),
+            "timelineStart": Shared.seconds(graphic.timelineStart),
+            "durationSeconds": Shared.seconds(graphic.sourceRange.duration),
             "warning": warningIfPastEnd(graphic, timeline: snapshot.timeline) as Any,
         ])
     }
 
     static func moveGraphic(_ args: Arguments) throws {
         let projectURL = try args.projectURL()
-        var snapshot = try load(projectURL)
+        var snapshot = try Shared.load(projectURL)
 
-        let id = try uuid(args.requireString("id"))
+        let id = try Shared.uuid(args.requireString("id"))
         guard let index = snapshot.timeline.graphics.firstIndex(where: { $0.id == id }) else {
             throw CLIError.notFound("титр \(id.uuidString)")
         }
@@ -204,30 +217,30 @@ enum Commands {
         snapshot.timeline.graphics[index].timelineStart =
             CMTime(seconds: max(0, at), preferredTimescale: 600)
 
-        try save(snapshot, to: projectURL)
-        printJSON(["moved": id.uuidString, "timelineStart": max(0, at)])
+        try Shared.save(snapshot, to: projectURL)
+        Shared.printJSON(["moved": id.uuidString, "timelineStart": max(0, at)])
     }
 
     static func removeGraphic(_ args: Arguments) throws {
         let projectURL = try args.projectURL()
-        var snapshot = try load(projectURL)
+        var snapshot = try Shared.load(projectURL)
 
-        let id = try uuid(args.requireString("id"))
+        let id = try Shared.uuid(args.requireString("id"))
         let before = snapshot.timeline.graphics.count
         snapshot.timeline.graphics.removeAll { $0.id == id }
         guard snapshot.timeline.graphics.count < before else {
             throw CLIError.notFound("титр \(id.uuidString)")
         }
 
-        try save(snapshot, to: projectURL)
-        printJSON(["removed": id.uuidString])
+        try Shared.save(snapshot, to: projectURL)
+        Shared.printJSON(["removed": id.uuidString])
     }
 
     // MARK: - Проверка
 
     static func validate(_ args: Arguments) throws {
         let projectURL = try args.projectURL()
-        let timeline = try load(projectURL).timeline
+        let timeline = try Shared.load(projectURL).timeline
         var problems: [[String: Any]] = []
 
         let knownIDs = Set(timeline.sources.map(\.id))
@@ -256,38 +269,11 @@ enum Commands {
         problems += overlaps(in: timeline.graphics, kind: "graphic-overlap")
         problems += overlaps(in: timeline.overlays, kind: "overlay-overlap")
 
-        printJSON(["ok": problems.isEmpty, "problems": problems])
+        Shared.printJSON(["ok": problems.isEmpty, "problems": problems])
         if !problems.isEmpty { exit(1) }
     }
 
     // MARK: - Вспомогательное
-
-    private static func load(_ url: URL) throws -> ProjectSnapshot {
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw CLIError.notFound(url.path)
-        }
-        return try ProjectStore.load(from: url)
-    }
-
-    private static func save(_ snapshot: ProjectSnapshot, to url: URL) throws {
-        var updated = snapshot
-        updated.savedAt = Date()
-        try ProjectStore.save(updated, to: url)
-    }
-
-    /// Файл уже в реестре — переиспользуем запись, иначе заводим новую.
-    /// Один и тот же титр, вставленный дважды, не должен плодить источники.
-    private static func resolveSource(
-        _ url: URL, in timeline: inout EditTimeline
-    ) async throws -> MediaSource {
-        let standardized = url.standardizedFileURL.path
-        if let existing = timeline.sources.first(where: { $0.url.standardizedFileURL.path == standardized }) {
-            return existing
-        }
-        let source = try await MediaSource.load(from: url)
-        timeline.sources.append(source)
-        return source
-    }
 
     private static func canvasDescription(_ timeline: EditTimeline) -> [String: Any] {
         let size = timeline.sources.first?.orientedSize ?? .zero
@@ -316,7 +302,7 @@ enum Commands {
             found.append([
                 "kind": kind,
                 "id": "\(next.id)",
-                "detail": "накладывается на предыдущий до \(fmt(end)) с и не попадёт в кадр",
+                "detail": "накладывается на предыдущий до \(Shared.fmt(end)) с и не попадёт в кадр",
             ])
         }
         return found
@@ -326,7 +312,7 @@ enum Commands {
         let end = CMTimeGetSeconds(timeline.duration)
         let start = CMTimeGetSeconds(graphic.timelineStart)
         if start >= end {
-            return "начинается за концом монтажа (\(fmt(end)) с) и не попадёт в кадр"
+            return "начинается за концом монтажа (\(Shared.fmt(end)) с) и не попадёт в кадр"
         }
         if start + CMTimeGetSeconds(graphic.sourceRange.duration) > end + 0.001 {
             return "выходит за конец монтажа и будет подрезан"
@@ -334,25 +320,4 @@ enum Commands {
         return nil
     }
 
-    private static func uuid(_ raw: String) throws -> UUID {
-        guard let value = UUID(uuidString: raw) else {
-            throw CLIError.invalid("Не похоже на идентификатор: \(raw)")
-        }
-        return value
-    }
-
-    private static func seconds(_ time: CMTime) -> Double {
-        round(CMTimeGetSeconds(time) * 1000) / 1000
-    }
-
-    private static func fmt(_ value: Double) -> String {
-        String(format: "%.2f", value)
-    }
-
-    private static func printJSON(_ value: Any) {
-        guard let data = try? JSONSerialization.data(
-            withJSONObject: value, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        ) else { return }
-        print(String(decoding: data, as: UTF8.self))
-    }
 }
