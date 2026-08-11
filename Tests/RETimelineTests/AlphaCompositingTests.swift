@@ -285,3 +285,48 @@ private func makeSource(url: URL, seconds: Double) async throws -> MediaSource {
     // По краям титр прозрачен и видна перебивка (синяя), а не хребет (красный)
     #expect(corner.b > corner.r + 40)
 }
+
+@Test func overlappingGraphicsAllSurvive() async throws {
+    // Бегущая строка идёт через весь ролик, подписи говорящих появляются поверх неё.
+    // Пока дорожка графики была одна, второй титр молча пропадал при сборке.
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: dir) }
+
+    let size = CGSize(width: 320, height: 240)
+    let spineURL = dir.appendingPathComponent("spine.mp4")
+    let longURL = dir.appendingPathComponent("long.mov")
+    let shortURL = dir.appendingPathComponent("short.mov")
+
+    try await writeSolidFixture(size: size, seconds: 3, color: BGRA(b: 20, g: 40, r: 220, a: 255), to: spineURL)
+    // Длинная «лента» — зелёный квадрат, короткая «подпись» — синий
+    try await writeAlphaFixture(size: size, seconds: 3, square: BGRA(b: 20, g: 220, r: 20, a: 255), to: longURL)
+    try await writeAlphaFixture(size: size, seconds: 1, square: BGRA(b: 220, g: 40, r: 20, a: 255), to: shortURL)
+
+    let spine = try await makeSource(url: spineURL, seconds: 3)
+    let long = try await makeSource(url: longURL, seconds: 3)
+    let short = try await makeSource(url: shortURL, seconds: 1)
+
+    let full = CMTimeRange(start: .zero, duration: CMTime(seconds: 3, preferredTimescale: 600))
+    let one = CMTimeRange(start: .zero, duration: CMTime(seconds: 1, preferredTimescale: 600))
+
+    let timeline = EditTimeline(
+        sources: [spine, long, short],
+        clips: [TimelineClip(sourceID: spine.id, availableRange: full, sourceRange: full)],
+        graphics: [
+            GraphicClip(sourceID: long.id, sourceRange: full, timelineStart: .zero),
+            GraphicClip(sourceID: short.id, sourceRange: one,
+                        timelineStart: CMTime(seconds: 1, preferredTimescale: 600)),
+        ]
+    )
+
+    let result = try await CompositionBuilder.build(from: timeline)
+    // Две дорожки графики плюс дорожка хребта
+    #expect(result.composition.tracks(withMediaType: .video).count == 3)
+
+    let videoComposition = try #require(result.videoComposition)
+    // В момент наложения сверху должна быть подпись, заведённая позже
+    let center = try pixel(result.composition, videoComposition: videoComposition,
+                           at: 1.5, fraction: CGPoint(x: 0.5, y: 0.5))
+    #expect(center.r > center.g + 40, "верхний титр не виден: наложение снова теряется")
+}

@@ -147,42 +147,62 @@ public enum CompositionBuilder {
             }
         }
 
-        // === Дорожка графики: титры с альфой поверх всего ===
-        var placedGraphics: [CMTimeRange] = []
-        var graphicTrack: AVMutableCompositionTrack?
+        // === Дорожки графики: титры с альфой поверх всего ===
+        //
+        // Дорожек столько, сколько нужно. Раньше она была одна, и наехавший по времени
+        // титр молча пропадал — а именно так и выглядит рабочий случай: бегущая строка
+        // идёт через весь ролик, подписи говорящих появляются поверх неё.
+        //
+        // Раскладка жадная: клип занимает первую дорожку, которая к его началу уже
+        // освободилась, иначе заводится новая. Для десятка титров этого достаточно, а
+        // оптимальная упаковка тут не нужна — лишняя дорожка стоит дёшево.
+        struct GraphicTrack {
+            let track: AVMutableCompositionTrack
+            var cursor: CMTime
+            var ranges: [CMTimeRange]
+        }
+        var graphicTracks: [GraphicTrack] = []
 
         let graphics = timeline.clampedGraphics.sorted {
             CMTimeCompare($0.timelineStart, $1.timelineStart) < 0
         }
         if !graphics.isEmpty, !placed.isEmpty {
-            graphicTrack = composition.addMutableTrack(
-                withMediaType: AVMediaType.video,
-                preferredTrackID: kCMPersistentTrackID_Invalid
-            )
-            var cursor = CMTime.zero
             for graphic in graphics {
-                guard let source = timeline.source(for: graphic.sourceID),
-                      let track = graphicTrack else { continue }
-                // Как и у перебивок, дорожка одна и заполняется подряд: наехавший титр
-                // пропускается, а не ломает раскладку
-                guard CMTimeCompare(graphic.timelineStart, cursor) >= 0 else { continue }
-
+                guard let source = timeline.source(for: graphic.sourceID) else { continue }
                 let asset = AVURLAsset(url: source.url)
                 let videoTracks = try await asset.loadTracks(withMediaType: AVMediaType.video)
                 guard let srcVideo = videoTracks.first else { continue }
 
-                let gap = CMTimeSubtract(graphic.timelineStart, cursor)
-                if CMTimeGetSeconds(gap) > 0.001 {
-                    track.insertEmptyTimeRange(CMTimeRange(start: cursor, duration: gap))
+                var slot = graphicTracks.firstIndex {
+                    CMTimeCompare(graphic.timelineStart, $0.cursor) >= 0
                 }
-                try track.insertTimeRange(graphic.sourceRange, of: srcVideo, at: graphic.timelineStart)
+                if slot == nil {
+                    guard let track = composition.addMutableTrack(
+                        withMediaType: AVMediaType.video,
+                        preferredTrackID: kCMPersistentTrackID_Invalid
+                    ) else { continue }
+                    graphicTracks.append(GraphicTrack(track: track, cursor: .zero, ranges: []))
+                    slot = graphicTracks.count - 1
+                }
+                guard let index = slot else { continue }
 
-                placedGraphics.append(graphic.timelineRange)
-                cursor = graphic.timelineEnd
+                // Дорожка заполняется подряд, поэтому промежуток до титра — пустой диапазон
+                let gap = CMTimeSubtract(graphic.timelineStart, graphicTracks[index].cursor)
+                if CMTimeGetSeconds(gap) > 0.001 {
+                    graphicTracks[index].track.insertEmptyTimeRange(
+                        CMTimeRange(start: graphicTracks[index].cursor, duration: gap)
+                    )
+                }
+                try graphicTracks[index].track.insertTimeRange(
+                    graphic.sourceRange, of: srcVideo, at: graphic.timelineStart
+                )
+                graphicTracks[index].ranges.append(graphic.timelineRange)
+                graphicTracks[index].cursor = graphic.timelineEnd
             }
-            if placedGraphics.isEmpty {
-                composition.removeTrack(graphicTrack!)
-                graphicTrack = nil
+            graphicTracks.removeAll { entry in
+                guard entry.ranges.isEmpty else { return false }
+                composition.removeTrack(entry.track)
+                return true
             }
         }
 
@@ -263,17 +283,18 @@ public enum CompositionBuilder {
                 layers.insert(overlayLayer, at: 0)
             }
 
-            if let graphicTrack {
-                let graphicLayer = AVMutableVideoCompositionLayerInstruction(assetTrack: graphicTrack)
+            // Трансформации у графики нет намеренно: титр рендерится сразу в размер
+            // холста, поэтому любое масштабирование здесь только размыло бы текст.
+            // Графика идёт первой — то есть поверх и хребта, и перебивок: надпись
+            // должна оставаться читаемой, когда под ней b-roll. Из нескольких дорожек
+            // графики верхней оказывается заведённая последней.
+            for entry in graphicTracks {
+                let graphicLayer = AVMutableVideoCompositionLayerInstruction(assetTrack: entry.track)
                 graphicLayer.setOpacity(0, at: .zero)
-                for range in placedGraphics {
+                for range in entry.ranges {
                     graphicLayer.setOpacity(1, at: range.start)
                     graphicLayer.setOpacity(0, at: CMTimeRangeGetEnd(range))
                 }
-                // Трансформации нет намеренно: титр рендерится сразу в размер холста,
-                // поэтому любое масштабирование здесь только размыло бы текст.
-                // Графика идёт первой — то есть поверх и хребта, и перебивок:
-                // надпись должна оставаться читаемой, когда под ней b-roll.
                 layers.insert(graphicLayer, at: 0)
             }
 

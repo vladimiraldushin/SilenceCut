@@ -42,6 +42,9 @@ private func writeTone(seconds: Double, amplitude: Float, to url: URL) async thr
     writer.startSession(atSourceTime: .zero)
 
     for frame in 0..<Int(seconds * 30) {
+        // Ждать готовности обязательно: без проверки вход бросает исключение,
+        // и падает не тест, а весь прогон модуля
+        while !videoInput.isReadyForMoreMediaData { try await Task.sleep(for: .milliseconds(5)) }
         var buffer: CVPixelBuffer?
         CVPixelBufferCreate(nil, 160, 160, kCVPixelFormatType_32BGRA, nil, &buffer)
         if let buffer { adaptor.append(buffer, withPresentationTime: CMTime(value: CMTimeValue(frame), timescale: 30)) }
@@ -63,6 +66,7 @@ private func writeTone(seconds: Double, amplitude: Float, to url: URL) async thr
                                    formatDescriptionOut: &format)
 
     while written < total {
+        while !input.isReadyForMoreMediaData { try await Task.sleep(for: .milliseconds(5)) }
         let count = min(chunk, total - written)
         var samples = [Float](repeating: amplitude, count: count)
         var block: CMBlockBuffer?
