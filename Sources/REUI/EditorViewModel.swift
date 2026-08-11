@@ -169,7 +169,7 @@ public class EditorViewModel {
     /// URL'ы, на которые держится security-scoped доступ — по одному на источник
     private var securityScopedURLs: [MediaSource.ID: URL] = [:]
 
-    /// Главный источник: первый добавленный. К нему привязан sidecar автосохранения.
+    /// Главный источник: первый добавленный. Определяет формат кадра и fps проекта.
     public var mainSourceURL: URL? { timeline.sources.first?.url }
 
     public var hasSources: Bool { !timeline.sources.isEmpty }
@@ -226,15 +226,12 @@ public class EditorViewModel {
             )]
             applyDisplayMetadata(from: source)
 
-            // Restore autosaved project (sidecar .silencecut next to the video)
-            if let snapshot = ProjectStore.load(for: url) {
-                restore(snapshot, fallbackSource: source)
-                statusMessage = "Проект восстановлен: \(snapshot.savedAt.formatted(date: .abbreviated, time: .shortened))"
-            } else {
-                statusMessage = "Загружено: \(url.lastPathComponent)"
-            }
+            statusMessage = "Загружено: \(url.lastPathComponent)"
 
             await rebuildPreview()
+            // Новый проект ещё не знает, куда себя писать — спрашиваем сразу, чтобы
+            // дальше всё уходило на диск само
+            if projectFileURL == nil { needsSaveLocation = true }
             for source in timeline.sources {
                 await analyzeSource(source)
             }
@@ -335,7 +332,7 @@ public class EditorViewModel {
     }
 
     /// Восстанавливает сохранённый проект и проверяет, что все файлы на месте
-    private func restore(_ snapshot: ProjectSnapshot, fallbackSource: MediaSource) {
+    private func restore(_ snapshot: ProjectSnapshot, fallbackSource: MediaSource?) {
         timeline = snapshot.timeline
         subtitleEntries = snapshot.subtitleEntries
         subtitleStyle = snapshot.subtitleStyle
@@ -348,7 +345,8 @@ public class EditorViewModel {
         for index in timeline.sources.indices {
             // Миграция со старого формата не знала метаданных кадра: ProjectStore синхронный
             // и не мог ждать AVURLAsset. Дозаполняем от фактически открытого файла.
-            if timeline.sources[index].naturalSize == .zero,
+            if let fallbackSource,
+               timeline.sources[index].naturalSize == .zero,
                timeline.sources[index].url.path == fallbackSource.url.path {
                 timeline.sources[index] = fallbackSource.withID(timeline.sources[index].id)
             }
@@ -401,15 +399,88 @@ public class EditorViewModel {
         }
     }
 
-    /// Open a .silencecut project file — derives the video path and imports it
-    /// (the sidecar next to the video is restored automatically)
+    /// Открыть файл проекта: реестр источников целиком лежит внутри него
     public func openProjectFile(url: URL) {
-        let videoURL = url.deletingPathExtension()
-        guard FileManager.default.fileExists(atPath: videoURL.path) else {
-            statusMessage = "Видео рядом с проектом не найдено: \(videoURL.lastPathComponent)"
+        let snapshot: ProjectSnapshot
+        do {
+            snapshot = try ProjectStore.load(from: url)
+        } catch {
+            statusMessage = "Не удалось открыть проект: \(error.localizedDescription)"
+            RecentProjectsStore.remove(url: url)
+            refreshRecentProjects()
             return
         }
-        importVideo(url: videoURL)
+
+        resetForNewProject()
+        projectFileURL = url
+        project = Project(name: snapshot.name)
+
+        Task { @MainActor in
+            isImporting = true
+            defer { isImporting = false }
+
+            restore(snapshot, fallbackSource: nil)
+            await backfillMissingMetadata()
+            if let first = timeline.sources.first {
+                applyDisplayMetadata(from: first)
+            }
+            await rebuildPreview()
+            for source in timeline.sources {
+                await analyzeSource(source)
+            }
+            recordInRecentProjects()
+            statusMessage = "Проект открыт: \(snapshot.name)"
+        }
+    }
+
+    /// Проекты первой версии приезжают без размера кадра, поворота и fps: миграция в
+    /// `ProjectStore` синхронная и не может ждать `AVURLAsset`. Здесь — единственное место,
+    /// где эти поля можно честно дозаполнить, потому что файл уже открыт.
+    @MainActor
+    private func backfillMissingMetadata() async {
+        for index in timeline.sources.indices {
+            let source = timeline.sources[index]
+            guard source.naturalSize == .zero, !offlineSourceIDs.contains(source.id) else { continue }
+            guard let loaded = await makeSource(for: source.url) else { continue }
+            var replacement = loaded.withID(source.id)
+            replacement.gain = source.gain
+            replacement.integratedLUFS = source.integratedLUFS
+            timeline.sources[index] = replacement
+        }
+    }
+
+    /// Пустой проект: стартовый экран возвращается, ничего не сохраняется до первого ролика
+    public func newProject() {
+        resetForNewProject()
+        project = Project(name: "Новый проект")
+        statusMessage = ""
+    }
+
+    private func resetForNewProject() {
+        autosaveTask?.cancel()
+        projectFileURL = nil
+        needsSaveLocation = false
+        timeline = EditTimeline()
+        subtitleEntries = []
+        silenceResult = nil
+        silenceReviewActive = false
+        reviewZones = []
+        analyses.removeAll()
+        waveforms.removeAll()
+        offlineSourceIDs.removeAll()
+        loudnessMeasurement = nil
+        normalizeLoudness = false
+        renderOptions = .default
+        selectedClipId = nil
+        selectedOverlayId = nil
+        selectedSourceId = nil
+        playheadPosition = .zero
+        isPlaying = false
+        player?.pause()
+        player = nil
+        undoStack.removeAll()
+        redoStack.removeAll()
+        lastAutosaveAt = nil
     }
 
     // MARK: - Preview Rebuild (debounced)
@@ -726,14 +797,56 @@ public class EditorViewModel {
         scheduleAutosave()
     }
 
-    // MARK: - Project Autosave (.silencecut sidecar next to the video)
+    // MARK: - Проект: файл, автосохранение, список недавних
 
     private var autosaveTask: Task<Void, Never>?
     public private(set) var lastAutosaveAt: Date?
 
-    /// Debounced autosave — called after every meaningful edit
+    /// Куда пишется автосохранение. nil — проект ещё не сохранён ни разу.
+    public private(set) var projectFileURL: URL?
+
+    /// Просьба к интерфейсу показать панель сохранения: место проекта ещё не выбрано
+    public var needsSaveLocation = false
+
+    /// Список для стартового экрана. Кешируется, чтобы не дёргать UserDefaults на каждый кадр.
+    public private(set) var recentProjects: [RecentProject] = RecentProjectsStore.all()
+
+    /// Проект открыт, если у него есть файл или хоть один источник —
+    /// по этому же признаку стартовый экран уступает место редактору
+    public var hasProject: Bool { projectFileURL != nil || hasSources }
+
+    public var projectDisplayName: String {
+        projectFileURL?.deletingPathExtension().lastPathComponent ?? project.name
+    }
+
+    public func refreshRecentProjects() {
+        recentProjects = RecentProjectsStore.all()
+    }
+
+    public func removeFromRecentProjects(url: URL) {
+        RecentProjectsStore.remove(url: url)
+        refreshRecentProjects()
+    }
+
+    private func recordInRecentProjects() {
+        guard let url = projectFileURL else { return }
+        RecentProjectsStore.record(RecentProject(
+            name: projectDisplayName,
+            url: url,
+            bookmarkData: try? url.bookmarkData(),
+            modifiedAt: Date(),
+            durationSeconds: CMTimeGetSeconds(timeline.duration),
+            clipCount: timeline.clips.count,
+            sourceCount: timeline.sources.count
+        ))
+        refreshRecentProjects()
+    }
+
+    /// Отложенное автосохранение после каждой значимой правки.
+    /// Пока место не выбрано, писать некуда — правки копятся в памяти и уедут на диск
+    /// первым же сохранением.
     public func scheduleAutosave() {
-        guard mainSourceURL != nil else { return }
+        guard projectFileURL != nil else { return }
         autosaveTask?.cancel()
         autosaveTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(2))
@@ -752,25 +865,43 @@ public class EditorViewModel {
         )
     }
 
+    /// Сохранить в уже выбранный файл. Если места нет — просим интерфейс спросить.
     public func saveProjectNow() {
-        guard let url = mainSourceURL else { return }
+        guard let url = projectFileURL else {
+            if hasSources { needsSaveLocation = true }
+            return
+        }
         do {
-            try ProjectStore.save(currentSnapshot, for: url)
+            try ProjectStore.save(currentSnapshot, to: url)
             lastAutosaveAt = Date()
+            recordInRecentProjects()
         } catch {
+            statusMessage = "Не удалось сохранить проект: \(error.localizedDescription)"
             print("[Autosave] Failed: \(error)")
         }
     }
 
-    /// «Сохранить как…» — тот же формат по произвольному пути
+    /// Выбрано место для проекта: пишем туда и дальше автосохраняем именно в него
     public func saveProject(to url: URL) {
         do {
             try ProjectStore.save(currentSnapshot, to: url)
+            projectFileURL = url
+            needsSaveLocation = false
+            project.name = url.deletingPathExtension().lastPathComponent
             lastAutosaveAt = Date()
+            recordInRecentProjects()
             statusMessage = "Проект сохранён: \(url.lastPathComponent)"
         } catch {
             statusMessage = "Не удалось сохранить проект: \(error.localizedDescription)"
         }
+    }
+
+    /// Имя по умолчанию для панели сохранения — по первому ролику
+    public var suggestedProjectFileName: String {
+        let base = timeline.sources.first
+            .map { $0.url.deletingPathExtension().lastPathComponent }
+            ?? project.name
+        return "\(base).\(ProjectStore.fileExtension)"
     }
 
     public func undo() {

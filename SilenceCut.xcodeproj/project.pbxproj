@@ -75,10 +75,14 @@
 		945B59730719283C335ED0EF /* OverlayClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCA20E5C86E6DD9051E43699 /* OverlayClip.swift */; };
 		9C868DEE3CE1722D334604DB /* SubtitleSRTExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90A22F7AA74002BCBC5A7BEF /* SubtitleSRTExporter.swift */; };
 		9D68522E5A0E9C5355E709F3 /* RenderTransformTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D2F3E3C5A22389EBB13EFFF /* RenderTransformTests.swift */; };
+		A0CEC8D02F558F9301D5E505 /* RecentProjectsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 599E13F444A890D3E27F0ABC /* RecentProjectsStore.swift */; };
 		A18DBD20B692598B6B187AA8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D1306E8BF62643FFD64DB522 /* Assets.xcassets */; };
 		A2D375DDFFE3B2C378F03557 /* RECore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3558AEAE76CD06B8D030642A /* RECore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A6993C35B4AAC9B06ABDE027 /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
+		A6F1B26AF06F5F161F0F3C7A /* RecentProjectsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8FED413D1F3E7BEE7BA80E7 /* RecentProjectsStoreTests.swift */; };
+		A7B0442445F9BB018CFBAA19 /* RecentProjectsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 599E13F444A890D3E27F0ABC /* RecentProjectsStore.swift */; };
 		AA0AC4E79E1DFE25980A0B50 /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
+		AAD856871E1B709C2D05770A /* ProjectBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F37EFC281E5F0BAAB9C7D92 /* ProjectBrowserView.swift */; };
 		AB67714A5F1678B7B42B70CD /* RenderOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D81370ED6EB2B26A89A474CE /* RenderOptions.swift */; };
 		AC0F5A4F77D95F6452431A13 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C38F6599CFE96AB9F4C0579C /* ExportService.swift */; };
 		B018259E72569B1F7110F960 /* EditTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */; };
@@ -130,6 +134,7 @@
 		E4521790832C279F659B919F /* RETimeline.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E4936144E4339BC7BE9067DC /* AudioSampleStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE714EC6E75209AEF60D68D /* AudioSampleStream.swift */; };
 		E4F4742A4A51B152A7075011 /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
+		E8C284ED85D27DCB8D2F7C5A /* ProjectBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F37EFC281E5F0BAAB9C7D92 /* ProjectBrowserView.swift */; };
 		EAAC209A2EF7438B62D01017 /* REAudioAnalysis-iOS.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4E9EE611B9409EF67024B133 /* REAudioAnalysis-iOS.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EB0CCABCB78D810F60ECE486 /* REExport.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9AFB408B69327330EBAFC712 /* REExport.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		ECC99C48A29B32E4E9EB87AC /* REUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 433492D71088FF4C3B8BA465 /* REUI.framework */; };
@@ -472,6 +477,7 @@
 		524CEE0492AABEDE093A58E6 /* BatchQueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchQueueView.swift; sourceTree = "<group>"; };
 		567AA8E1F991CCBBF88DA94E /* REUI-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "REUI-iOS.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
 		56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = "RECore-iOS.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		599E13F444A890D3E27F0ABC /* RecentProjectsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentProjectsStore.swift; sourceTree = "<group>"; };
 		604BC86BBDAB2709C403C1FA /* SilenceCutIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceCutIOSApp.swift; sourceTree = "<group>"; };
 		6861562E1DD374AAB9CAE52C /* BatchQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchQueue.swift; sourceTree = "<group>"; };
 		6BE4B5F28EA4351021536B73 /* SubtitleMarkdownExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleMarkdownExporter.swift; sourceTree = "<group>"; };
@@ -479,6 +485,7 @@
 		783687EFCA4F5A3110CE15FA /* REExportTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = REExportTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7CB19C115AC59E1D7DB247A0 /* MediaSourceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSourceTests.swift; sourceTree = "<group>"; };
 		7CC91C0AC5BACD28407E0713 /* SubtitleOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleOverlayView.swift; sourceTree = "<group>"; };
+		7F37EFC281E5F0BAAB9C7D92 /* ProjectBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectBrowserView.swift; sourceTree = "<group>"; };
 		8055418BF6FCFC99B8147983 /* SilenceCut-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "SilenceCut-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		867B6544F63DCE6289770469 /* TimelineClipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineClipTests.swift; sourceTree = "<group>"; };
 		8BAA5E9E0908542D21B7016D /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
@@ -503,6 +510,7 @@
 		DD07427F5C4A901AD15D370C /* TimelineInsertTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineInsertTests.swift; sourceTree = "<group>"; };
 		E137873BB74A6C52AB2EC48F /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineView.swift; sourceTree = "<group>"; };
 		E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceDetectionPanel.swift; sourceTree = "<group>"; };
+		E8FED413D1F3E7BEE7BA80E7 /* RecentProjectsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentProjectsStoreTests.swift; sourceTree = "<group>"; };
 		EB82737643CD2BE53F03862A /* RETimeline.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RETimeline.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED4E2740A4D99AF07019E6FB /* ModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelManager.swift; sourceTree = "<group>"; };
 		FE49B8DE07A63647101E4BCE /* RETimelineTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RETimelineTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -692,6 +700,7 @@
 				7CB19C115AC59E1D7DB247A0 /* MediaSourceTests.swift */,
 				B5789FDDB6B22463A47B8132 /* ProjectMigrationTests.swift */,
 				25E767F05369E7F15FB1555B /* ProjectStoreTests.swift */,
+				E8FED413D1F3E7BEE7BA80E7 /* RecentProjectsStoreTests.swift */,
 				867B6544F63DCE6289770469 /* TimelineClipTests.swift */,
 				DD07427F5C4A901AD15D370C /* TimelineInsertTests.swift */,
 				4F91109B0A50223C205B9995 /* TimelineRemovalTests.swift */,
@@ -787,6 +796,7 @@
 				CCA20E5C86E6DD9051E43699 /* OverlayClip.swift */,
 				16BABFCA147DD5F237B860EE /* Project.swift */,
 				C0879AC88785B477EA4ADDD8 /* ProjectStore.swift */,
+				599E13F444A890D3E27F0ABC /* RecentProjectsStore.swift */,
 				D81370ED6EB2B26A89A474CE /* RenderOptions.swift */,
 				A2C54CB65E77B0DB040CDD51 /* SubtitleEntry.swift */,
 				2DCA24D467FDD6FE62C1C114 /* SubtitleStyle.swift */,
@@ -824,6 +834,7 @@
 				3F3E27A2D36134B4054B09CE /* FramingOverlayView.swift */,
 				CC4FE533556380FCB651AF5A /* MainEditorView.swift */,
 				A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */,
+				7F37EFC281E5F0BAAB9C7D92 /* ProjectBrowserView.swift */,
 				E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */,
 				D27CF088BF30FDEBD2CCA072 /* SourceShelfView.swift */,
 				7CC91C0AC5BACD28407E0713 /* SubtitleOverlayView.swift */,
@@ -1254,6 +1265,7 @@
 				F55DA799E124E9E9ED9F4604 /* OverlayClip.swift in Sources */,
 				05A1C2A37AB1A063B8AE0C29 /* Project.swift in Sources */,
 				B6E39A58A15BC31C78CA077A /* ProjectStore.swift in Sources */,
+				A0CEC8D02F558F9301D5E505 /* RecentProjectsStore.swift in Sources */,
 				AB67714A5F1678B7B42B70CD /* RenderOptions.swift in Sources */,
 				C13A3FBDB42200C782A20918 /* SubtitleEntry.swift in Sources */,
 				CABAB0B1A398DF849F363E87 /* SubtitleStyle.swift in Sources */,
@@ -1293,6 +1305,7 @@
 				B35978526E27AFB6E2674C39 /* FramingOverlayView.swift in Sources */,
 				C85F0B01B59E79428D0CC726 /* MainEditorView.swift in Sources */,
 				CAEFCB06CC74ACF6D0154FD8 /* PreviewPlayerView.swift in Sources */,
+				AAD856871E1B709C2D05770A /* ProjectBrowserView.swift in Sources */,
 				57E99D260C9F47F120C3FF3E /* SilenceDetectionPanel.swift in Sources */,
 				8B3BC6F2CF67B8FD6B79B3C0 /* SourceShelfView.swift in Sources */,
 				BC484A0AB8D8017254F6B7A9 /* SubtitleOverlayView.swift in Sources */,
@@ -1370,6 +1383,7 @@
 				C9B9AFA7D37AC2B9B39D0AE0 /* FramingOverlayView.swift in Sources */,
 				DC4A05DEB5672EB489B633FD /* MainEditorView.swift in Sources */,
 				2EB5A1E61AD378452AB4FB79 /* PreviewPlayerView.swift in Sources */,
+				E8C284ED85D27DCB8D2F7C5A /* ProjectBrowserView.swift in Sources */,
 				2C19A9BEC214756BC0ED0FB7 /* SilenceDetectionPanel.swift in Sources */,
 				4E210EB93185115A988A5F5C /* SourceShelfView.swift in Sources */,
 				53C88215FF1E1B851DAA0EDA /* SubtitleOverlayView.swift in Sources */,
@@ -1385,6 +1399,7 @@
 				4FA0F30C64AF26062CF86951 /* MediaSourceTests.swift in Sources */,
 				D519B404A08A3EA0B94DCA29 /* ProjectMigrationTests.swift in Sources */,
 				E26B4EC1EA86EF101F06BDBB /* ProjectStoreTests.swift in Sources */,
+				A6F1B26AF06F5F161F0F3C7A /* RecentProjectsStoreTests.swift in Sources */,
 				2639D9B37F21CE06BA44EAB7 /* TimelineClipTests.swift in Sources */,
 				39C47F05BB81E693A6F5D6AA /* TimelineInsertTests.swift in Sources */,
 				0697E9BE90A3F8D1BDE17CF8 /* TimelineRemovalTests.swift in Sources */,
@@ -1409,6 +1424,7 @@
 				945B59730719283C335ED0EF /* OverlayClip.swift in Sources */,
 				4F9F596CC1BF2C7DA2C6D0F7 /* Project.swift in Sources */,
 				8068BD8621AE8B462FA83339 /* ProjectStore.swift in Sources */,
+				A7B0442445F9BB018CFBAA19 /* RecentProjectsStore.swift in Sources */,
 				45017F175F80B715093FA1D4 /* RenderOptions.swift in Sources */,
 				DA24B61F22844A9A5C005F39 /* SubtitleEntry.swift in Sources */,
 				BDFB5A7FA89F762EFC667205 /* SubtitleStyle.swift in Sources */,

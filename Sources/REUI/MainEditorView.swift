@@ -5,6 +5,7 @@ import RECore
 import REExport
 #if os(macOS)
 import AppKit
+import UniformTypeIdentifiers
 #elseif os(iOS)
 import UIKit
 import PhotosUI
@@ -71,8 +72,19 @@ extension MainEditorView {
                 .background(.bar)
 
             Divider()
+                .onChange(of: viewModel.needsSaveLocation) { _, needs in
+                    // Панель модальная — показываем её, когда вьюмодель попросит,
+                    // а не из самой вьюмодели: AppKit-диалоги живут в слое интерфейса
+                    if needs { askForProjectLocation() }
+                }
 
-            if viewModel.hasSources {
+            if !viewModel.hasProject {
+                ProjectBrowserView(
+                    viewModel: viewModel,
+                    onOpenProject: { openProjectMacOS() },
+                    onImportVideo: { openFileMacOS() }
+                )
+            } else if viewModel.hasSources {
                 HSplitView {
                     // Video Preview
                     VStack {
@@ -285,6 +297,39 @@ extension MainEditorView {
         }
     }
 
+    private func openProjectMacOS() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [
+            UTType(filenameExtension: ProjectStore.fileExtension) ?? .json
+        ]
+        panel.allowsMultipleSelection = false
+        if panel.runModal() == .OK, let url = panel.url {
+            viewModel.openProjectFile(url: url)
+        }
+    }
+
+    /// Панель «куда сохранить проект». Появляется сама сразу после первого ролика:
+    /// пока место не выбрано, автосохранению некуда писать.
+    private func askForProjectLocation() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [
+            UTType(filenameExtension: ProjectStore.fileExtension) ?? .json
+        ]
+        panel.nameFieldStringValue = viewModel.suggestedProjectFileName
+        panel.canCreateDirectories = true
+        panel.title = "Куда сохранить проект"
+        panel.prompt = "Создать"
+
+        if panel.runModal() == .OK, let url = panel.url {
+            viewModel.saveProject(to: url)
+        } else {
+            // Отказ — не донимаем повторно, но и не пишем на диск.
+            // Проект сохранится, когда пользователь сам нажмёт ⌘S.
+            viewModel.needsSaveLocation = false
+            viewModel.statusMessage = "Проект не сохранён — нажмите ⌘S, чтобы выбрать место"
+        }
+    }
+
     /// Дроп мимо таймлайна. Пустой проект открывается, непустой — пополняется:
     /// сбрасывать собранный монтаж потому, что файл упал не на ту дорожку, недопустимо.
     private func handleDropMacOS(_ providers: [NSItemProvider]) -> Bool {
@@ -373,8 +418,9 @@ struct HotkeysHelpView: View {
         ("⌘+ / ⌘−", "Крупнее / мельче"),
         ("⇧Z", "Вписать таймлайн в окно"),
         ("⌘Z / ⌘⇧Z", "Отменить / повторить"),
-        ("⌘S / ⌘⇧⌥S", "Сохранить проект / сохранить как"),
-        ("⌘O / ⌘⇧O", "Открыть видео / проект"),
+        ("⌘N", "Новый проект"),
+        ("⌘O / ⌘I", "Открыть проект / импортировать видео"),
+        ("⌘S / ⌘⇧S", "Сохранить проект / сохранить как"),
         ("⌘E", "Экспорт"),
         ("?", "Эта шпаргалка"),
     ]

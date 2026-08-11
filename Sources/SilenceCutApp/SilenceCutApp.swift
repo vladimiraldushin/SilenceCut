@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
+import RECore
 import REUI
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -143,16 +144,36 @@ struct SilenceCutApp: App {
         }
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Открыть видео...") { openFile() }
-                    .keyboardShortcut("o", modifiers: .command)
+                Button("Новый проект") { viewModel.newProject() }
+                    .keyboardShortcut("n", modifiers: .command)
                 Button("Открыть проект...") { openProject() }
-                    .keyboardShortcut("o", modifiers: [.command, .shift])
+                    .keyboardShortcut("o", modifiers: .command)
+
+                Menu("Недавние проекты") {
+                    if viewModel.recentProjects.isEmpty {
+                        Text("Пусто")
+                    } else {
+                        ForEach(viewModel.recentProjects) { recent in
+                            Button(recent.name) { viewModel.openProjectFile(url: recent.url) }
+                                .disabled(!recent.fileExists)
+                        }
+                        Divider()
+                        Button("Очистить список") {
+                            RecentProjectsStore.clear()
+                            viewModel.refreshRecentProjects()
+                        }
+                    }
+                }
+
+                Divider()
+                Button("Импортировать видео...") { openFile() }
+                    .keyboardShortcut("i", modifiers: .command)
                 Divider()
                 Button("Сохранить проект") { viewModel.saveProjectNow() }
                     .keyboardShortcut("s", modifiers: .command)
                     .disabled(!viewModel.hasSources)
                 Button("Сохранить проект как...") { saveProjectAs() }
-                    .keyboardShortcut("s", modifiers: [.command, .shift, .option])
+                    .keyboardShortcut("s", modifiers: [.command, .shift])
                     .disabled(!viewModel.hasSources)
             }
             CommandMenu("Монтаж") {
@@ -203,8 +224,10 @@ struct SilenceCutApp: App {
 
     private func saveProjectAs() {
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.init(filenameExtension: "silencecut") ?? .json]
-        panel.nameFieldStringValue = "\(viewModel.project.name).silencecut"
+        panel.allowedContentTypes = [
+            .init(filenameExtension: ProjectStore.fileExtension) ?? .json
+        ]
+        panel.nameFieldStringValue = viewModel.suggestedProjectFileName
         panel.canCreateDirectories = true
         if panel.runModal() == .OK, let url = panel.url {
             viewModel.saveProject(to: url)

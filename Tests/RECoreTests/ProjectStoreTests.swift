@@ -9,7 +9,7 @@ private let storeTestSourceID = UUID()
 @Test func projectSnapshotRoundTrip() throws {
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    let videoURL = dir.appendingPathComponent("video.mp4")
+    let projectURL = dir.appendingPathComponent("video.silencecut")
 
     var timeline = EditTimeline(clips: [
         TimelineClip(
@@ -52,8 +52,8 @@ private let storeTestSourceID = UUID()
         subtitleStyle: .capcut
     )
 
-    try ProjectStore.save(snapshot, for: videoURL)
-    let loaded = try #require(ProjectStore.load(for: videoURL))
+    try ProjectStore.save(snapshot, to: projectURL)
+    let loaded = try #require(try ProjectStore.load(from: projectURL))
 
     #expect(loaded.name == snapshot.name)
     #expect(loaded.timeline.clips.count == 2)
@@ -66,24 +66,19 @@ private let storeTestSourceID = UUID()
     #expect(loaded.subtitleStyle == SubtitleStyle.capcut)
 }
 
-@Test func loadForMissingVideoReturnsNil() {
+@Test func loadingMissingFileThrows() {
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-    let videoURL = dir.appendingPathComponent("missing.mp4")
-    #expect(ProjectStore.load(for: videoURL) == nil)
+    let projectURL = dir.appendingPathComponent("missing.silencecut")
+    #expect(throws: (any Error).self) { try ProjectStore.load(from: projectURL) }
 }
 
-@Test func loadForCorruptedFileReturnsNil() throws {
+@Test func loadingCorruptedFileThrows() throws {
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    let videoURL = dir.appendingPathComponent("broken.mp4")
-    try Data("это не json".utf8).write(to: ProjectStore.sidecarURL(for: videoURL))
+    let projectURL = dir.appendingPathComponent("broken.silencecut")
+    try Data("это не json".utf8).write(to: projectURL)
 
-    #expect(ProjectStore.load(for: videoURL) == nil)
-}
-
-@Test func sidecarURLAppendsExtension() {
-    let videoURL = URL(fileURLWithPath: "/a/b/video.mp4")
-    #expect(ProjectStore.sidecarURL(for: videoURL).path == "/a/b/video.mp4.silencecut")
+    #expect(throws: (any Error).self) { try ProjectStore.load(from: projectURL) }
 }
 
 @Test func subtitleStylePresetStoreRoundTrip() throws {

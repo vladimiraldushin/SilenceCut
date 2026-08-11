@@ -38,18 +38,18 @@ private func legacyClip(id: String, url: String, start: Double, duration: Double
     """
 }
 
-@Test func legacySidecarGetsSynthesizedSource() throws {
+@Test func legacyProjectFileGetsSynthesizedSource() throws {
     let dir = try makeTempDir()
     defer { try? FileManager.default.removeItem(at: dir) }
-    let videoURL = dir.appendingPathComponent("take1.mp4")
+    let projectURL = dir.appendingPathComponent("take1.silencecut")
 
     let json = try legacySidecarJSON(clips: legacyClip(
         id: "11111111-1111-1111-1111-111111111111",
         url: "file:///videos/take1.mp4", start: 0, duration: 10
     ))
-    try Data(json.utf8).write(to: ProjectStore.sidecarURL(for: videoURL))
+    try Data(json.utf8).write(to: projectURL)
 
-    let snapshot = try #require(ProjectStore.load(for: videoURL))
+    let snapshot = try #require(try ProjectStore.load(from: projectURL))
     #expect(snapshot.version == 1)
     #expect(snapshot.timeline.sources.count == 1)
 
@@ -60,10 +60,10 @@ private func legacyClip(id: String, url: String, start: Double, duration: Double
     #expect(snapshot.timeline.clips.first?.framing == .default)
 }
 
-@Test func legacySidecarWithRepeatedSourceMakesOneRegistryEntry() throws {
+@Test func legacyProjectWithRepeatedSourceMakesOneRegistryEntry() throws {
     let dir = try makeTempDir()
     defer { try? FileManager.default.removeItem(at: dir) }
-    let videoURL = dir.appendingPathComponent("take1.mp4")
+    let projectURL = dir.appendingPathComponent("take1.silencecut")
 
     // Три клипа одного файла — после вырезания пауз так выглядит любой старый проект
     let clips = [
@@ -71,9 +71,9 @@ private func legacyClip(id: String, url: String, start: Double, duration: Double
         legacyClip(id: "22222222-2222-2222-2222-222222222222", url: "file:///videos/take1.mp4", start: 6, duration: 3),
         legacyClip(id: "33333333-3333-3333-3333-333333333333", url: "file:///videos/take1.mp4", start: 12, duration: 5),
     ].joined(separator: ",")
-    try Data(try legacySidecarJSON(clips: clips).utf8).write(to: ProjectStore.sidecarURL(for: videoURL))
+    try Data(try legacySidecarJSON(clips: clips).utf8).write(to: projectURL)
 
-    let snapshot = try #require(ProjectStore.load(for: videoURL))
+    let snapshot = try #require(try ProjectStore.load(from: projectURL))
     #expect(snapshot.timeline.sources.count == 1)
     let sourceID = try #require(snapshot.timeline.sources.first?.id)
     #expect(snapshot.timeline.clips.allSatisfy { $0.sourceID == sourceID })
@@ -82,14 +82,14 @@ private func legacyClip(id: String, url: String, start: Double, duration: Double
 @Test func migratedSourceDurationCoversWholeVideo() throws {
     let dir = try makeTempDir()
     defer { try? FileManager.default.removeItem(at: dir) }
-    let videoURL = dir.appendingPathComponent("take1.mp4")
+    let projectURL = dir.appendingPathComponent("take1.silencecut")
 
     try Data(try legacySidecarJSON(clips: legacyClip(
         id: "11111111-1111-1111-1111-111111111111",
         url: "file:///videos/take1.mp4", start: 0, duration: 10
-    )).utf8).write(to: ProjectStore.sidecarURL(for: videoURL))
+    )).utf8).write(to: projectURL)
 
-    let snapshot = try #require(ProjectStore.load(for: videoURL))
+    let snapshot = try #require(try ProjectStore.load(from: projectURL))
     // Длительность берётся из availableRange клипа — это полная длина исходника
     #expect(abs(CMTimeGetSeconds(try #require(snapshot.timeline.sources.first).duration) - 100) < 0.001)
 }
@@ -97,7 +97,7 @@ private func legacyClip(id: String, url: String, start: Double, duration: Double
 @Test func currentSnapshotRoundTripsWithSourcesAndOverlays() throws {
     let dir = try makeTempDir()
     defer { try? FileManager.default.removeItem(at: dir) }
-    let videoURL = dir.appendingPathComponent("a.mp4")
+    let projectURL = dir.appendingPathComponent("a.silencecut")
 
     let source = MediaSource(
         url: URL(fileURLWithPath: "/videos/a.mp4"),
@@ -125,9 +125,9 @@ private func legacyClip(id: String, url: String, start: Double, duration: Double
     let snapshot = ProjectSnapshot(
         name: "x", timeline: timeline, subtitleEntries: [], subtitleStyle: .classic
     )
-    try ProjectStore.save(snapshot, for: videoURL)
+    try ProjectStore.save(snapshot, to: projectURL)
 
-    let loaded = try #require(ProjectStore.load(for: videoURL))
+    let loaded = try #require(try ProjectStore.load(from: projectURL))
     #expect(loaded.version == 2)
     #expect(loaded.timeline.sources.first?.id == source.id)
     #expect(loaded.timeline.sources.first?.integratedLUFS == -21)

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Слепок проекта для сохранения на диск (.silencecut sidecar рядом с видео)
+/// Слепок проекта для сохранения на диск (файл .silencecut)
 public struct ProjectSnapshot: Codable {
     /// 1 — источник хранился прямо в клипе, реестра не было. 2 — реестр в `timeline.sources`.
     /// У файлов первой версии поля нет, поэтому оно читается как 1.
@@ -50,30 +50,22 @@ public struct ProjectSnapshot: Codable {
     }
 }
 
-/// Персистентность проекта — sidecar-файл `<видео>.silencecut` рядом с исходником
+/// Персистентность проекта — самостоятельный файл `.silencecut` в любом месте диска.
+///
+/// Раньше проект жил sidecar'ом рядом с главным видео и подхватывался по пути исходника.
+/// С несколькими источниками привязка к одному файлу перестала иметь смысл, поэтому проект
+/// стал обычным документом: путь к нему знает вьюмодель, список — `RecentProjectsStore`.
+/// Формат не менялся, так что старые sidecar-файлы открываются через «Открыть проект…».
 public enum ProjectStore {
-    /// URL sidecar-файла: <путь видео>.silencecut
-    public static func sidecarURL(for videoURL: URL) -> URL {
-        videoURL.appendingPathExtension("silencecut")
-    }
+    public static let fileExtension = "silencecut"
 
     /// Атомарная запись JSON (ISO8601 даты, читаемое форматирование для git)
-    public static func save(_ snapshot: ProjectSnapshot, for videoURL: URL) throws {
-        try save(snapshot, to: sidecarURL(for: videoURL))
-    }
-
-    /// Запись по прямому пути — «Сохранить как…» кладёт проект куда угодно
     public static func save(_ snapshot: ProjectSnapshot, to url: URL) throws {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(snapshot)
         try data.write(to: url, options: .atomic)
-    }
-
-    /// nil если файла нет или он не читается/не парсится (не бросает)
-    public static func load(for videoURL: URL) -> ProjectSnapshot? {
-        try? load(from: sidecarURL(for: videoURL))
     }
 
     /// Прямое чтение .silencecut файла (бросает при ошибке)
