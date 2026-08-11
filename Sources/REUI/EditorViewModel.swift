@@ -294,26 +294,13 @@ public class EditorViewModel {
 
     /// Читает метаданные файла. Возвращает nil, если видео в нём нет — такой файл
     /// в реестр не попадает.
+    /// Чтение метаданных живёт в RECore: тем же путём заводит источники CLI,
+    /// и проект, собранный снаружи, обязан рисоваться так же, как собранный руками
     private func makeSource(for url: URL) async -> MediaSource? {
-        let asset = AVURLAsset(url: url)
         do {
-            guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
-                statusMessage = "В файле нет видео: \(url.lastPathComponent)"
-                return nil
-            }
-            let hasAudio = try await !asset.loadTracks(withMediaType: .audio).isEmpty
-            var source = MediaSource(
-                url: url,
-                duration: try await asset.load(.duration),
-                naturalSize: try await videoTrack.load(.naturalSize),
-                preferredTransform: try await videoTrack.load(.preferredTransform),
-                nominalFrameRate: Double(try await videoTrack.load(.nominalFrameRate)),
-                hasAudio: hasAudio
-            )
-            try? source.createBookmark()
-            return source
+            return try await MediaSource.load(from: url)
         } catch {
-            statusMessage = "Не удалось открыть \(url.lastPathComponent): \(error.localizedDescription)"
+            statusMessage = error.localizedDescription
             return nil
         }
     }

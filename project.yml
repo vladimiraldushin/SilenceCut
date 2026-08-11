@@ -104,6 +104,21 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.REUI
         GENERATE_INFOPLIST_FILE: true
 
+  # Управление проектом снаружи приложения: конвейер с Remotion кладёт титры
+  # через него, и он же работает, когда приложение закрыто
+  silencecut-cli:
+    type: tool
+    platform: macOS
+    # RECore компилируется внутрь, а не линкуется фреймворком: бинарь должен работать
+    # из любого места — его зовут из Remotion-проекта и просто из PATH, где никакого
+    # @rpath на папку сборки нет
+    sources: [Sources/SilenceCutCLI, Sources/RECore]
+    settings:
+      base:
+        PRODUCT_NAME: silencecut
+        PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.silencecut-cli
+        SWIFT_VERSION: "5.10"
+
   SilenceCut:
     type: application
     platform: macOS
