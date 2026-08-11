@@ -128,6 +128,7 @@
 		C246C2C7476B3EB9F446069B /* REUI-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 567AA8E1F991CCBBF88DA94E /* REUI-iOS.framework */; };
 		C410163504E837845718C647 /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
 		C44B99E354B8A9107437DCE7 /* REAudioAnalysis.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; };
+		C5DFDBA7AFB98C65541F54C0 /* LevelCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0C4781834230118BCDA0880 /* LevelCommands.swift */; };
 		C6BBB9481EB575B448770CA8 /* REExport.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9AFB408B69327330EBAFC712 /* REExport.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		C7E24AF1E8C608F68BCBFF3D /* RETimeline-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C711E78641A8A43545148885 /* RETimeline-iOS.framework */; };
 		C815A72AA37EF25786C60166 /* LoudnessAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420E4DEE9BB0EBACC5D93F1E /* LoudnessAnalyzer.swift */; };
@@ -592,6 +593,7 @@
 		E95F5E37BF5F00638C07A5AB /* Commands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Commands.swift; sourceTree = "<group>"; };
 		EB82737643CD2BE53F03862A /* RETimeline.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RETimeline.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED4E2740A4D99AF07019E6FB /* ModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelManager.swift; sourceTree = "<group>"; };
+		F0C4781834230118BCDA0880 /* LevelCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelCommands.swift; sourceTree = "<group>"; };
 		F183B41AC9D26C178F43259E /* SubtitleRipple.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleRipple.swift; sourceTree = "<group>"; };
 		FE49B8DE07A63647101E4BCE /* RETimelineTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RETimelineTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FEEC9E7136E9AD771ABE4D77 /* EditTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTimeline.swift; sourceTree = "<group>"; };
@@ -914,6 +916,7 @@
 				E47959A66C26A1CE3F9CC402 /* ClipCommands.swift */,
 				E95F5E37BF5F00638C07A5AB /* Commands.swift */,
 				05F5E8A29BEF8D8420A4A06E /* FrameCommands.swift */,
+				F0C4781834230118BCDA0880 /* LevelCommands.swift */,
 				B3E22A2BAF27EDA65339BAB2 /* main.swift */,
 				64DAE120B6886254D4B39838 /* RenderCommands.swift */,
 				9DCE7619401677C2EC36BBD6 /* Shared.swift */,
@@ -1554,6 +1557,7 @@
 				42355609612BF3CC1847BE57 /* ClipCommands.swift in Sources */,
 				5FA2924302D717784611F9F2 /* Commands.swift in Sources */,
 				BCE5DDDFA2E4EC318C1BED7A /* FrameCommands.swift in Sources */,
+				C5DFDBA7AFB98C65541F54C0 /* LevelCommands.swift in Sources */,
 				B420F81CBF7F694AAC440AC4 /* RenderCommands.swift in Sources */,
 				B7331E60D9422ACE5DCDC0F2 /* Shared.swift in Sources */,
 				377CA226740BE10C889605A0 /* TranscribeCommands.swift in Sources */,

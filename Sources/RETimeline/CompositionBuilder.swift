@@ -46,6 +46,7 @@ public enum CompositionBuilder {
             let orientedSize: CGSize
             let sourceTransform: CGAffineTransform
             let gain: Double
+            let framingEnd: ClipFraming?
         }
         var placed: [Placed] = []
         var insertionTime = CMTime.zero
@@ -78,7 +79,10 @@ public enum CompositionBuilder {
                 framing: clip.framing,
                 orientedSize: source.orientedSize,
                 sourceTransform: source.preferredTransform,
-                gain: source.gain
+                // Гейн источника умножается на гейн клипа: файл может быть тише целиком,
+                // а внутри него отдельная реплика — ещё тише, если микрофон пропал
+                gain: source.gain * clip.gain,
+                framingEnd: clip.framingEnd
             ))
             insertionTime = CMTimeAdd(insertionTime, clip.effectiveDuration)
         }
@@ -202,6 +206,31 @@ public enum CompositionBuilder {
                     framing: item.framing,
                     zoom: scales[index]
                 )
+
+                // Кадр едет внутри клипа: ведём человека, который смещается и приближается.
+                // Ramp, а не пара setTransform: последний даёт ступеньку, то есть рывок.
+                if let end = item.framingEnd {
+                    let endTransform = renderTransform(
+                        sourceTransform: item.sourceTransform,
+                        orientedSize: item.orientedSize,
+                        targetSize: renderSize,
+                        framing: end,
+                        zoom: scales[index]
+                    )
+                    spineLayer.setTransformRamp(
+                        fromStart: transform,
+                        toEnd: endTransform,
+                        timeRange: CMTimeRange(
+                            start: item.start,
+                            duration: CMTime(seconds: item.duration, preferredTimescale: 600)
+                        )
+                    )
+                    // Рампа сама задаёт значение на всём отрезке — следующий клип
+                    // обязан выставить своё, поэтому запомненное сбрасываем
+                    appliedTransform = nil
+                    continue
+                }
+
                 guard appliedTransform != transform else { continue }
                 spineLayer.setTransform(transform, at: item.start)
                 appliedTransform = transform

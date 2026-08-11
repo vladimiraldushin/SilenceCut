@@ -27,6 +27,19 @@ public struct TimelineClip: Identifiable, Codable, Equatable {
     /// Как кадр этого клипа ложится на холст проекта
     public var framing: ClipFraming = .default
 
+    /// Кадрирование в КОНЦЕ клипа. Если задано, кадр едет от `framing` к нему линейно.
+    ///
+    /// Нужно, чтобы вести человека в кадре: говорящий смещается и приближается, а
+    /// неподвижная рамка либо теряет его, либо вынуждена быть настолько широкой, что
+    /// крупного плана не получается.
+    public var framingEnd: ClipFraming?
+
+    /// Множитель громкости именно этого куска, 1.0 — как в исходнике.
+    ///
+    /// Отдельно от `MediaSource.gain`: микрофон пропадает не на весь дубль, а на
+    /// отдельные реплики, и выравнивать приходится по клипам, а не по файлам.
+    public var gain: Double = 1.0
+
     /// URL из проектов старого формата, где источник хранился прямо в клипе.
     /// Живёт только между декодированием и миграцией в `ProjectStore`; наружу не сохраняется.
     public var legacySourceURL: URL?
@@ -49,7 +62,9 @@ public struct TimelineClip: Identifiable, Codable, Equatable {
         timelineOffset: CMTime = .zero,
         speed: Double = 1.0,
         isEnabled: Bool = true,
-        framing: ClipFraming = .default
+        framing: ClipFraming = .default,
+        framingEnd: ClipFraming? = nil,
+        gain: Double = 1.0
     ) {
         self.id = id
         self.sourceID = sourceID
@@ -59,12 +74,14 @@ public struct TimelineClip: Identifiable, Codable, Equatable {
         self.speed = speed
         self.isEnabled = isEnabled
         self.framing = framing
+        self.framingEnd = framingEnd
+        self.gain = gain
     }
 
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case id, sourceID, availableRange, sourceRange, timelineOffset, speed, isEnabled, framing
+        case id, sourceID, availableRange, sourceRange, timelineOffset, speed, isEnabled, framing, framingEnd, gain
         case sourceURL   // только для чтения проектов первой версии
     }
 
@@ -77,6 +94,8 @@ public struct TimelineClip: Identifiable, Codable, Equatable {
         speed = try c.decodeIfPresent(Double.self, forKey: .speed) ?? 1.0
         isEnabled = try c.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
         framing = try c.decodeIfPresent(ClipFraming.self, forKey: .framing) ?? .default
+        framingEnd = try c.decodeIfPresent(ClipFraming.self, forKey: .framingEnd)
+        gain = try c.decodeIfPresent(Double.self, forKey: .gain) ?? 1.0
 
         if let id = try c.decodeIfPresent(UUID.self, forKey: .sourceID) {
             sourceID = id

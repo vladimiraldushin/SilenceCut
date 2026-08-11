@@ -26,6 +26,10 @@ silencecut — монтаж из командной строки
   split-clip <проект> --at <сек>
   toggle-clip <проект> --id <uuid>
   trim-clip <проект> --id <uuid> [--source-start <сек>] [--duration <сек>]
+  set-framing <проект> --id <uuid> [--scale 1.6] [--x 0.1] [--y -0.05]
+              [--end-scale 2.2] [--end-x 0.05] [--end-y -0.08] [--static]
+                                   наезд внутри клипа: кадр едет от начального
+                                   положения к конечному
 
 ПЕРЕБИВКИ (картинка поверх, звук хребта идёт дальше)
   add-overlay <проект> --file <файл> --at <сек> [--duration <сек>] [--source-start <сек>]
@@ -52,6 +56,9 @@ silencecut — монтаж из командной строки
 РЕНДЕР
   detect-silence <проект> [--apply] [--threshold <дБ>] [--min-duration <сек>] [--padding <сек>]
                                    без --apply только показывает, сколько вырежется
+  level-audio <проект> [--apply] [--target <дБ>] [--headroom 1] [--max-boost 18]
+                                   выравнивает тихие клипы по медиане ролика,
+                                   не выходя за пик
   export <проект> --out <файл> [--preset high|medium|low] [--subtitles]
                                [--aspect 9:16|1:1|16:9|source] [--force]
 
@@ -93,6 +100,7 @@ do {
     case "split-clip":      try ClipCommands.splitClip(arguments)
     case "toggle-clip":     try ClipCommands.toggleClip(arguments)
     case "trim-clip":       try ClipCommands.trimClip(arguments)
+    case "set-framing":     try ClipCommands.setFraming(arguments)
 
     // Перебивки
     case "add-overlay":     try await ClipCommands.addOverlay(arguments)
@@ -113,6 +121,7 @@ do {
     case "transcribe":      try await TranscribeCommands.transcribe(arguments)
     case "export":          try await RenderCommands.export(arguments)
     case "detect-silence":  try await RenderCommands.detectSilence(arguments)
+    case "level-audio":     try await LevelCommands.levelAudio(arguments)
 
     case "help":            print(usage)
     default:

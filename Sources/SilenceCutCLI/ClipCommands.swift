@@ -146,6 +146,50 @@ enum ClipCommands {
         ])
     }
 
+    /// Кадрирование клипа: статичное или с наездом от начала к концу.
+    ///
+    /// Сдвиг задаётся в долях холста от центра: 0.1 по X — это десятая часть ширины
+    /// кадра вправо. Масштаб 1.0 — кадр заполнен целиком, 1.6 — наезд в полтора раза.
+    static func setFraming(_ args: Arguments) throws {
+        let projectURL = try args.projectURL()
+        var snapshot = try Shared.load(projectURL)
+        let id = try Shared.uuid(args.requireString("id"))
+
+        guard let index = snapshot.timeline.clips.firstIndex(where: { $0.id == id }) else {
+            throw CLIError.notFound("клип \(id.uuidString)")
+        }
+
+        var framing = snapshot.timeline.clips[index].framing
+        if let scale = args.double("scale") { framing.scale = max(0.05, scale) }
+        if let x = args.double("x") { framing.offset.x = x }
+        if let y = args.double("y") { framing.offset.y = y }
+        snapshot.timeline.clips[index].framing = framing
+
+        // Конечное кадрирование задаётся, только если хоть один его параметр пришёл:
+        // иначе снимаем наезд и возвращаем неподвижную рамку
+        let endKeys = ["end-scale", "end-x", "end-y"]
+        if endKeys.contains(where: { args.double($0) != nil }) {
+            var end = snapshot.timeline.clips[index].framingEnd ?? framing
+            if let scale = args.double("end-scale") { end.scale = max(0.05, scale) }
+            if let x = args.double("end-x") { end.offset.x = x }
+            if let y = args.double("end-y") { end.offset.y = y }
+            snapshot.timeline.clips[index].framingEnd = end
+        } else if args.has("static") {
+            snapshot.timeline.clips[index].framingEnd = nil
+        }
+
+        try Shared.save(snapshot, to: projectURL)
+        let clip = snapshot.timeline.clips[index]
+        Shared.printJSON([
+            "clip": id.uuidString,
+            "framing": ["scale": clip.framing.scale,
+                        "x": clip.framing.offset.x, "y": clip.framing.offset.y],
+            "framingEnd": clip.framingEnd.map {
+                ["scale": $0.scale, "x": $0.offset.x, "y": $0.offset.y]
+            } as Any,
+        ].compactMapValues { $0 })
+    }
+
     // MARK: - Перебивки
 
     /// Картинка поверх хребта; звук хребта под ней продолжает идти
