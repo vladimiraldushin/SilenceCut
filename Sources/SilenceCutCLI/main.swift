@@ -38,6 +38,12 @@ silencecut — монтаж из командной строки
   move-graphic <проект> --id <uuid> --at <сек>
   remove-graphic <проект> --id <uuid>
 
+РЕНДЕР
+  detect-silence <проект> [--apply] [--threshold <дБ>] [--min-duration <сек>] [--padding <сек>]
+                                   без --apply только показывает, сколько вырежется
+  export <проект> --out <файл> [--preset high|medium|low] [--subtitles]
+                               [--aspect 9:16|1:1|16:9|source] [--force]
+
 ИСТОЧНИКИ
   relink-source <проект> --id <uuid> --file <файл>    файл переехал
   prune-sources <проект>                               убрать неиспользуемые
@@ -87,6 +93,10 @@ do {
     // Источники
     case "relink-source":   try await ClipCommands.relinkSource(arguments)
     case "prune-sources":   try ClipCommands.pruneSources(arguments)
+
+    // Рендер
+    case "export":          try await RenderCommands.export(arguments)
+    case "detect-silence":  try await RenderCommands.detectSilence(arguments)
 
     case "help":            print(usage)
     default:

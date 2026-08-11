@@ -109,15 +109,34 @@ targets:
   silencecut-cli:
     type: tool
     platform: macOS
-    # RECore компилируется внутрь, а не линкуется фреймворком: бинарь должен работать
-    # из любого места — его зовут из Remotion-проекта и просто из PATH, где никакого
-    # @rpath на папку сборки нет
-    sources: [Sources/SilenceCutCLI, Sources/RECore]
+    # RECore, RETimeline и REExport линкуются фреймворками, а не компилируются внутрь:
+    # их исходники импортируют RECore, и при компиляции внутрь модуль оказался бы
+    # объявлен дважды. Файлы анализа звука взяты ПОФАЙЛОВО — модуль целиком тянет
+    # WhisperKit и FluidAudio ради транскрибации, которая CLI не нужна.
+    sources:
+      - Sources/SilenceCutCLI
+      - Sources/REAudioAnalysis/REAudioAnalysis.swift
+      - Sources/REAudioAnalysis/AudioAnalysis.swift
+      - Sources/REAudioAnalysis/AudioSampleStream.swift
+      - Sources/REAudioAnalysis/SilenceDetector.swift
+      - Sources/REAudioAnalysis/LoudnessAnalyzer.swift
+    dependencies:
+      - target: RECore
+        embed: false
+      - target: RETimeline
+        embed: false
+      - target: REExport
+        embed: false
     settings:
       base:
         PRODUCT_NAME: silencecut
         PRODUCT_BUNDLE_IDENTIFIER: ru.aldushin.silencecut-cli
         SWIFT_VERSION: "5.10"
+        # Фреймворки лежат рядом с установленным бинарём; install-cli.sh их туда кладёт
+        LD_RUNPATH_SEARCH_PATHS:
+          - "@executable_path/../lib/silencecut"
+          - "@loader_path/../lib/silencecut"
+          - "$(BUILT_PRODUCTS_DIR)"
 
   SilenceCut:
     type: application

@@ -1,5 +1,6 @@
 import Foundation
 import CoreMedia
+import RECore
 
 /// Общее для всех команд: чтение и запись проекта, разбор аргументов, вывод.
 ///
@@ -68,6 +69,14 @@ enum Shared {
     }
 
     static func printJSON(_ value: Any) {
+        // Ленивые коллекции вроде ReversedCollection роняют JSONSerialization
+        // исключением Objective-C, которое Swift не поймает. Лучше внятная ошибка.
+        guard JSONSerialization.isValidJSONObject(value) else {
+            FileHandle.standardError.write(Data(
+                "Ошибка: результат не сериализуется в JSON — приведите коллекции к Array\n".utf8
+            ))
+            exit(1)
+        }
         guard let data = try? JSONSerialization.data(
             withJSONObject: value, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         ) else { return }

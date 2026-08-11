@@ -1,5 +1,6 @@
 import Foundation
 import CoreMedia
+import RECore
 
 /// Команды монтажа: клипы хребта, перебивки, источники.
 ///
