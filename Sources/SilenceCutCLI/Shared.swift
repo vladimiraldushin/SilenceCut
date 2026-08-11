@@ -68,6 +68,23 @@ enum Shared {
         String(format: "%.2f", value)
     }
 
+    /// Настоящий stdout, отложенный до того, как его подменят.
+    ///
+    /// Фреймворки печатают отладку обычным `print()`, то есть в stdout: «[Export] done»,
+    /// «[ParakeetEngine] Model loaded» и прочее. Для человека это полезно, но JSON на
+    /// выходе оно превращает в мусор, который не разбирается. Поэтому на старте stdout
+    /// уводится в stderr, а результат печатается сюда — в сохранённый дескриптор.
+    private static let realStdout: Int32 = {
+        let saved = dup(STDOUT_FILENO)
+        dup2(STDERR_FILENO, STDOUT_FILENO)
+        return saved
+    }()
+
+    /// Вызывается один раз на старте, чтобы подмена случилась до первого чужого print
+    static func captureStdout() {
+        _ = realStdout
+    }
+
     static func printJSON(_ value: Any) {
         // Ленивые коллекции вроде ReversedCollection роняют JSONSerialization
         // исключением Objective-C, которое Swift не поймает. Лучше внятная ошибка.
@@ -77,9 +94,12 @@ enum Shared {
             ))
             exit(1)
         }
-        guard let data = try? JSONSerialization.data(
+        guard var data = try? JSONSerialization.data(
             withJSONObject: value, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         ) else { return }
-        print(String(decoding: data, as: UTF8.self))
+        data.append(0x0A)
+        data.withUnsafeBytes { buffer in
+            _ = write(realStdout, buffer.baseAddress, buffer.count)
+        }
     }
 }

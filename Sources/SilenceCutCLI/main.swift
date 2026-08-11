@@ -44,6 +44,11 @@ silencecut — монтаж из командной строки
                                    кадры СОБРАННОГО монтажа: с кадрированием,
                                    перебивками и титрами, а не сырой исходник
 
+ЗВУК И РЕЧЬ
+  transcribe <проект> [--model parakeet-v3] [--language ru] [--srt <файл>] [--apply]
+                                   расшифровка смонтированного звука.
+                                   БЕЗ --apply в проект ничего не пишется
+
 РЕНДЕР
   detect-silence <проект> [--apply] [--threshold <дБ>] [--min-duration <сек>] [--padding <сек>]
                                    без --apply только показывает, сколько вырежется
@@ -61,6 +66,9 @@ silencecut — монтаж из командной строки
   silencecut list ~/ролик.silencecut --subtitles
   silencecut add-graphic ~/ролик.silencecut --file ~/титр.mov --at 5.2 --duration 3
 """
+
+// До первого чужого print: фреймворки пишут отладку в stdout и портят JSON
+Shared.captureStdout()
 
 let arguments = Arguments(Array(CommandLine.arguments.dropFirst()))
 
@@ -102,6 +110,7 @@ do {
 
     // Просмотр и рендер
     case "frame":           try await FrameCommands.frame(arguments)
+    case "transcribe":      try await TranscribeCommands.transcribe(arguments)
     case "export":          try await RenderCommands.export(arguments)
     case "detect-silence":  try await RenderCommands.detectSilence(arguments)
 

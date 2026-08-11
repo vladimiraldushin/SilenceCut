@@ -113,19 +113,18 @@ targets:
     # их исходники импортируют RECore, и при компиляции внутрь модуль оказался бы
     # объявлен дважды. Файлы анализа звука взяты ПОФАЙЛОВО — модуль целиком тянет
     # WhisperKit и FluidAudio ради транскрибации, которая CLI не нужна.
-    sources:
-      - Sources/SilenceCutCLI
-      - Sources/REAudioAnalysis/REAudioAnalysis.swift
-      - Sources/REAudioAnalysis/AudioAnalysis.swift
-      - Sources/REAudioAnalysis/AudioSampleStream.swift
-      - Sources/REAudioAnalysis/SilenceDetector.swift
-      - Sources/REAudioAnalysis/LoudnessAnalyzer.swift
+    sources: [Sources/SilenceCutCLI]
     dependencies:
       - target: RECore
         embed: false
       - target: RETimeline
         embed: false
       - target: REExport
+        embed: false
+      # Тянет WhisperKit и FluidAudio, то есть заметный вес. Оправдано: без
+      # транскрибации из CLI понять, что говорят в ролике, нельзя вовсе, а модели
+      # уже скачаны приложением и переиспользуются.
+      - target: REAudioAnalysis
         embed: false
     settings:
       base:

@@ -4,6 +4,7 @@ import CoreMedia
 import RECore
 import RETimeline
 import REExport
+import REAudioAnalysis
 
 /// Экспорт и детекция пауз из командной строки.
 ///

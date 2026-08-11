@@ -37,10 +37,16 @@ fi
 cp "$BINARY" "$BIN_DIR/silencecut"
 chmod +x "$BIN_DIR/silencecut"
 
-for framework in RECore RETimeline REExport; do
-    rm -rf "$LIB_DIR/$framework.framework"
-    cp -R "$PRODUCTS_DIR/$framework.framework" "$LIB_DIR/"
-done
+# Копируем ВСЕ фреймворки из папки сборки, а не перечисляем поимённо: REAudioAnalysis
+# тянет WhisperKit и FluidAudio, и список их зависимостей меняется вместе с пакетами
+rm -rf "$LIB_DIR"
+mkdir -p "$LIB_DIR"
+find "$PRODUCTS_DIR" -maxdepth 1 -name "*.framework" -exec cp -R {} "$LIB_DIR/" \;
+
+# Пакеты Swift PM кладут дилибы отдельно от фреймворков
+find "$PRODUCTS_DIR" -maxdepth 1 -name "*.dylib" -exec cp {} "$LIB_DIR/" \; 2>/dev/null || true
+
+echo "Фреймворков скопировано: $(find "$LIB_DIR" -maxdepth 1 -name '*.framework' | wc -l | tr -d ' ')"
 
 echo "Установлено: $BIN_DIR/silencecut"
 echo "Фреймворки:  $LIB_DIR"
