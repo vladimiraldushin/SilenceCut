@@ -74,6 +74,9 @@ enum Commands {
                     "timelineStart": Shared.seconds(clip.timelineOffset),
                     "durationSeconds": Shared.seconds(clip.effectiveDuration),
                     "isEnabled": clip.isEnabled,
+                    "gain": Shared.round3(clip.gain),
+                    "framingScale": Shared.round3(clip.framing.scale),
+                    "hasFramingRamp": clip.framingEnd != nil,
                 ] as [String: Any]
             }
         }

@@ -119,6 +119,8 @@ public struct TimelineClip: Identifiable, Codable, Equatable {
         try c.encode(speed, forKey: .speed)
         try c.encode(isEnabled, forKey: .isEnabled)
         try c.encode(framing, forKey: .framing)
+        try c.encodeIfPresent(framingEnd, forKey: .framingEnd)
+        try c.encode(gain, forKey: .gain)
     }
 
     /// Заглушка на время между декодированием старого проекта и миграцией
