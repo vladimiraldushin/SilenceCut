@@ -137,3 +137,11 @@ extension CMTimeRange: @retroactive Codable {
         try c.encode(self.duration, forKey: .duration)
     }
 }
+
+extension TimelineClip {
+    /// Кусок таймлайна, который клип занимает сейчас — в координатах ДО правки.
+    /// Через него укорачивание и раздвигание доезжают до перебивок и графики.
+    public var timelineRangeOnSpine: CMTimeRange {
+        CMTimeRange(start: timelineOffset, duration: effectiveDuration)
+    }
+}

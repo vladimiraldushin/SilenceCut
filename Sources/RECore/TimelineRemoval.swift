@@ -250,7 +250,8 @@ extension EditTimeline {
     }
 
     /// Вставляет клип в момент `time`, разрезав клип под ней, и раздвигает перебивки.
-    public mutating func insertClip(_ clip: TimelineClip, at time: CMTime) {
+    @discardableResult
+    public mutating func insertClip(_ clip: TimelineClip, at time: CMTime) -> TimelineEdit {
         let total = CMTimeGetSeconds(duration)
         let point = max(0, min(CMTimeGetSeconds(time), total))
         let at = CMTime(seconds: point, preferredTimescale: 600)
@@ -279,6 +280,7 @@ extension EditTimeline {
 
         applyInsertion(at: at, duration: inserted.effectiveDuration)
         recalculateOffsets()
+        return TimelineEdit(insertedAt: at, insertedDuration: inserted.effectiveDuration)
     }
 
     /// Переставляет клип хребта к указанной ГРАНИЦЕ — номеру стыка в текущем массиве,

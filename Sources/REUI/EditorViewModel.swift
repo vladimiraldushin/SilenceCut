@@ -617,15 +617,15 @@ public class EditorViewModel {
     public func splitAtPlayhead() {
         guard let idx = timeline.clipIndex(at: playheadPosition) else { return }
         saveUndoState()
-        invalidateSubtitles()
+        // Разрез не меняет длину таймлайна — субтитры трогать не за что
         timeline.splitClip(at: idx, splitTime: playheadPosition)
         Task { @MainActor in await rebuildPreview() }
     }
 
     public func deleteClip(id: UUID) {
         saveUndoState()
-        invalidateSubtitles()
-        timeline.deleteClip(id: id)
+        let edit = timeline.deleteClip(id: id)
+        subtitleEntries = edit.apply(to: subtitleEntries)
         if selectedClipId == id { selectedClipId = nil }
         playheadPosition = .zero
         Task { @MainActor in await rebuildPreview() }
@@ -638,8 +638,8 @@ public class EditorViewModel {
 
     public func toggleClip(id: UUID) {
         saveUndoState()
-        invalidateSubtitles()
-        timeline.toggleClip(id: id)
+        let edit = timeline.toggleClip(id: id)
+        subtitleEntries = edit.apply(to: subtitleEntries)
         Task { @MainActor in await rebuildPreview() }
     }
 
@@ -651,8 +651,8 @@ public class EditorViewModel {
             saveUndoState()
             isTrimming = true
         }
-        invalidateSubtitles()
-        timeline.trimClip(id: id, newSourceRange: newSourceRange)
+        let edit = timeline.trimClip(id: id, newSourceRange: newSourceRange)
+        subtitleEntries = edit.apply(to: subtitleEntries)
         debouncedRebuild()
     }
 
@@ -667,12 +667,12 @@ public class EditorViewModel {
         let clip = timeline.clips[idx]
         guard let sourceAtPlayhead = timeline.sourceTime(forTimelineTime: playheadPosition) else { return }
         saveUndoState()
-        invalidateSubtitles()
         let end = CMTimeRangeGetEnd(clip.sourceRange)
-        timeline.trimClip(id: clip.id, newSourceRange: CMTimeRange(
+        let edit = timeline.trimClip(id: clip.id, newSourceRange: CMTimeRange(
             start: sourceAtPlayhead,
             duration: CMTimeSubtract(end, sourceAtPlayhead)
         ))
+        subtitleEntries = edit.apply(to: subtitleEntries)
         Task { @MainActor in await rebuildPreview() }
     }
 
@@ -682,11 +682,11 @@ public class EditorViewModel {
         let clip = timeline.clips[idx]
         guard let sourceAtPlayhead = timeline.sourceTime(forTimelineTime: playheadPosition) else { return }
         saveUndoState()
-        invalidateSubtitles()
-        timeline.trimClip(id: clip.id, newSourceRange: CMTimeRange(
+        let edit = timeline.trimClip(id: clip.id, newSourceRange: CMTimeRange(
             start: clip.sourceRange.start,
             duration: CMTimeSubtract(sourceAtPlayhead, clip.sourceRange.start)
         ))
+        subtitleEntries = edit.apply(to: subtitleEntries)
         Task { @MainActor in await rebuildPreview() }
     }
 
@@ -1347,12 +1347,14 @@ public class EditorViewModel {
     public func insertSource(id: MediaSource.ID, at time: CMTime) {
         guard let source = timeline.source(for: id) else { return }
         saveUndoState()
-        invalidateSubtitles()
         let full = CMTimeRange(start: .zero, duration: source.duration)
-        timeline.insertClip(
+        // Субтитры едут вместе с материалом: заставка в начало не должна обесценивать
+        // расшифровку, как это было раньше
+        let edit = timeline.insertClip(
             TimelineClip(sourceID: source.id, availableRange: full, sourceRange: full),
             at: time
         )
+        subtitleEntries = edit.apply(to: subtitleEntries)
         statusMessage = "Вставлен \(source.displayName)"
         Task { @MainActor in await rebuildPreview() }
         scheduleAutosave()

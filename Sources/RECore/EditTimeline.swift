@@ -110,37 +110,107 @@ public struct EditTimeline: Codable, Equatable {
     }
 
     /// Delete a clip by ID
-    public mutating func deleteClip(id: UUID) {
+    /// Удаляет клип, подтягивая за собой перебивки и графику.
+    ///
+    /// Раньше здесь было просто `removeAll` плюс пересчёт офсетов, и всё приколотое ко
+    /// времени оставалось на прежних секундах — то есть титр после удаления клипа
+    /// показывался поверх уже другого материала.
+    @discardableResult
+    public mutating func deleteClip(id: UUID) -> TimelineEdit {
+        guard let clip = clips.first(where: { $0.id == id }) else { return .none }
+        let removed = clip.isEnabled ? [clip.timelineRangeOnSpine] : []
         clips.removeAll { $0.id == id }
+        applyRemovals(removed)
         recalculateOffsets()
+        return TimelineEdit(removed: removed)
     }
 
-    /// Toggle a clip's enabled state
-    public mutating func toggleClip(id: UUID) {
-        guard let idx = clips.firstIndex(where: { $0.id == id }) else { return }
+    /// Выключает или включает клип в выводе. Для всего приколотого ко времени это
+    /// равносильно вырезу или вставке его куска — иначе титры разъедутся.
+    @discardableResult
+    public mutating func toggleClip(id: UUID) -> TimelineEdit {
+        guard let idx = clips.firstIndex(where: { $0.id == id }) else { return .none }
+        let clip = clips[idx]
+        let span = clip.timelineRangeOnSpine
+
         clips[idx].isEnabled.toggle()
         recalculateOffsets()
+        if clip.isEnabled {
+            applyRemovals([span])
+            return TimelineEdit(removed: [span])
+        }
+        applyInsertion(at: span.start, duration: span.duration)
+        return TimelineEdit(insertedAt: span.start, insertedDuration: span.duration)
     }
 
-    /// Trim a clip's source range (non-destructive — can always expand back)
-    public mutating func trimClip(id: UUID, newSourceRange: CMTimeRange) {
-        guard let idx = clips.firstIndex(where: { $0.id == id }) else { return }
-        // Clamp to available range
+    /// Подрезает клип, подтягивая за собой перебивки и графику.
+    ///
+    /// Что именно уехало, зависит от стороны: сдвинули начало — исчез кусок в голове клипа,
+    /// сдвинули конец — в хвосте. Считать это надо в СТАРЫХ координатах таймлайна, до
+    /// пересчёта офсетов, иначе смещение получится от уже уехавших позиций.
+    @discardableResult
+    public mutating func trimClip(id: UUID, newSourceRange: CMTimeRange) -> TimelineEdit {
+        guard let idx = clips.firstIndex(where: { $0.id == id }) else { return .none }
+        let clip = clips[idx]
+
+        // Зажимаем в пределы доступного — растянуть клип дальше исходника нельзя
         let clampedStart = max(
-            CMTimeGetSeconds(clips[idx].availableRange.start),
+            CMTimeGetSeconds(clip.availableRange.start),
             CMTimeGetSeconds(newSourceRange.start)
         )
         let clampedEnd = min(
-            CMTimeGetSeconds(CMTimeRangeGetEnd(clips[idx].availableRange)),
+            CMTimeGetSeconds(CMTimeRangeGetEnd(clip.availableRange)),
             CMTimeGetSeconds(CMTimeRangeGetEnd(newSourceRange))
         )
-        let duration = max(0.01, clampedEnd - clampedStart)
+        let newDuration = max(0.01, clampedEnd - clampedStart)
+
+        let oldStart = CMTimeGetSeconds(clip.sourceRange.start)
+        let oldEnd = CMTimeGetSeconds(CMTimeRangeGetEnd(clip.sourceRange))
+        let offset = CMTimeGetSeconds(clip.timelineOffset)
+        let oldLength = CMTimeGetSeconds(clip.effectiveDuration)
+        let speed = clip.speed
+
         clips[idx].sourceRange = CMTimeRange(
             start: CMTime(seconds: clampedStart, preferredTimescale: 600),
-            duration: CMTime(seconds: duration, preferredTimescale: 600)
+            duration: CMTime(seconds: newDuration, preferredTimescale: 600)
         )
+
+        let headCut = (clampedStart - oldStart) / speed
+        let tailCut = (oldEnd - clampedEnd) / speed
+
+        var removals: [CMTimeRange] = []
+        if headCut > Self.trimEpsilon {
+            removals.append(CMTimeRange(
+                start: CMTime(seconds: offset, preferredTimescale: 600),
+                duration: CMTime(seconds: headCut, preferredTimescale: 600)
+            ))
+        }
+        if tailCut > Self.trimEpsilon {
+            removals.append(CMTimeRange(
+                start: CMTime(seconds: offset + oldLength - tailCut, preferredTimescale: 600),
+                duration: CMTime(seconds: tailCut, preferredTimescale: 600)
+            ))
+        }
+        if !removals.isEmpty {
+            applyRemovals(removals)
+        }
+
+        // Клип растянули обратно — таймлайн раздвинулся, приколотое едет вправо
+        let grown = -min(headCut, 0) - min(tailCut, 0)
+        var edit = TimelineEdit(removed: removals)
+        if grown > Self.trimEpsilon {
+            let at = CMTime(seconds: offset + oldLength, preferredTimescale: 600)
+            let duration = CMTime(seconds: grown, preferredTimescale: 600)
+            applyInsertion(at: at, duration: duration)
+            edit.insertedAt = at
+            edit.insertedDuration = duration
+        }
+
         recalculateOffsets()
+        return edit
     }
+
+    private static let trimEpsilon = 0.001
 
     /// Таймлайн из одного источника по найденным диапазонам речи — пакетная обработка
     /// собирает проект именно так, без ручного монтажа
