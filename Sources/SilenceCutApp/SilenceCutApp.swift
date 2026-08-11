@@ -113,6 +113,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }
+
+    /// Двойной клик по .silencecut в Finder и `open -a SilenceCut <файл>`.
+    /// Приложение не построено на DocumentGroup, поэтому открытие обрабатывается вручную.
+    func application(_ sender: NSApplication, open urls: [URL]) {
+        guard let url = urls.first(where: { $0.pathExtension == ProjectStore.fileExtension }),
+              let viewModel else { return }
+        Task { @MainActor in viewModel.openProjectFile(url: url) }
+    }
 }
 
 @main
@@ -126,6 +134,9 @@ struct SilenceCutApp: App {
             MainEditorView(viewModel: viewModel)
                 .onAppear {
                     appDelegate.viewModel = viewModel
+                    // Локальный доступ к открытому проекту: конвейер с титрами узнаёт
+                    // через него, какой проект сейчас в работе
+                    viewModel.startLocalServer()
                     // Ensure app is foreground
                     NSApplication.shared.activate(ignoringOtherApps: true)
                 }

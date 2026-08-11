@@ -909,6 +909,69 @@ public class EditorViewModel {
         }
     }
 
+    // MARK: - Локальный доступ к открытому проекту
+
+    #if os(macOS)
+    private var httpServer: ProjectHTTPServer?
+    #endif
+
+    /// Сервер отвечает на localhost, пока приложение открыто
+    public private(set) var isLocalServerRunning = false
+
+    /// Включить локальный доступ. Зовётся при запуске приложения.
+    public func startLocalServer() {
+        #if os(macOS)
+        guard httpServer == nil else { return }
+        let server = ProjectHTTPServer(
+            snapshot: { [weak self] in self?.localSnapshot() ?? ["open": false] },
+            reload: { [weak self] in self?.reloadProjectFromDisk() }
+        )
+        server.start()
+        httpServer = server
+        // Слушатель поднимается асинхронно — состояние читаем чуть позже
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            isLocalServerRunning = server.isRunning
+        }
+        #endif
+    }
+
+    public func stopLocalServer() {
+        #if os(macOS)
+        httpServer?.stop()
+        httpServer = nil
+        #endif
+        isLocalServerRunning = false
+    }
+
+    /// Что отдаётся по `GET /project`: путь, холст и состав монтажа.
+    /// Этого достаточно, чтобы отрендерить титр в нужный кадр и положить его на место.
+    private func localSnapshot() -> [String: Any] {
+        guard let url = projectFileURL else {
+            return ["open": false, "hint": "Проект не сохранён — выберите место через ⌘S"]
+        }
+        let size = timeline.sources.first?.orientedSize ?? .zero
+        return [
+            "open": true,
+            "path": url.path,
+            "name": projectDisplayName,
+            "canvas": [
+                "width": Int(size.width),
+                "height": Int(size.height),
+                "frameRate": timeline.sources.first?.nominalFrameRate ?? 30,
+                "durationSeconds": round(CMTimeGetSeconds(timeline.duration) * 1000) / 1000,
+            ],
+            "counts": [
+                "sources": timeline.sources.count,
+                "clips": timeline.clips.count,
+                "overlays": timeline.overlays.count,
+                "graphics": timeline.graphics.count,
+            ],
+            "playheadSeconds": round(CMTimeGetSeconds(playheadPosition) * 1000) / 1000,
+            "hasUnsavedEdits": hasPendingEdits,
+        ]
+    }
+
     // MARK: - Правки снаружи
 
     /// Начать следить за файлом проекта. Вызывается после каждой смены `projectFileURL`.

@@ -76,6 +76,7 @@
 		657E72E68B7236F2AFF2E467 /* EditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C9521DA7DC4F0D133088E0 /* EditorViewModel.swift */; };
 		665D72E21155118E3C09371B /* REAudioAnalysis.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5416A1F40B82BB06254EE05 /* REAudioAnalysis.framework */; };
 		6985A6161453F49443A9039D /* BatchQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524CEE0492AABEDE093A58E6 /* BatchQueueView.swift */; };
+		713C57E68D1559AA8376821D /* ProjectHTTPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 789BD4362203086C64628BEA /* ProjectHTTPServer.swift */; };
 		7152B11990A52552CFA4401D /* RETimeline-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C711E78641A8A43545148885 /* RETimeline-iOS.framework */; };
 		726779CBBF822BC6B709A51F /* AudioAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 455465CE544F566169C452E9 /* AudioAnalysis.swift */; };
 		7928D15D820E86B6F17E9D07 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3E3A312256F29CA0F4DD8B70 /* WhisperKit */; };
@@ -83,6 +84,7 @@
 		7B4F42CF8C57457E624DEAEE /* MediaSourceLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2496AEDC10269E589CA761C8 /* MediaSourceLoader.swift */; };
 		7BAA36E3DC37BF4346CAFD80 /* REAudioAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */; };
 		7C3E08B5902FFECBC1BD1D0E /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
+		7CC833CB08A6F1929EB0A9CD /* ProjectHTTPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 789BD4362203086C64628BEA /* ProjectHTTPServer.swift */; };
 		7DD61C8C28A41D62FA516E6B /* BatchQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524CEE0492AABEDE093A58E6 /* BatchQueueView.swift */; };
 		8068BD8621AE8B462FA83339 /* ProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0879AC88785B477EA4ADDD8 /* ProjectStore.swift */; };
 		81E49E70CE407CFFA004A021 /* ProjectRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD4853EF19CC9BDD4C24C6AF /* ProjectRoundTripTests.swift */; };
@@ -517,6 +519,7 @@
 		6BE4B5F28EA4351021536B73 /* SubtitleMarkdownExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleMarkdownExporter.swift; sourceTree = "<group>"; };
 		7438A77723E8F226465D2E3C /* SilenceDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SilenceDetector.swift; sourceTree = "<group>"; };
 		783687EFCA4F5A3110CE15FA /* REExportTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = REExportTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		789BD4362203086C64628BEA /* ProjectHTTPServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectHTTPServer.swift; sourceTree = "<group>"; };
 		7CB19C115AC59E1D7DB247A0 /* MediaSourceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSourceTests.swift; sourceTree = "<group>"; };
 		7CC91C0AC5BACD28407E0713 /* SubtitleOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleOverlayView.swift; sourceTree = "<group>"; };
 		7F37EFC281E5F0BAAB9C7D92 /* ProjectBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectBrowserView.swift; sourceTree = "<group>"; };
@@ -894,6 +897,7 @@
 				A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */,
 				7F37EFC281E5F0BAAB9C7D92 /* ProjectBrowserView.swift */,
 				0EEA3808745EEF68ED2A40B2 /* ProjectFileWatcher.swift */,
+				789BD4362203086C64628BEA /* ProjectHTTPServer.swift */,
 				E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */,
 				D27CF088BF30FDEBD2CCA072 /* SourceShelfView.swift */,
 				7CC91C0AC5BACD28407E0713 /* SubtitleOverlayView.swift */,
@@ -1389,6 +1393,7 @@
 				CAEFCB06CC74ACF6D0154FD8 /* PreviewPlayerView.swift in Sources */,
 				AAD856871E1B709C2D05770A /* ProjectBrowserView.swift in Sources */,
 				8FB296E87AB92BCCC3117BB1 /* ProjectFileWatcher.swift in Sources */,
+				713C57E68D1559AA8376821D /* ProjectHTTPServer.swift in Sources */,
 				57E99D260C9F47F120C3FF3E /* SilenceDetectionPanel.swift in Sources */,
 				8B3BC6F2CF67B8FD6B79B3C0 /* SourceShelfView.swift in Sources */,
 				BC484A0AB8D8017254F6B7A9 /* SubtitleOverlayView.swift in Sources */,
@@ -1468,6 +1473,7 @@
 				2EB5A1E61AD378452AB4FB79 /* PreviewPlayerView.swift in Sources */,
 				E8C284ED85D27DCB8D2F7C5A /* ProjectBrowserView.swift in Sources */,
 				CA0FB8EA86C84AECD8C01042 /* ProjectFileWatcher.swift in Sources */,
+				7CC833CB08A6F1929EB0A9CD /* ProjectHTTPServer.swift in Sources */,
 				2C19A9BEC214756BC0ED0FB7 /* SilenceDetectionPanel.swift in Sources */,
 				4E210EB93185115A988A5F5C /* SourceShelfView.swift in Sources */,
 				53C88215FF1E1B851DAA0EDA /* SubtitleOverlayView.swift in Sources */,
