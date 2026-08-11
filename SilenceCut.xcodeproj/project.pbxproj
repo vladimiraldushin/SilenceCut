@@ -66,6 +66,7 @@
 		7C3E08B5902FFECBC1BD1D0E /* RETimeline.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; };
 		7DD61C8C28A41D62FA516E6B /* BatchQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524CEE0492AABEDE093A58E6 /* BatchQueueView.swift */; };
 		8068BD8621AE8B462FA83339 /* ProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0879AC88785B477EA4ADDD8 /* ProjectStore.swift */; };
+		81E49E70CE407CFFA004A021 /* ProjectRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD4853EF19CC9BDD4C24C6AF /* ProjectRoundTripTests.swift */; };
 		8532292AE5FDC45CD3425BE9 /* SubtitlePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D5E4DCAFBA4616C0B876D5 /* SubtitlePanel.swift */; };
 		8B3BC6F2CF67B8FD6B79B3C0 /* SourceShelfView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27CF088BF30FDEBD2CCA072 /* SourceShelfView.swift */; };
 		8D1CFEDD2ADB644AE5ACAD13 /* TimelineRemoval.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B63A4352C2F988F6B932CA5 /* TimelineRemoval.swift */; };
@@ -502,6 +503,7 @@
 		C90EC2B1DD3A718682B818C2 /* HeterogeneousExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeterogeneousExportTests.swift; sourceTree = "<group>"; };
 		CC4FE533556380FCB651AF5A /* MainEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainEditorView.swift; sourceTree = "<group>"; };
 		CCA20E5C86E6DD9051E43699 /* OverlayClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayClip.swift; sourceTree = "<group>"; };
+		CD4853EF19CC9BDD4C24C6AF /* ProjectRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectRoundTripTests.swift; sourceTree = "<group>"; };
 		D1306E8BF62643FFD64DB522 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D22634EE80EF00F6A0200C90 /* TimelineClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineClip.swift; sourceTree = "<group>"; };
 		D27CF088BF30FDEBD2CCA072 /* SourceShelfView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceShelfView.swift; sourceTree = "<group>"; };
@@ -820,6 +822,7 @@
 			children = (
 				18202A0B99F1652B2D0C18FE /* ClipFramingTests.swift */,
 				D428AA377B12872DC87ECB72 /* OverlayCompositionTests.swift */,
+				CD4853EF19CC9BDD4C24C6AF /* ProjectRoundTripTests.swift */,
 				2D2F3E3C5A22389EBB13EFFF /* RenderTransformTests.swift */,
 			);
 			path = RETimelineTests;
@@ -1280,6 +1283,7 @@
 			files = (
 				180505627FD977B3F234DBC7 /* ClipFramingTests.swift in Sources */,
 				4FB5122DC66072DD496B79C2 /* OverlayCompositionTests.swift in Sources */,
+				81E49E70CE407CFFA004A021 /* ProjectRoundTripTests.swift in Sources */,
 				9D68522E5A0E9C5355E709F3 /* RenderTransformTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
