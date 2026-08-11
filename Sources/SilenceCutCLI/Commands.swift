@@ -251,6 +251,11 @@ enum Commands {
             }
         }
 
+        // Слой один, поэтому наехавший клип при сборке композиции просто пропускается.
+        // Молча теряющийся титр — худший из возможных исходов, ловим заранее.
+        problems += overlaps(in: timeline.graphics, kind: "graphic-overlap")
+        problems += overlaps(in: timeline.overlays, kind: "overlay-overlap")
+
         printJSON(["ok": problems.isEmpty, "problems": problems])
         if !problems.isEmpty { exit(1) }
     }
@@ -292,6 +297,29 @@ enum Commands {
             "frameRate": timeline.sources.first?.nominalFrameRate ?? 30,
             "durationSeconds": round(CMTimeGetSeconds(timeline.duration) * 1000) / 1000,
         ]
+    }
+
+    /// Пары клипов одного слоя, налезающих друг на друга по времени
+    private static func overlaps<Clip: PinnedClip>(
+        in clips: [Clip], kind: String
+    ) -> [[String: Any]] {
+        let sorted = clips
+            .filter(\.isEnabled)
+            .sorted { CMTimeCompare($0.timelineStart, $1.timelineStart) < 0 }
+
+        var found: [[String: Any]] = []
+        for (index, clip) in sorted.enumerated() where index + 1 < sorted.count {
+            let end = CMTimeGetSeconds(clip.timelineStart) + CMTimeGetSeconds(clip.sourceRange.duration)
+            let next = sorted[index + 1]
+            let nextStart = CMTimeGetSeconds(next.timelineStart)
+            guard nextStart < end - 0.001 else { continue }
+            found.append([
+                "kind": kind,
+                "id": "\(next.id)",
+                "detail": "накладывается на предыдущий до \(fmt(end)) с и не попадёт в кадр",
+            ])
+        }
+        return found
     }
 
     private static func warningIfPastEnd(_ graphic: GraphicClip, timeline: EditTimeline) -> String? {
