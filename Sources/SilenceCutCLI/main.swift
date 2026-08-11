@@ -38,6 +38,12 @@ silencecut — монтаж из командной строки
   move-graphic <проект> --id <uuid> --at <сек>
   remove-graphic <проект> --id <uuid>
 
+ПРОСМОТР
+  frame <проект> [--at 5,20,60 | --count 12 | --every 30] [--sheet] [--columns 5]
+                 [--width 480] [--out-dir <папка>]
+                                   кадры СОБРАННОГО монтажа: с кадрированием,
+                                   перебивками и титрами, а не сырой исходник
+
 РЕНДЕР
   detect-silence <проект> [--apply] [--threshold <дБ>] [--min-duration <сек>] [--padding <сек>]
                                    без --apply только показывает, сколько вырежется
@@ -94,7 +100,8 @@ do {
     case "relink-source":   try await ClipCommands.relinkSource(arguments)
     case "prune-sources":   try ClipCommands.pruneSources(arguments)
 
-    // Рендер
+    // Просмотр и рендер
+    case "frame":           try await FrameCommands.frame(arguments)
     case "export":          try await RenderCommands.export(arguments)
     case "detect-silence":  try await RenderCommands.detectSilence(arguments)
 

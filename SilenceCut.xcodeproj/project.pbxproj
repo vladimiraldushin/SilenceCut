@@ -124,6 +124,7 @@
 		B9BD5B5386F699328A798550 /* TimelineEdit.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB4E8E8AD54C42C19DF3BAF6 /* TimelineEdit.swift */; };
 		BAC8D9BBEED36B40A46FB6F0 /* REAudioAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */; };
 		BC484A0AB8D8017254F6B7A9 /* SubtitleOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC91C0AC5BACD28407E0713 /* SubtitleOverlayView.swift */; };
+		BCE5DDDFA2E4EC318C1BED7A /* FrameCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05F5E8A29BEF8D8420A4A06E /* FrameCommands.swift */; };
 		BD14E8EAD5ECD38DC7C01BF5 /* RETimeline-iOS.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C711E78641A8A43545148885 /* RETimeline-iOS.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BDFB5A7FA89F762EFC667205 /* SubtitleStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DCA24D467FDD6FE62C1C114 /* SubtitleStyle.swift */; };
 		C0C296DE860B4498FCF7D681 /* BatchQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6861562E1DD374AAB9CAE52C /* BatchQueue.swift */; };
@@ -496,6 +497,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		05F5E8A29BEF8D8420A4A06E /* FrameCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameCommands.swift; sourceTree = "<group>"; };
 		0732023B9A65CE7DA935948E /* ParakeetEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParakeetEngine.swift; sourceTree = "<group>"; };
 		0B393CEBEB6454425D206940 /* CompositionBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionBuilder.swift; sourceTree = "<group>"; };
 		0EEA3808745EEF68ED2A40B2 /* ProjectFileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectFileWatcher.swift; sourceTree = "<group>"; };
@@ -905,6 +907,7 @@
 				8F26A8067E1C98AE0275B704 /* Arguments.swift */,
 				E47959A66C26A1CE3F9CC402 /* ClipCommands.swift */,
 				E95F5E37BF5F00638C07A5AB /* Commands.swift */,
+				05F5E8A29BEF8D8420A4A06E /* FrameCommands.swift */,
 				B3E22A2BAF27EDA65339BAB2 /* main.swift */,
 				64DAE120B6886254D4B39838 /* RenderCommands.swift */,
 				9DCE7619401677C2EC36BBD6 /* Shared.swift */,
@@ -1544,6 +1547,7 @@
 				54776F001508FDBE2D351E21 /* AudioSampleStream.swift in Sources */,
 				42355609612BF3CC1847BE57 /* ClipCommands.swift in Sources */,
 				5FA2924302D717784611F9F2 /* Commands.swift in Sources */,
+				BCE5DDDFA2E4EC318C1BED7A /* FrameCommands.swift in Sources */,
 				2610FAB979BBCB97F2993627 /* LoudnessAnalyzer.swift in Sources */,
 				BAC8D9BBEED36B40A46FB6F0 /* REAudioAnalysis.swift in Sources */,
 				B420F81CBF7F694AAC440AC4 /* RenderCommands.swift in Sources */,
