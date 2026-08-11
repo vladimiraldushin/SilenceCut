@@ -91,6 +91,7 @@
 		8B3BC6F2CF67B8FD6B79B3C0 /* SourceShelfView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27CF088BF30FDEBD2CCA072 /* SourceShelfView.swift */; };
 		8D1CFEDD2ADB644AE5ACAD13 /* TimelineRemoval.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B63A4352C2F988F6B932CA5 /* TimelineRemoval.swift */; };
 		8F08823AA9C4F61DB361B780 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = E44C7F4282B7292609D8C05E /* WhisperKit */; };
+		8FB296E87AB92BCCC3117BB1 /* ProjectFileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EEA3808745EEF68ED2A40B2 /* ProjectFileWatcher.swift */; };
 		913F0F7CDD9FA93ED8F9EF0C /* RECore-iOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 56C6E0B24AA4576D8A241EE7 /* RECore-iOS.framework */; };
 		9149C82AC20D79B816E0F458 /* RETimeline.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EB82737643CD2BE53F03862A /* RETimeline.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		945B59730719283C335ED0EF /* OverlayClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCA20E5C86E6DD9051E43699 /* OverlayClip.swift */; };
@@ -129,6 +130,7 @@
 		C815A72AA37EF25786C60166 /* LoudnessAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420E4DEE9BB0EBACC5D93F1E /* LoudnessAnalyzer.swift */; };
 		C85F0B01B59E79428D0CC726 /* MainEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC4FE533556380FCB651AF5A /* MainEditorView.swift */; };
 		C9B9AFA7D37AC2B9B39D0AE0 /* FramingOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F3E27A2D36134B4054B09CE /* FramingOverlayView.swift */; };
+		CA0FB8EA86C84AECD8C01042 /* ProjectFileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EEA3808745EEF68ED2A40B2 /* ProjectFileWatcher.swift */; };
 		CA1BC67064BA5B4C08612390 /* REExport.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AFB408B69327330EBAFC712 /* REExport.framework */; };
 		CABAB0B1A398DF849F363E87 /* SubtitleStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DCA24D467FDD6FE62C1C114 /* SubtitleStyle.swift */; };
 		CAEFCB06CC74ACF6D0154FD8 /* PreviewPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */; };
@@ -471,6 +473,7 @@
 /* Begin PBXFileReference section */
 		0732023B9A65CE7DA935948E /* ParakeetEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParakeetEngine.swift; sourceTree = "<group>"; };
 		0B393CEBEB6454425D206940 /* CompositionBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionBuilder.swift; sourceTree = "<group>"; };
+		0EEA3808745EEF68ED2A40B2 /* ProjectFileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectFileWatcher.swift; sourceTree = "<group>"; };
 		121E8F5081F63ACC5C149E6E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		127B504E4F5E7E0F7892E47D /* REAudioAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = REAudioAnalysis.swift; sourceTree = "<group>"; };
 		134FE371429BBCD27437CB9A /* SilenceCut.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SilenceCut.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -890,6 +893,7 @@
 				CC4FE533556380FCB651AF5A /* MainEditorView.swift */,
 				A1991A6F789624FBAE6B6343 /* PreviewPlayerView.swift */,
 				7F37EFC281E5F0BAAB9C7D92 /* ProjectBrowserView.swift */,
+				0EEA3808745EEF68ED2A40B2 /* ProjectFileWatcher.swift */,
 				E7E78DAEC3EFA97C33BEA769 /* SilenceDetectionPanel.swift */,
 				D27CF088BF30FDEBD2CCA072 /* SourceShelfView.swift */,
 				7CC91C0AC5BACD28407E0713 /* SubtitleOverlayView.swift */,
@@ -1384,6 +1388,7 @@
 				C85F0B01B59E79428D0CC726 /* MainEditorView.swift in Sources */,
 				CAEFCB06CC74ACF6D0154FD8 /* PreviewPlayerView.swift in Sources */,
 				AAD856871E1B709C2D05770A /* ProjectBrowserView.swift in Sources */,
+				8FB296E87AB92BCCC3117BB1 /* ProjectFileWatcher.swift in Sources */,
 				57E99D260C9F47F120C3FF3E /* SilenceDetectionPanel.swift in Sources */,
 				8B3BC6F2CF67B8FD6B79B3C0 /* SourceShelfView.swift in Sources */,
 				BC484A0AB8D8017254F6B7A9 /* SubtitleOverlayView.swift in Sources */,
@@ -1462,6 +1467,7 @@
 				DC4A05DEB5672EB489B633FD /* MainEditorView.swift in Sources */,
 				2EB5A1E61AD378452AB4FB79 /* PreviewPlayerView.swift in Sources */,
 				E8C284ED85D27DCB8D2F7C5A /* ProjectBrowserView.swift in Sources */,
+				CA0FB8EA86C84AECD8C01042 /* ProjectFileWatcher.swift in Sources */,
 				2C19A9BEC214756BC0ED0FB7 /* SilenceDetectionPanel.swift in Sources */,
 				4E210EB93185115A988A5F5C /* SourceShelfView.swift in Sources */,
 				53C88215FF1E1B851DAA0EDA /* SubtitleOverlayView.swift in Sources */,

@@ -175,6 +175,11 @@ struct SilenceCutApp: App {
                 Button("Сохранить проект как...") { saveProjectAs() }
                     .keyboardShortcut("s", modifiers: [.command, .shift])
                     .disabled(!viewModel.hasSources)
+                // Нужен, когда файл переписали снаружи, а в приложении есть свои правки:
+                // молча перечитать в этот момент значило бы стереть работу
+                Button("Перечитать с диска") { viewModel.reloadProjectFromDisk() }
+                    .keyboardShortcut("r", modifiers: [.command, .shift])
+                    .disabled(viewModel.projectFileURL == nil)
             }
             CommandMenu("Монтаж") {
                 Button("Разрезать на плейхеде") { viewModel.splitAtPlayhead() }

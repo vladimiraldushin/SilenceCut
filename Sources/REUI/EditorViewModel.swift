@@ -401,6 +401,7 @@ public class EditorViewModel {
         resetForNewProject()
         projectFileURL = url
         project = Project(name: snapshot.name)
+        startWatchingProjectFile()
 
         Task { @MainActor in
             isImporting = true
@@ -445,6 +446,12 @@ public class EditorViewModel {
 
     private func resetForNewProject() {
         autosaveTask?.cancel()
+        #if os(macOS)
+        fileWatcher?.stop()
+        fileWatcher = nil
+        #endif
+        hasExternalChanges = false
+        hasPendingEdits = false
         projectFileURL = nil
         needsSaveLocation = false
         timeline = EditTimeline()
@@ -795,6 +802,18 @@ public class EditorViewModel {
     /// Просьба к интерфейсу показать панель сохранения: место проекта ещё не выбрано
     public var needsSaveLocation = false
 
+    #if os(macOS)
+    /// Слежение за файлом проекта: правки CLI должны доезжать до открытого приложения
+    private var fileWatcher: ProjectFileWatcher?
+    #endif
+
+    /// Файл изменён снаружи, но в приложении есть несохранённые правки.
+    /// Молча перечитать нельзя — работа пользователя пропадёт.
+    public var hasExternalChanges = false
+
+    /// Есть правки, которые ещё не доехали до диска
+    private var hasPendingEdits = false
+
     /// Список для стартового экрана. Кешируется, чтобы не дёргать UserDefaults на каждый кадр.
     public private(set) var recentProjects: [RecentProject] = RecentProjectsStore.all()
 
@@ -833,6 +852,7 @@ public class EditorViewModel {
     /// Пока место не выбрано, писать некуда — правки копятся в памяти и уедут на диск
     /// первым же сохранением.
     public func scheduleAutosave() {
+        hasPendingEdits = true
         guard projectFileURL != nil else { return }
         autosaveTask?.cancel()
         autosaveTask = Task { @MainActor in
@@ -861,6 +881,11 @@ public class EditorViewModel {
         do {
             try ProjectStore.save(currentSnapshot, to: url)
             lastAutosaveAt = Date()
+            hasPendingEdits = false
+            hasExternalChanges = false
+            #if os(macOS)
+            fileWatcher?.noteOwnWrite()
+            #endif
             recordInRecentProjects()
         } catch {
             statusMessage = "Не удалось сохранить проект: \(error.localizedDescription)"
@@ -873,6 +898,7 @@ public class EditorViewModel {
         do {
             try ProjectStore.save(currentSnapshot, to: url)
             projectFileURL = url
+            startWatchingProjectFile()
             needsSaveLocation = false
             project.name = url.deletingPathExtension().lastPathComponent
             lastAutosaveAt = Date()
@@ -880,6 +906,64 @@ public class EditorViewModel {
             statusMessage = "Проект сохранён: \(url.lastPathComponent)"
         } catch {
             statusMessage = "Не удалось сохранить проект: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - Правки снаружи
+
+    /// Начать следить за файлом проекта. Вызывается после каждой смены `projectFileURL`.
+    private func startWatchingProjectFile() {
+        #if os(macOS)
+        fileWatcher?.stop()
+        fileWatcher = nil
+        guard let url = projectFileURL else { return }
+        fileWatcher = ProjectFileWatcher(url: url) { [weak self] in
+            self?.projectFileChangedExternally()
+        }
+        #endif
+    }
+
+    /// Файл переписали снаружи — обычно это CLI положил титр.
+    ///
+    /// Если своих несохранённых правок нет, перечитываем молча: ради этого слежение и
+    /// заводилось. Если есть — трогать нельзя, работа пользователя важнее свежести, и
+    /// решение отдаём ему через `hasExternalChanges`.
+    private func projectFileChangedExternally() {
+        guard !hasPendingEdits else {
+            hasExternalChanges = true
+            statusMessage = "Проект изменён снаружи. ⌘S перезапишет, «Перечитать с диска» подхватит"
+            return
+        }
+        reloadProjectFromDisk()
+    }
+
+    /// Перечитать проект с диска, сохранив позицию плейхеда
+    public func reloadProjectFromDisk() {
+        guard let url = projectFileURL else { return }
+        let snapshot: ProjectSnapshot
+        do {
+            snapshot = try ProjectStore.load(from: url)
+        } catch {
+            statusMessage = "Не удалось перечитать проект: \(error.localizedDescription)"
+            return
+        }
+
+        let playhead = playheadPosition
+        Task { @MainActor in
+            restore(snapshot, fallbackSource: nil)
+            await backfillMissingMetadata()
+            await rebuildPreview()
+
+            // Плейхед возвращаем, если он всё ещё внутри монтажа
+            if CMTimeCompare(playhead, timeline.duration) < 0 {
+                seekSmoothly(to: playhead)
+            }
+            hasExternalChanges = false
+            hasPendingEdits = false
+            #if os(macOS)
+            fileWatcher?.noteOwnWrite()
+            #endif
+            statusMessage = "Проект обновлён снаружи: титров \(timeline.graphics.count)"
         }
     }
 
