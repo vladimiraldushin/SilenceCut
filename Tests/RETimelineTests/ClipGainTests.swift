@@ -166,3 +166,39 @@ private func rms(_ result: CompositionBuilder.Result, from: Double, to: Double) 
     #expect(ratio > 3.0, "гейн клипа не применился: отношение \(ratio)")
     #expect(ratio < 5.0)
 }
+
+// Осколок короче двух фейдов (после split-clip на границе паузы) раньше ронял сборку:
+// рампы входа и выхода пересекались, AVFoundation бросал NSInvalidArgumentException.
+// Регресс здесь проявится не проваленным ожиданием, а падением процесса тестов.
+@Test func sliverClipShorterThanTwoFadesBuilds() async throws {
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: dir) }
+
+    let url = dir.appendingPathComponent("tone.mov")
+    try await writeTone(seconds: 3, amplitude: 0.1, to: url)
+
+    let asset = AVURLAsset(url: url)
+    let track = try await asset.loadTracks(withMediaType: .video).first
+    let source = MediaSource(
+        url: url,
+        duration: CMTime(seconds: 3, preferredTimescale: 600),
+        naturalSize: try await track?.load(.naturalSize) ?? CGSize(width: 160, height: 160),
+        preferredTransform: .identity, nominalFrameRate: 30, hasAudio: true)
+
+    let full = CMTimeRange(start: .zero, duration: CMTime(seconds: 1.5, preferredTimescale: 600))
+    let sliver = CMTimeRange(start: CMTime(seconds: 2, preferredTimescale: 600),
+                             duration: CMTime(seconds: 0.037, preferredTimescale: 600))
+    let normal = TimelineClip(sourceID: source.id, availableRange: full, sourceRange: full)
+    let shard = TimelineClip(sourceID: source.id, availableRange: sliver, sourceRange: sliver)
+    let tail = TimelineClip(sourceID: source.id, availableRange: full, sourceRange: full)
+
+    var timeline = EditTimeline(sources: [source], clips: [normal, shard, tail])
+    timeline.recalculateOffsets()
+
+    let result = try await CompositionBuilder.build(from: timeline)
+
+    // Микс собрался и читается: уровень нормального куска на месте
+    let first = try rms(result, from: 0.4, to: 1.1)
+    #expect(first > 0.001)
+}

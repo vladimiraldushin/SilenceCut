@@ -320,18 +320,28 @@ public enum CompositionBuilder {
                 for item in placed {
                     let gain = Float(max(0, item.gain * masterGain))
                     let segStart = item.start
-                    let segEnd = CMTimeAdd(segStart, CMTime(seconds: item.duration, preferredTimescale: 600))
+                    let clipDuration = CMTime(seconds: item.duration, preferredTimescale: 600)
+                    let segEnd = CMTimeAdd(segStart, clipDuration)
+
+                    // Клип короче двух фейдов (осколок после split-clip на границе паузы):
+                    // рампы входа и выхода налезли бы друг на друга, а AVFoundation на пересечение
+                    // рамп бросает NSInvalidArgumentException и роняет и превью, и экспорт, и
+                    // транскрибацию. Ужимаем оба фейда до половины клипа — они встречаются в
+                    // середине, не пересекаясь.
+                    let halfClip = CMTimeMultiplyByRatio(clipDuration, multiplier: 1, divisor: 2)
+                    let fade = CMTimeCompare(fadeDuration, halfClip) > 0 ? halfClip : fadeDuration
+                    guard CMTimeCompare(fade, .zero) > 0 else { continue }
 
                     params.setVolumeRamp(
                         fromStartVolume: 0.0, toEndVolume: gain,
-                        timeRange: CMTimeRange(start: segStart, duration: fadeDuration)
+                        timeRange: CMTimeRange(start: segStart, duration: fade)
                     )
 
-                    let fadeOutStart = CMTimeSubtract(segEnd, fadeDuration)
-                    if CMTimeCompare(fadeOutStart, segStart) > 0 {
+                    let fadeOutStart = CMTimeSubtract(segEnd, fade)
+                    if CMTimeCompare(fadeOutStart, CMTimeAdd(segStart, fade)) >= 0 {
                         params.setVolumeRamp(
                             fromStartVolume: gain, toEndVolume: 0.0,
-                            timeRange: CMTimeRange(start: fadeOutStart, duration: fadeDuration)
+                            timeRange: CMTimeRange(start: fadeOutStart, duration: fade)
                         )
                     }
                 }
