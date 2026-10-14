@@ -62,7 +62,7 @@ public final class ParakeetEngine: ASREngine {
             streamingThreshold: 1_920_000  // ~2 minutes at 16kHz
         )
         let manager = AsrManager(config: config)
-        try await manager.initialize(models: models)
+        try await manager.loadModels(models)
         asrManager = manager
 
         Task { @MainActor in progress(1.0, nil) }
@@ -75,7 +75,10 @@ public final class ParakeetEngine: ASREngine {
         }
 
         let url = URL(fileURLWithPath: audioPath)
-        let result = try await asrManager.transcribe(url, source: .system)
+        // Начиная с FluidAudio 0.13 состояние декодера принадлежит вызывающему, а не менеджеру.
+        // Файл расшифровывается целиком за один вызов, поэтому состояние каждый раз новое.
+        var decoderState = TdtDecoderState.make(decoderLayers: await asrManager.decoderLayerCount)
+        let result = try await asrManager.transcribe(url, decoderState: &decoderState)
 
         let timings = result.tokenTimings ?? []
         print("[ParakeetEngine] result.text (first 200): \(String(result.text.prefix(200)))")
