@@ -11,9 +11,11 @@ packages:
   WhisperKit:
     url: https://github.com/argmaxinc/WhisperKit.git
     from: "0.9.0"
+  # FluidAudio до 1.0: API ломается между минорными версиями (0.12 -> 0.13+ переделали
+  # AsrManager), поэтому `from:` (до следующего мажорного) здесь опасен — берём только 0.17.x.
   FluidAudio:
     url: https://github.com/FluidInference/FluidAudio.git
-    from: "0.12.4"
+    minorVersion: "0.17.7"
 
 settings:
   base:

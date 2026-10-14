@@ -1,7 +1,15 @@
 # Xcode
 build/
 DerivedData/
-*.xcodeproj/project.xcworkspace/
+# Рабочая область проекта игнорируем, кроме Package.resolved: он фиксирует версии пакетов
+# (FluidAudio, WhisperKit и их зависимости), и без него свежий клон берёт самые новые,
+# а FluidAudio ломает API между минорными версиями.
+*.xcodeproj/project.xcworkspace/*
+!*.xcodeproj/project.xcworkspace/xcshareddata/
+*.xcodeproj/project.xcworkspace/xcshareddata/*
+!*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 *.xcodeproj/xcuserdata/
 xcuserdata/
 *.pbxuser
@@ -11,7 +19,6 @@ xcuserdata/
 # Swift Package Manager
 .build/
 Packages/
-Package.resolved
 .swiftpm/
 
 # macOS
